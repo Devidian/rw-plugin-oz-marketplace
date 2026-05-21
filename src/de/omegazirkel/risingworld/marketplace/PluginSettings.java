@@ -1,0 +1,165 @@
+package de.omegazirkel.risingworld.marketplace;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.Properties;
+
+import org.apache.logging.log4j.Level;
+
+import de.omegazirkel.risingworld.Marketplace;
+import de.omegazirkel.risingworld.tools.OZLogger;
+import de.omegazirkel.risingworld.tools.settings.AdminSettingsEntry;
+import de.omegazirkel.risingworld.tools.settings.AdminSettingsType;
+import de.omegazirkel.risingworld.tools.settings.SettingsFileEditor;
+
+public class PluginSettings {
+    private static PluginSettings instance;
+    private static Marketplace plugin;
+
+    public String logLevel = Level.ALL.name();
+    public boolean reloadOnChange = true;
+    public String marketCommand = "mp";
+    public boolean enableWelcomeMessage = false;
+    public boolean localMarketplaceEnabled = true;
+    public boolean globalMarketplaceEnabled = true;
+    public boolean marketZoneOnlyMode = false;
+    public int defaultLocalFeePercent = 5;
+    public int defaultGlobalFeePercent = 5;
+    public long minimumLocalFee = 0L;
+    public long minimumGlobalFee = 0L;
+    public int maxListingsPerPlayer = 20;
+    public boolean showMarketplaceZoneIndicator = true;
+    private Path settingsFile;
+
+    private static OZLogger logger() {
+        return OZLogger.getInstance("OZ.Marketplace.Settings");
+    }
+
+    public static PluginSettings getInstance(Marketplace p) {
+        plugin = p;
+        return getInstance();
+    }
+
+    public static PluginSettings getInstance() {
+        if (instance == null) {
+            instance = new PluginSettings();
+        }
+        return instance;
+    }
+
+    private PluginSettings() {
+    }
+
+    public void initSettings() {
+        initSettings((plugin.getPath() != null ? plugin.getPath() : ".") + "/settings.properties");
+    }
+
+    public void initSettings(String filePath) {
+        settingsFile = Paths.get(filePath);
+        Path defaultSettingsFile = settingsFile.resolveSibling("settings.default.properties");
+        try {
+            if (Files.notExists(settingsFile) && Files.exists(defaultSettingsFile)) {
+                logger().info("settings.properties not found, copying from settings.default.properties...");
+                Files.copy(defaultSettingsFile, settingsFile);
+            }
+            Properties settings = load(settingsFile);
+            Properties defaults = load(defaultSettingsFile);
+
+            logLevel = settings.getProperty("logLevel", defaults.getProperty("logLevel", "ALL"));
+            reloadOnChange = bool(settings, defaults, "reloadOnChange", true);
+            marketCommand = settings.getProperty("marketCommand", defaults.getProperty("marketCommand", "mp")).trim();
+            enableWelcomeMessage = bool(settings, defaults, "sendPluginWelcome", false);
+            localMarketplaceEnabled = bool(settings, defaults, "localMarketplaceEnabled", true);
+            globalMarketplaceEnabled = bool(settings, defaults, "globalMarketplaceEnabled", true);
+            marketZoneOnlyMode = bool(settings, defaults, "marketZoneOnlyMode", false);
+            int legacyDefaultFee = integer(settings, defaults, "defaultFeePercent", 5, 0, 100);
+            defaultLocalFeePercent = integer(settings, defaults, "defaultLocalFeePercent", legacyDefaultFee, 0, 100);
+            defaultGlobalFeePercent = integer(settings, defaults, "defaultGlobalFeePercent", legacyDefaultFee, 0, 100);
+            minimumLocalFee = decimal(settings, defaults, "minimumLocalFee", 0L, 0L, Long.MAX_VALUE);
+            minimumGlobalFee = decimal(settings, defaults, "minimumGlobalFee", 0L, 0L, Long.MAX_VALUE);
+            maxListingsPerPlayer = integer(settings, defaults, "maxListingsPerPlayer", 20, 1, 1000);
+            showMarketplaceZoneIndicator = bool(settings, defaults, "showMarketplaceZoneIndicator", true);
+
+            logger().info(plugin.getName() + " Plugin settings loaded");
+            logger().info("Marketplace command is /" + marketCommand);
+            logger().setLevel(logLevel);
+        } catch (IOException ex) {
+            logger().error("IOException on initSettings: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
+    public List<AdminSettingsEntry> adminSettingsEntries() {
+        return List.of(
+                entry("logLevel", "Log level", "Controls Marketplace logging verbosity.", logLevel, "ALL",
+                        AdminSettingsType.STRING),
+                entry("reloadOnChange", "Reload on change", "Reloads Marketplace settings when the file changes.",
+                        reloadOnChange, "true", AdminSettingsType.BOOLEAN),
+                entry("marketCommand", "Market command", "Chat command used for marketplace actions.", marketCommand,
+                        "market", AdminSettingsType.STRING),
+                entry("sendPluginWelcome", "Welcome message", "Shows a short Marketplace message when a player joins.",
+                        enableWelcomeMessage, "false", AdminSettingsType.BOOLEAN),
+                entry("localMarketplaceEnabled", "Local marketplace",
+                        "Enables local listings tied to a market zone.",
+                        localMarketplaceEnabled, "true", AdminSettingsType.BOOLEAN),
+                entry("globalMarketplaceEnabled", "Global marketplace",
+                        "Enables global listings in zones that allow global trade.",
+                        globalMarketplaceEnabled, "true", AdminSettingsType.BOOLEAN),
+                entry("marketZoneOnlyMode", "Zone-only mode",
+                        "Requires a market zone for listing discovery.",
+                        marketZoneOnlyMode, "false", AdminSettingsType.BOOLEAN),
+                entry("defaultLocalFeePercent", "Default local fee percent",
+                        "Fee charged to buyers for local listings when a market zone has no override.",
+                        defaultLocalFeePercent, "5", AdminSettingsType.INTEGER),
+                entry("defaultGlobalFeePercent", "Default global fee percent",
+                        "Fee charged to buyers for global listings.",
+                        defaultGlobalFeePercent, "5", AdminSettingsType.INTEGER),
+                entry("minimumLocalFee", "Minimum local fee",
+                        "Minimum whole-number fee charged to buyers for local listings.",
+                        minimumLocalFee, "0", AdminSettingsType.INTEGER),
+                entry("minimumGlobalFee", "Minimum global fee",
+                        "Minimum whole-number fee charged to buyers for global listings.",
+                        minimumGlobalFee, "0", AdminSettingsType.INTEGER),
+                entry("maxListingsPerPlayer", "Max listings per player",
+                        "Maximum active listings a player may own at once.",
+                        maxListingsPerPlayer, "20", AdminSettingsType.INTEGER),
+                entry("showMarketplaceZoneIndicator", "Marketplace-zone indicator",
+                        "Shows a compact HUD indicator below the LandClaim area info while players are in a market zone.",
+                        showMarketplaceZoneIndicator, "true", AdminSettingsType.BOOLEAN));
+    }
+
+    private AdminSettingsEntry entry(String key, String label, String description, Object value, String defaultValue,
+            AdminSettingsType type) {
+        return new AdminSettingsEntry(key, label, description, String.valueOf(value), defaultValue, type, false,
+                newValue -> SettingsFileEditor.writeValue(settingsFile, key, newValue));
+    }
+
+    private Properties load(Path path) throws IOException {
+        Properties properties = new Properties();
+        if (Files.exists(path)) {
+            try (FileInputStream in = new FileInputStream(path.toFile())) {
+                properties.load(new InputStreamReader(in, "UTF8"));
+            }
+        }
+        return properties;
+    }
+
+    private boolean bool(Properties settings, Properties defaults, String key, boolean fallback) {
+        return settings.getProperty(key, defaults.getProperty(key, String.valueOf(fallback))).equalsIgnoreCase("true");
+    }
+
+    private int integer(Properties settings, Properties defaults, String key, int fallback, int min, int max) {
+        int value = Integer.parseInt(settings.getProperty(key, defaults.getProperty(key, String.valueOf(fallback))));
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private long decimal(Properties settings, Properties defaults, String key, long fallback, long min, long max) {
+        long value = Long.parseLong(settings.getProperty(key, defaults.getProperty(key, String.valueOf(fallback))));
+        return Math.max(min, Math.min(max, value));
+    }
+}
