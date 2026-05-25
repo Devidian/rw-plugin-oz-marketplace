@@ -37,7 +37,7 @@ public class PluginSettings {
     private Path settingsFile;
 
     private static OZLogger logger() {
-        return OZLogger.getInstance("OZ.Marketplace.Settings");
+        return Marketplace.logger();
     }
 
     public static PluginSettings getInstance(Marketplace p) {
@@ -96,6 +96,7 @@ public class PluginSettings {
 
     public List<AdminSettingsEntry> adminSettingsEntries() {
         return List.of(
+                AdminSettingsEntry.group("general", "General", "Logging, reload, command, and welcome behavior."),
                 entry("logLevel", "Log level", "Controls Marketplace logging verbosity.", logLevel, "ALL",
                         AdminSettingsType.STRING),
                 entry("reloadOnChange", "Reload on change", "Reloads Marketplace settings when the file changes.",
@@ -104,6 +105,7 @@ public class PluginSettings {
                         "market", AdminSettingsType.STRING),
                 entry("sendPluginWelcome", "Welcome message", "Shows a short Marketplace message when a player joins.",
                         enableWelcomeMessage, "false", AdminSettingsType.BOOLEAN),
+                AdminSettingsEntry.group("tradeModes", "Trade modes", "Local, global, and zone-only trade behavior."),
                 entry("localMarketplaceEnabled", "Local marketplace",
                         "Enables local listings tied to a market zone.",
                         localMarketplaceEnabled, "true", AdminSettingsType.BOOLEAN),
@@ -113,6 +115,7 @@ public class PluginSettings {
                 entry("marketZoneOnlyMode", "Zone-only mode",
                         "Requires a market zone for listing discovery.",
                         marketZoneOnlyMode, "false", AdminSettingsType.BOOLEAN),
+                AdminSettingsEntry.group("fees", "Fees and limits", "Default buyer fees and listing limits."),
                 entry("defaultLocalFeePercent", "Default local fee percent",
                         "Fee charged to buyers for local listings when a market zone has no override.",
                         defaultLocalFeePercent, "5", AdminSettingsType.INTEGER),
@@ -129,7 +132,7 @@ public class PluginSettings {
                         "Maximum active listings a player may own at once.",
                         maxListingsPerPlayer, "20", AdminSettingsType.INTEGER),
                 entry("showMarketplaceZoneIndicator", "Marketplace-zone indicator",
-                        "Shows a compact HUD indicator below the LandClaim area info while players are in a market zone.",
+                        "Shows the Marketplace icon in the shared Tools indicator bar while players are in an active market zone.",
                         showMarketplaceZoneIndicator, "true", AdminSettingsType.BOOLEAN));
     }
 

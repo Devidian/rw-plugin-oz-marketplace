@@ -1,5 +1,7 @@
 # Roadmaps
 
+- [Roadmap Plan 02 Marketplace UI And Trade Rules](roadmap-plan-02-marketplace-ui-and-trade-rules.md)
+
 Large Marketplace implementation plans and long-lived roadmap documents live here.
 
 ## Template

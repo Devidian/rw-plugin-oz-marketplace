@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class MarketplaceDatabase {
-    private static final int SCHEMA_VERSION = 2;
+    private static final int SCHEMA_VERSION = 3;
     private final Connection connection;
 
     public enum HideSaleStatus {
@@ -37,8 +37,10 @@ public class MarketplaceDatabase {
                         max_chunk_y INTEGER NOT NULL,
                         min_chunk_z INTEGER NOT NULL,
                         max_chunk_z INTEGER NOT NULL,
+                        area_id BIGINT NOT NULL DEFAULT 0,
                         fee_percent INTEGER NOT NULL,
                         allow_global_trade INTEGER NOT NULL DEFAULT 0,
+                        global_trade_mode INTEGER NOT NULL DEFAULT 1,
                         created_at BIGINT NOT NULL
                     );
                     """);
@@ -92,6 +94,22 @@ public class MarketplaceDatabase {
                     ADD COLUMN seller_hidden_at BIGINT NOT NULL DEFAULT 0;
                     """);
         }
+        if (!columnExists("marketplace_zones", "area_id")) {
+            statement.execute("""
+                    ALTER TABLE marketplace_zones
+                    ADD COLUMN area_id BIGINT NOT NULL DEFAULT 0;
+                    """);
+        }
+        if (!columnExists("marketplace_zones", "global_trade_mode")) {
+            statement.execute("""
+                    ALTER TABLE marketplace_zones
+                    ADD COLUMN global_trade_mode INTEGER NOT NULL DEFAULT 1;
+                    """);
+            statement.execute("""
+                    UPDATE marketplace_zones
+                    SET global_trade_mode = CASE WHEN allow_global_trade = 1 THEN 2 ELSE 0 END;
+                    """);
+        }
     }
 
     private boolean columnExists(String table, String column) throws SQLException {
@@ -110,8 +128,8 @@ public class MarketplaceDatabase {
         String sql = """
                 INSERT INTO marketplace_zones(
                     id, name, min_chunk_x, max_chunk_x, min_chunk_y, max_chunk_y, min_chunk_z, max_chunk_z,
-                    fee_percent, allow_global_trade, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    area_id, fee_percent, allow_global_trade, global_trade_mode, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     name=excluded.name,
                     min_chunk_x=excluded.min_chunk_x,
@@ -120,8 +138,10 @@ public class MarketplaceDatabase {
                     max_chunk_y=excluded.max_chunk_y,
                     min_chunk_z=excluded.min_chunk_z,
                     max_chunk_z=excluded.max_chunk_z,
+                    area_id=excluded.area_id,
                     fee_percent=excluded.fee_percent,
-                    allow_global_trade=excluded.allow_global_trade;
+                    allow_global_trade=excluded.allow_global_trade,
+                    global_trade_mode=excluded.global_trade_mode;
                 """;
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             writeZone(statement, zone);
@@ -360,15 +380,18 @@ public class MarketplaceDatabase {
         statement.setInt(6, zone.maxChunkY());
         statement.setInt(7, zone.minChunkZ());
         statement.setInt(8, zone.maxChunkZ());
-        statement.setInt(9, zone.feePercent());
-        statement.setInt(10, zone.allowGlobalTrade() ? 1 : 0);
-        statement.setLong(11, zone.createdAt());
+        statement.setLong(9, zone.areaId());
+        statement.setInt(10, zone.feePercent());
+        statement.setInt(11, zone.globalTradeMode() == MarketZone.GLOBAL_ALLOW ? 1 : 0);
+        statement.setInt(12, MarketZone.normalizeGlobalTradeMode(zone.globalTradeMode()));
+        statement.setLong(13, zone.createdAt());
     }
 
     private MarketZone readZone(ResultSet result) throws SQLException {
         return new MarketZone(
                 result.getString("id"),
                 result.getString("name"),
+                result.getLong("area_id"),
                 result.getInt("min_chunk_x"),
                 result.getInt("max_chunk_x"),
                 result.getInt("min_chunk_y"),
@@ -376,7 +399,7 @@ public class MarketplaceDatabase {
                 result.getInt("min_chunk_z"),
                 result.getInt("max_chunk_z"),
                 result.getInt("fee_percent"),
-                result.getInt("allow_global_trade") == 1,
+                result.getInt("global_trade_mode"),
                 result.getLong("created_at"));
     }
 

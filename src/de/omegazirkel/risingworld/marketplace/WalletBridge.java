@@ -21,6 +21,20 @@ public class WalletBridge {
         }
     }
 
+    public String defaultCurrencyIdentifier() {
+        Plugin walletPlugin = owner.getPluginByName("OZ - Wallet");
+        if (walletPlugin == null) {
+            return "default";
+        }
+        try {
+            Method method = walletPlugin.getClass().getMethod("defaultCurrencyIdentifier");
+            Object result = method.invoke(walletPlugin);
+            return result instanceof String text && !text.isBlank() ? text : "default";
+        } catch (ReflectiveOperationException ex) {
+            return "default";
+        }
+    }
+
     public WalletCallResult withdraw(int playerDbId, long value, String reason, String currencyIdentifier,
             String pluginIdentifier) {
         if (currencyIdentifier == null || currencyIdentifier.isBlank()) {

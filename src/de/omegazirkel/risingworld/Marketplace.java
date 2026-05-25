@@ -12,11 +12,12 @@ import de.omegazirkel.risingworld.marketplace.MarketplaceListing;
 import de.omegazirkel.risingworld.marketplace.MarketplaceResult;
 import de.omegazirkel.risingworld.marketplace.MarketplaceSale;
 import de.omegazirkel.risingworld.marketplace.MarketplaceService;
+import de.omegazirkel.risingworld.marketplace.MarketplacePluginInfoStatusProvider;
 import de.omegazirkel.risingworld.marketplace.PluginSettings;
 import de.omegazirkel.risingworld.marketplace.PluginGUI;
 import de.omegazirkel.risingworld.marketplace.WalletBridge;
 import de.omegazirkel.risingworld.marketplace.ui.MarketplacePlayerPluginData;
-import de.omegazirkel.risingworld.marketplace.ui.MarketplaceZoneIndicatorManager;
+import de.omegazirkel.risingworld.marketplace.ui.MarketplaceZoneIndicatorProvider;
 import de.omegazirkel.risingworld.tools.Colors;
 import de.omegazirkel.risingworld.tools.FileChangeListener;
 import de.omegazirkel.risingworld.tools.I18n;
@@ -24,6 +25,8 @@ import de.omegazirkel.risingworld.tools.OZLogger;
 import de.omegazirkel.risingworld.tools.db.SQLiteConnectionFactory;
 import de.omegazirkel.risingworld.tools.settings.PlayerPluginAdminSettings;
 import de.omegazirkel.risingworld.tools.ui.PlayerPluginSettingsOverlay;
+import de.omegazirkel.risingworld.tools.ui.PluginInfoStatusProviders;
+import de.omegazirkel.risingworld.tools.ui.SharedIndicators;
 import net.risingworld.api.Plugin;
 import net.risingworld.api.events.EventMethod;
 import net.risingworld.api.events.Listener;
@@ -31,14 +34,13 @@ import net.risingworld.api.events.player.PlayerCommandEvent;
 import net.risingworld.api.events.player.PlayerSpawnEvent;
 import net.risingworld.api.objects.Area;
 import net.risingworld.api.objects.Player;
-import net.risingworld.api.utils.Vector3i;
 
 public class Marketplace extends Plugin implements Listener, FileChangeListener {
     static final Colors c = Colors.getInstance();
     private static PluginSettings s;
     private static MarketplaceService service;
     private static Connection sqliteCon;
-    private static MarketplaceZoneIndicatorManager zoneIndicatorManager;
+    private static I18n t;
     public static String name;
 
     public static OZLogger logger() {
@@ -48,6 +50,7 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
     @Override
     public void onEnable() {
         name = getDescription("name");
+        t = I18n.getInstance(this);
         s = PluginSettings.getInstance(this);
         s.initSettings();
 
@@ -62,21 +65,22 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
 
         registerEventListener(this);
         PluginGUI.getInstance(this);
-        zoneIndicatorManager = new MarketplaceZoneIndicatorManager(this);
-        zoneIndicatorManager.start();
+        SharedIndicators.registerProvider(name, new MarketplaceZoneIndicatorProvider(this));
         PlayerPluginSettingsOverlay.registerPlayerPluginData(new MarketplacePlayerPluginData(getDescription("version")));
         PlayerPluginSettingsOverlay.registerPlayerPluginAdminSettings(
                 new PlayerPluginAdminSettings(name, getDescription("version"), () -> s.adminSettingsEntries(),
                         s::initSettings));
+        PluginInfoStatusProviders
+                .registerProvider(new MarketplacePluginInfoStatusProvider(this, getDescription("version")));
         logger().info(getName() + " Plugin is enabled version:" + getDescription("version"));
     }
 
     @Override
     public void onDisable() {
-        if (zoneIndicatorManager != null) {
-            zoneIndicatorManager.stop();
-            zoneIndicatorManager = null;
+        if (name != null) {
+            PluginInfoStatusProviders.unregisterProvider(name);
         }
+        SharedIndicators.unregisterProvider(name);
         if (sqliteCon != null) {
             try {
                 sqliteCon.close();
@@ -92,9 +96,6 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
         logger().setLevel(s.logLevel);
         if (service != null) {
             service.updateSettings(s);
-        }
-        if (zoneIndicatorManager != null) {
-            zoneIndicatorManager.refresh();
         }
     }
 
@@ -117,11 +118,19 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
         if (!parts[0].equals("/" + s.marketCommand)) {
             return;
         }
+        if (parts.length > 1 && (parts[1].equalsIgnoreCase("status") || parts[1].equalsIgnoreCase("info"))) {
+            PluginInfoStatusProviders.show(player, name);
+            return;
+        }
         if (service == null) {
             player.sendTextMessage(c.error + "Marketplace database is not available.");
             return;
         }
-        if (parts.length == 1 || parts[1].equalsIgnoreCase("list")) {
+        if (parts.length == 1) {
+            PluginGUI.getInstance().openMarketplaceOverlay(player);
+            return;
+        }
+        if (parts[1].equalsIgnoreCase("list")) {
             sendListings(player);
             return;
         }
@@ -210,9 +219,9 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
         String id = parts[3];
         int radius = parseInt(parts[4], 0);
         int fee = parseInt(parts[5], s.defaultLocalFeePercent);
-        boolean allowGlobal = Boolean.parseBoolean(parts[6]);
+        int globalMode = parseGlobalMode(parts[6]);
         String label = parts.length >= 8 ? parts[7] : id;
-        MarketplaceResult result = service.createZone(id, label, player.getChunkPosition(), radius, fee, allowGlobal);
+        MarketplaceResult result = service.createZone(id, label, 0L, player.getChunkPosition(), radius, fee, globalMode);
         player.sendTextMessage((result.success() ? c.okay : c.error) + result.message());
     }
 
@@ -220,10 +229,14 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
         if (!player.isAdmin()) {
             return MarketplaceResult.fail("Only admins can manage market zones.");
         }
-        Vector3i chunk = player.getChunkPosition();
-        String id = currentZoneId(player);
-        String label = currentZoneName(player);
-        return service.createZone(id, label, chunk, 0, s.defaultLocalFeePercent, s.globalMarketplaceEnabled);
+        Area area = player.getCurrentArea();
+        if (area == null || area.getID() <= 0L) {
+            return MarketplaceResult.fail("Stand inside an existing Rising World area before creating a market zone.");
+        }
+        Optional<MarketZone> existing = safeCurrentMarketZone(player);
+        int globalMode = existing.map(MarketZone::globalTradeMode).orElse(MarketZone.GLOBAL_DEFAULT);
+        return service.createAreaZone(currentZoneId(player), currentZoneName(player), area.getID(),
+                existing.map(MarketZone::feePercent).orElse(s.defaultLocalFeePercent), globalMode);
     }
 
     public MarketplaceResult syncCurrentMarketZoneName(Player player) {
@@ -237,8 +250,9 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
             }
             MarketZone current = zone.get();
             return service.updateZone(new MarketZone(current.id(), currentZoneName(player),
+                    current.areaId(),
                     current.minChunkX(), current.maxChunkX(), current.minChunkY(), current.maxChunkY(),
-                    current.minChunkZ(), current.maxChunkZ(), current.feePercent(), current.allowGlobalTrade(),
+                    current.minChunkZ(), current.maxChunkZ(), current.feePercent(), current.globalTradeMode(),
                     current.createdAt()));
         } catch (SQLException ex) {
             logger().error("Failed to sync market zone name: " + ex.getMessage());
@@ -256,9 +270,11 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
                 return MarketplaceResult.fail("You are not standing in a market zone.");
             }
             MarketZone current = zone.get();
+            int nextMode = nextGlobalTradeMode(current.globalTradeMode());
             return service.updateZone(new MarketZone(current.id(), current.name(),
+                    current.areaId(),
                     current.minChunkX(), current.maxChunkX(), current.minChunkY(), current.maxChunkY(),
-                    current.minChunkZ(), current.maxChunkZ(), current.feePercent(), !current.allowGlobalTrade(),
+                    current.minChunkZ(), current.maxChunkZ(), current.feePercent(), nextMode,
                     current.createdAt()));
         } catch (SQLException ex) {
             logger().error("Failed to update market zone global override: " + ex.getMessage());
@@ -277,8 +293,9 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
             }
             MarketZone current = zone.get();
             return service.updateZone(new MarketZone(current.id(), current.name(),
+                    current.areaId(),
                     current.minChunkX(), current.maxChunkX(), current.minChunkY(), current.maxChunkY(),
-                    current.minChunkZ(), current.maxChunkZ(), feePercent, current.allowGlobalTrade(),
+                    current.minChunkZ(), current.maxChunkZ(), feePercent, current.globalTradeMode(),
                     current.createdAt()));
         } catch (SQLException ex) {
             logger().error("Failed to update market zone fee: " + ex.getMessage());
@@ -326,14 +343,22 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
         return s != null && s.showMarketplaceZoneIndicator;
     }
 
-    public String marketplaceZoneIndicatorText(Player player, MarketZone zone) {
-        String global = zone.allowGlobalTrade()
-                ? t("TC_MARKET_INDICATOR_GLOBAL_ON", player)
-                : t("TC_MARKET_INDICATOR_GLOBAL_OFF", player);
-        return t("TC_MARKET_INDICATOR", player)
-                .replace("PH_ZONE", zone.name())
-                .replace("PH_FEE", String.valueOf(zone.feePercent()))
-                .replace("PH_GLOBAL", global);
+    public boolean walletAvailable() {
+        return service != null && service.walletAvailable();
+    }
+
+    public boolean marketplaceZoneIndicatorVisible(Player player, MarketZone zone) {
+        if (!showMarketplaceZoneIndicator() || zone == null) {
+            return false;
+        }
+        if (s.localMarketplaceEnabled || s.globalMarketplaceEnabled) {
+            return true;
+        }
+        return zone.globalTradeMode() == MarketZone.GLOBAL_ALLOW;
+    }
+
+    public I18n i18n() {
+        return t;
     }
 
     public List<MarketplaceListing> visibleMarketplaceListings(Player player) throws SQLException {
@@ -372,6 +397,32 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
         return service.hideSale(player, saleId);
     }
 
+    public String defaultCurrencyIdentifier() {
+        if (service == null) {
+            return "default";
+        }
+        return service.defaultCurrencyIdentifier();
+    }
+
+    public boolean localListingAllowed(Player player) {
+        return s != null && s.localMarketplaceEnabled && safeCurrentMarketZone(player).isPresent();
+    }
+
+    public boolean globalListingAllowed(Player player) {
+        if (s == null) {
+            return false;
+        }
+        Optional<MarketZone> zone = safeCurrentMarketZone(player);
+        if (zone.isEmpty()) {
+            return s.globalMarketplaceEnabled && !s.marketZoneOnlyMode;
+        }
+        return zone.get().globalTradeAllowed(s.globalMarketplaceEnabled);
+    }
+
+    public boolean sellingAllowed(Player player) {
+        return localListingAllowed(player) || globalListingAllowed(player);
+    }
+
     public String currentMarketZoneStatus(Player player) {
         try {
             Optional<MarketZone> zone = service.currentZone(player);
@@ -380,7 +431,7 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
             }
             MarketZone current = zone.get();
             return current.name() + " (" + current.id() + ") fee " + current.feePercent()
-                    + "% global=" + current.allowGlobalTrade();
+                    + "% global=" + globalTradeModeLabel(current.globalTradeMode());
         } catch (SQLException ex) {
             logger().error("Failed to read current market zone: " + ex.getMessage());
             return "Could not read current market zone.";
@@ -420,7 +471,8 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
             player.sendTextMessage(c.okay + "Market zones:");
             for (MarketZone zone : zones) {
                 player.sendTextMessage(c.info + zone.id() + c.text + " " + zone.name()
-                        + " fee " + zone.feePercent() + "% global=" + zone.allowGlobalTrade());
+                        + " fee " + zone.feePercent() + "% global=" + globalTradeModeLabel(zone.globalTradeMode())
+                        + " area=" + zone.areaId());
             }
         } catch (SQLException ex) {
             logger().error("Failed to list market zones: " + ex.getMessage());
@@ -431,8 +483,16 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
     private void usage(Player player) {
         player.sendTextMessage(c.warning + "Usage: /" + s.marketCommand + " list | sell <item> <variant> <amount> <price> [currency] [global] | buy <id> | cancel <id> | sales");
         if (player.isAdmin()) {
-            player.sendTextMessage(c.warning + "Admin: /" + s.marketCommand + " zone set <id> <radiusChunks> <feePercent> <allowGlobal> [label] | zone list | zone delete <id>");
+            player.sendTextMessage(c.warning + "Admin: /" + s.marketCommand + " zone set <id> <radiusChunks> <feePercent> <globalMode> [label] | zone list | zone delete <id>");
         }
+    }
+
+    public String globalTradeModeLabel(int mode) {
+        return switch (MarketZone.normalizeGlobalTradeMode(mode)) {
+            case MarketZone.GLOBAL_DENY -> "deny";
+            case MarketZone.GLOBAL_ALLOW -> "allow";
+            default -> "default";
+        };
     }
 
     private int parseInt(String value, int fallback) {
@@ -452,11 +512,11 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
     }
 
     private String currencyLabel(String currency) {
-        return currency == null || currency.isBlank() ? " default" : " " + currency;
+        return currency == null || currency.isBlank() ? " " + defaultCurrencyIdentifier() : " " + currency;
     }
 
     private String t(String key, Player player) {
-        return I18n.getInstance(this).get(key, player);
+        return t.get(key, player);
     }
 
     private String currentZoneId(Player player) {
@@ -464,8 +524,7 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
         if (area != null && area.getID() > 0L) {
             return "area-" + area.getID();
         }
-        Vector3i chunk = player.getChunkPosition();
-        return "chunk-" + chunk.x + "-" + chunk.y + "-" + chunk.z;
+        return "area-unknown";
     }
 
     private String currentZoneName(Player player) {
@@ -473,7 +532,26 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
         if (area != null && area.getName() != null && !area.getName().isBlank()) {
             return area.getName();
         }
-        Vector3i chunk = player.getChunkPosition();
-        return "Market " + chunk.x + "/" + chunk.y + "/" + chunk.z;
+        return "Market Area";
+    }
+
+    private int parseGlobalMode(String value) {
+        if (value == null) {
+            return MarketZone.GLOBAL_DEFAULT;
+        }
+        String normalized = value.trim().toLowerCase();
+        return switch (normalized) {
+            case "true", "allow", "allowed", "on", "2" -> MarketZone.GLOBAL_ALLOW;
+            case "false", "deny", "denied", "off", "0" -> MarketZone.GLOBAL_DENY;
+            default -> MarketZone.GLOBAL_DEFAULT;
+        };
+    }
+
+    private int nextGlobalTradeMode(int currentMode) {
+        return switch (MarketZone.normalizeGlobalTradeMode(currentMode)) {
+            case MarketZone.GLOBAL_DEFAULT -> MarketZone.GLOBAL_ALLOW;
+            case MarketZone.GLOBAL_ALLOW -> MarketZone.GLOBAL_DENY;
+            default -> MarketZone.GLOBAL_DEFAULT;
+        };
     }
 }

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 
 import de.omegazirkel.risingworld.Marketplace;
+import net.risingworld.api.objects.Area;
 import net.risingworld.api.objects.Player;
 import net.risingworld.api.utils.Vector3i;
 
@@ -34,8 +35,22 @@ public class MarketplaceService {
         return wallet.isAvailable();
     }
 
+    public String defaultCurrencyIdentifier() {
+        return wallet.defaultCurrencyIdentifier();
+    }
+
     public MarketplaceResult createZone(String id, String name, Vector3i center, int radius, int feePercent,
             boolean allowGlobalTrade) {
+        return createZone(id, name, 0L, center, radius, feePercent,
+                allowGlobalTrade ? MarketZone.GLOBAL_ALLOW : MarketZone.GLOBAL_DENY);
+    }
+
+    public MarketplaceResult createAreaZone(String id, String name, long areaId, int feePercent, int globalTradeMode) {
+        return createZone(id, name, areaId, new Vector3i(0, 0, 0), 0, feePercent, globalTradeMode);
+    }
+
+    public MarketplaceResult createZone(String id, String name, long areaId, Vector3i center, int radius, int feePercent,
+            int globalTradeMode) {
         if (id == null || id.isBlank()) {
             return MarketplaceResult.fail("Zone id is required.");
         }
@@ -46,6 +61,7 @@ public class MarketplaceService {
         MarketZone zone = new MarketZone(
                 id.trim().toLowerCase(),
                 name == null || name.isBlank() ? id.trim() : name.trim(),
+                Math.max(0L, areaId),
                 center.x - radius,
                 center.x + radius,
                 center.y - radius,
@@ -53,7 +69,7 @@ public class MarketplaceService {
                 center.z - radius,
                 center.z + radius,
                 fee,
-                allowGlobalTrade,
+                MarketZone.normalizeGlobalTradeMode(globalTradeMode),
                 now());
         try {
             database.upsertZone(zone);
@@ -72,6 +88,7 @@ public class MarketplaceService {
         MarketZone updated = new MarketZone(
                 zone.id().trim().toLowerCase(),
                 zone.name() == null || zone.name().isBlank() ? zone.id().trim() : zone.name().trim(),
+                zone.areaId(),
                 zone.minChunkX(),
                 zone.maxChunkX(),
                 zone.minChunkY(),
@@ -79,7 +96,7 @@ public class MarketplaceService {
                 zone.minChunkZ(),
                 zone.maxChunkZ(),
                 fee,
-                zone.allowGlobalTrade(),
+                zone.globalTradeMode(),
                 zone.createdAt());
         try {
             database.upsertZone(updated);
@@ -105,8 +122,18 @@ public class MarketplaceService {
     }
 
     public Optional<MarketZone> currentZone(Player player) throws SQLException {
+        Area area = player.getCurrentArea();
+        if (area != null && area.getID() > 0L) {
+            Optional<MarketZone> areaZone = database.listZones().stream()
+                    .filter(zone -> zone.areaId() == area.getID())
+                    .min(Comparator.comparing(MarketZone::id));
+            if (areaZone.isPresent()) {
+                return areaZone;
+            }
+        }
         Vector3i chunk = player.getChunkPosition();
         return database.listZones().stream()
+                .filter(zone -> !zone.isAreaZone())
                 .filter(zone -> zone.contains(chunk.x, chunk.y, chunk.z))
                 .min(Comparator.comparing(MarketZone::id));
     }
@@ -122,9 +149,6 @@ public class MarketplaceService {
         if (price <= 0 || amount <= 0) {
             return MarketplaceResult.fail("Price and amount must be greater than 0.");
         }
-        if (globalListing && !settings.globalMarketplaceEnabled) {
-            return MarketplaceResult.fail("Global marketplace listings are disabled.");
-        }
         if (!globalListing && !settings.localMarketplaceEnabled) {
             return MarketplaceResult.fail("Local marketplace listings are disabled.");
         }
@@ -134,8 +158,17 @@ public class MarketplaceService {
                 return MarketplaceResult.fail("You reached the active listing limit.");
             }
             Optional<MarketZone> zone = currentZone(seller);
-            if (zone.isEmpty()) {
-                return MarketplaceResult.fail("You must stand in a market zone to create a listing.");
+            if (!globalListing && zone.isEmpty()) {
+                return MarketplaceResult.fail("You must stand in a market zone to create a local listing.");
+            }
+            if (globalListing && settings.marketZoneOnlyMode && zone.isEmpty()) {
+                return MarketplaceResult.fail("You must stand in a market zone to create a global listing.");
+            }
+            if (globalListing && zone.isEmpty() && !settings.globalMarketplaceEnabled) {
+                return MarketplaceResult.fail("Global marketplace listings are disabled.");
+            }
+            if (globalListing && zone.isPresent() && !zone.get().globalTradeAllowed(settings.globalMarketplaceEnabled)) {
+                return MarketplaceResult.fail("This market zone does not allow global trade.");
             }
             MarketplaceResult inventory = InventoryTransfer.removeFromSeller(seller, itemName, itemVariant, amount);
             if (!inventory.success()) {
@@ -151,7 +184,7 @@ public class MarketplaceService {
                     amount,
                     price,
                     currencyIdentifier == null ? "" : currencyIdentifier.trim(),
-                    zone.get().id(),
+                    zone.map(MarketZone::id).orElse("global"),
                     globalListing,
                     now(),
                     STATUS_ACTIVE);
@@ -191,21 +224,24 @@ public class MarketplaceService {
             if (listing.sellerDbId() == buyer.getDbID()) {
                 return MarketplaceResult.fail("You cannot buy your own listing.");
             }
-            if (listing.globalListing() && !settings.globalMarketplaceEnabled) {
-                return MarketplaceResult.fail("Global marketplace listings are disabled.");
-            }
             if (!listing.globalListing() && !settings.localMarketplaceEnabled) {
                 return MarketplaceResult.fail("Local marketplace listings are disabled.");
             }
             Optional<MarketZone> zone = currentZone(buyer);
-            if (zone.isEmpty()) {
-                return MarketplaceResult.fail("You must stand in a market zone to buy.");
+            if (!listing.globalListing() && zone.isEmpty()) {
+                return MarketplaceResult.fail("You must stand in a market zone to buy local listings.");
+            }
+            if (listing.globalListing() && settings.marketZoneOnlyMode && zone.isEmpty()) {
+                return MarketplaceResult.fail("You must stand in a market zone to buy global listings.");
+            }
+            if (listing.globalListing() && zone.isEmpty() && !settings.globalMarketplaceEnabled) {
+                return MarketplaceResult.fail("Global marketplace listings are disabled.");
             }
             if (!listing.globalListing() && !zone.get().id().equals(listing.marketZoneId())) {
                 return MarketplaceResult.fail("This local listing belongs to another market zone.");
             }
-            if (listing.globalListing() && !zone.get().allowGlobalTrade()
-                    && !zone.get().id().equals(listing.marketZoneId())) {
+            if (listing.globalListing() && zone.isPresent()
+                    && !zone.get().globalTradeAllowed(settings.globalMarketplaceEnabled)) {
                 return MarketplaceResult.fail("This market zone does not allow global trade.");
             }
             if (!database.transitionListingStatus(listing.id(), STATUS_ACTIVE, STATUS_PENDING_PURCHASE)) {
@@ -220,7 +256,7 @@ public class MarketplaceService {
                 return MarketplaceResult.fail(withdraw.message());
             }
 
-            long fee = fee(listing, zone.get());
+            long fee = fee(listing, zone.orElse(null));
             long buyerCharge = listing.price() + fee;
             long sellerPayout = listing.price();
             WalletBridge.WalletCallResult feeWithdraw = fee > 0
@@ -263,7 +299,7 @@ public class MarketplaceService {
             externalTransferCompleted = true;
             boolean completed = database.completeSale(new MarketplaceSale(0L, listing.id(), listing.sellerDbId(), buyer.getDbID(),
                     listing.itemName(), listing.itemVariant(), listing.amount(), listing.price(),
-                    listing.currencyIdentifier(), fee, sellerPayout, zone.get().id(), now()),
+                    listing.currencyIdentifier(), fee, sellerPayout, zone.map(MarketZone::id).orElse("global"), now()),
                     STATUS_PENDING_PURCHASE, STATUS_SOLD);
             if (!completed) {
                 Marketplace.logger().error("Marketplace purchase completed externally but listing was already finalized: "
@@ -325,17 +361,16 @@ public class MarketplaceService {
             return database.listGlobalListings();
         }
         if (!settings.localMarketplaceEnabled && !settings.globalMarketplaceEnabled) {
-            return List.of();
+            return zone.get().globalTradeAllowed(false) ? database.listGlobalListings() : List.of();
         }
+        boolean allowGlobal = zone.get().globalTradeAllowed(settings.globalMarketplaceEnabled);
         if (!settings.localMarketplaceEnabled) {
-            return zone.get().allowGlobalTrade() && settings.globalMarketplaceEnabled
-                    ? database.listGlobalListings()
-                    : List.of();
+            return allowGlobal ? database.listGlobalListings() : List.of();
         }
-        if (!settings.globalMarketplaceEnabled) {
+        if (!allowGlobal) {
             return database.listActiveListings(zone.get().id(), false);
         }
-        return database.listActiveListings(zone.get().id(), zone.get().allowGlobalTrade());
+        return database.listActiveListings(zone.get().id(), true);
     }
 
     public List<MarketplaceSale> listSales(Player seller, int limit) throws SQLException {
@@ -375,6 +410,9 @@ public class MarketplaceService {
     private int feePercent(MarketplaceListing listing, MarketZone buyerZone) {
         if (listing.globalListing()) {
             return settings.defaultGlobalFeePercent;
+        }
+        if (buyerZone == null) {
+            return settings.defaultLocalFeePercent;
         }
         return buyerZone.id().equals(listing.marketZoneId())
                 ? buyerZone.feePercent()

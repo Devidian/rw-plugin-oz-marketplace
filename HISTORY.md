@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- feat: add shared Tools Info/Status panel content for Marketplace and route info/status commands to it
+- feat: group and localize Marketplace admin settings metadata
+- refactor: route Marketplace settings logging through the main `OZ.Marketplace` logger
+- feat: open `/mp` and `/ozt` Marketplace directly into the Marketplace overlay
+- feat: replace local Marketplace zone HUD overlay with the shared Tools indicator provider
+- feat: add Marketplace overlay management tab for Area-based market-zone administration with delete confirmation
+- feat: support tri-state zone global trade mode and area-bound market zones with v3 schema migration
+- fix: allow global listings and purchases outside market zones when zone-only mode is disabled
+- fix: show Wallet default currency in Marketplace sell and confirmation flows
+- fix: reuse the Marketplace i18n instance so the zone indicator does not reload language files on every refresh
 - feat: add optional market-zone HUD indicator below the LandClaim and Shop area indicators
 - feat: add seller Sales overlay tab with seller-side removal for completed-sale rows
 - db: migrate Marketplace schema to v2 with seller-hidden sale-history rows
