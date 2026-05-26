@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [0.1.0] - 2026-05-26 | Initial marketplace release
+
 - fix: keep the Marketplace PlayerSettings card within the shared Tools settings width
 - fix: replace `PH_PLUGIN_NAME` in the Marketplace PlayerSettings empty state
 - change: use the dedicated market-zone shared-indicator icon for market-zone signals
@@ -36,8 +38,6 @@
 - feat: add admin radial menu for creating, naming, toggling global trade, setting fee presets, and deleting market zones
 - fix: charge marketplace fees to buyers on top of listing price so sellers receive the listed price
 - docs: start runtime-hardening roadmap task before richer UI work
-
-## [0.1.0] - 2026-05-20
 
 - feat: create OZ Marketplace from the Maven template
 - feat: add market zones with fee overrides and global-trade flags

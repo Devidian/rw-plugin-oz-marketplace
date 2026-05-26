@@ -517,7 +517,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         UIElement action = buyButton(listing);
         action.setPivot(Pivot.LowerRight);
         action.setPosition(238, 138, false);
-        action.setSize(86, 26, false);
+        action.setSize(112, 26, false);
         card.addChild(action);
         return card;
     }
