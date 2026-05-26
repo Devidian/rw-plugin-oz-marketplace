@@ -1,10 +1,14 @@
 package de.omegazirkel.risingworld.marketplace;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import de.omegazirkel.risingworld.Marketplace;
 import de.omegazirkel.risingworld.marketplace.ui.MarketplaceOverlay;
 import de.omegazirkel.risingworld.tools.ui.AssetManager;
 import de.omegazirkel.risingworld.tools.ui.CursorManager;
 import de.omegazirkel.risingworld.tools.ui.MenuItem;
+import de.omegazirkel.risingworld.tools.ui.PluginInfoStatusProviders;
 import de.omegazirkel.risingworld.tools.ui.PluginMenuManager;
 import net.risingworld.api.ui.UIElement;
 import net.risingworld.api.objects.Player;
@@ -18,6 +22,7 @@ public class PluginGUI {
 
     public static PluginGUI getInstance(Marketplace plugin) {
         AssetManager.loadIconFromPlugin(plugin, "marketplace-icon");
+        AssetManager.loadIconFromPlugin(plugin, "icon-ki-zone-indicator-marketplace");
         PluginGUI gui = getInstance();
         gui.plugin = plugin;
         PluginMenuManager.registerPluginMenu(new MenuItem(AssetManager.getIcon("marketplace-icon"), "Marketplace",
@@ -37,8 +42,15 @@ public class PluginGUI {
             uiPlayer.hideRadialMenu(false);
             return;
         }
-        uiPlayer.hideRadialMenu(true);
-        openMarketplaceOverlay(uiPlayer);
+        List<MenuItem> menuItems = new ArrayList<>();
+        menuItems.add(new MenuItem(AssetManager.getIcon("marketplace-icon"), "Marketplace",
+                player -> {
+                    player.hideRadialMenu(true);
+                    openMarketplaceOverlay(player);
+                }));
+        menuItems.add(PluginInfoStatusProviders.menuItem("Info / Status", Marketplace.name));
+        menuItems.add(MenuItem.closeMenu(uiPlayer));
+        PluginMenuManager.showMenu(uiPlayer, menuItems);
     }
 
     public void openMarketplaceOverlay(Player player) {

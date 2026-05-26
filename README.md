@@ -38,9 +38,8 @@ Marketplace fees are charged to buyers on top of the listing price and removed f
 
 ## Player Commands
 
-- `/mp`: open the Marketplace overlay
+- `/mp`: open the Marketplace radial menu
 - `/mp list`: list listings visible at the current market zone, or global listings when outside a zone unless zone-only mode is enabled
-- `/mp sell <item> <variant> <amount> <price> [currency] [global]`: create a listing from matching inventory items
 - `/mp buy <listing-id>`: buy a visible listing through Wallet
 - `/mp cancel <listing-id>`: cancel your own listing and return the item
 - `/mp sales`: show your latest visible sale payouts
@@ -50,17 +49,19 @@ An empty or omitted `currency` uses Wallet's configured default currency.
 
 ## Player Marketplace UI
 
-Players can open the Marketplace overlay through `/mp` or the Marketplace entry in `/ozt`.
+Players can open the Marketplace radial menu through `/mp` or the Marketplace entry in `/ozt`. The radial menu opens the Marketplace overlay and includes an `Info / Status` action using the shared Tools status panel.
 
-The `Sell` tab scans the player's inventory, groups sellable rows by item definition name and variant, and shows the available amount. Selecting a row fills a listing form for amount, price, Wallet default currency, and local/global mode. Local listings require the current market zone. Global listings can be created outside market zones when zone-only mode is disabled. Items are only removed from inventory after the player confirms and the existing listing service accepts the listing.
+The overlay footer shows the player's Wallet default-currency balance for quick pricing context.
 
-The `Local` and `Global` tabs show visible listings for the current access context. The `Local` tab is hidden outside market zones, and disabled marketplace modes are hidden from the overlay. Buying from the UI asks for confirmation before calling the same Wallet-backed purchase flow used by `/mp buy <listing-id>`.
+The `Sell` tab scans the player's inventory, groups sellable items by item definition name and variant, and presents them as icon cards with amount and variant context. Selecting a card fills a listing form for amount, price, Wallet currency, and local/global mode. The currency selector is sourced from Wallet and defaults to the Wallet default currency. Local listings require the current market zone. Global listings can be created outside market zones when zone-only mode is disabled. Listing currency identifiers are validated against the Wallet currency registry before any inventory is removed. Items are only removed from inventory after the player confirms and the existing listing service accepts the listing.
+
+The `Local` and `Global` tabs show visible listings for the current access context. Both tabs default to a card layout and include a card/table toggle that persists per player. The `Local` tab is hidden outside market zones, and disabled marketplace modes are hidden from the overlay. Listings show the listing price plus the buyer fee amount and percent where a fee applies, and buying from the UI asks for confirmation with price, fee, and total before calling the same Wallet-backed purchase flow used by `/mp buy <listing-id>`. Sellers can cancel their own active listings from these tabs; cancellation uses the same item-return flow as `/mp cancel <listing-id>`.
 
 The `Sales` tab shows the seller's latest visible completed sales with item, amount, payout, fee, and market zone. The `Remove` action hides a completed sale from that seller's history after confirmation. Removed sale rows no longer appear in the tab or `/mp sales`, but the raw sale record remains in the database with `seller_hidden_at` set for audit/history retention.
 
 Admins see a `Management` tab for the current Rising World Area. It creates or updates the area as a market zone, syncs the zone name from the Area name, cycles global-trade mode between `default`, `allow`, and `deny`, sets common fee values, and deletes the current zone with confirmation.
 
-The command-based `/mp sell ...` flow remains available as a fallback and admin-debug path.
+New listings are created through the Marketplace UI.
 
 ## Market Zone Indicator
 

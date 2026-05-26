@@ -12,7 +12,7 @@ Planning is stored in repository-local docs.
 - [x] Add SQLite schema for zones, listings, and sale history
 - [x] Add Wallet-backed purchase and payout flow
 - [x] Add local/global listing rules and market-zone commands
-- [x] Add player command workflow for listing, buying, cancellation, and sales
+- [x] Add player command workflow for listing views, buying, cancellation, and sales
 - [x] Update README and HISTORY
 
 ## Step 7 Runtime Hardening
@@ -44,7 +44,7 @@ Planning is stored in repository-local docs.
 - [x] Add Sell tab with inventory candidates grouped by item definition name and variant
 - [x] Add listing form for amount, price, optional currency, and local/global mode
 - [x] Add confirmation dialog before inventory removal and listing creation
-- [x] Keep `/mp sell ...` command flow unchanged
+- [x] Route listing creation through the Marketplace UI
 - [x] Validate with `mvn -B test`
 
 ## Root Roadmap Package 7

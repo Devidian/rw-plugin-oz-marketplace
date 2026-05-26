@@ -1,5 +1,6 @@
 # Roadmaps
 
+- [Roadmap Plan 03 Marketplace UI And Currency Validation](roadmap-plan-03-marketplace-ui-and-currency-validation.md)
 - [Roadmap Plan 02 Marketplace UI And Trade Rules](roadmap-plan-02-marketplace-ui-and-trade-rules.md)
 
 Large Marketplace implementation plans and long-lived roadmap documents live here.

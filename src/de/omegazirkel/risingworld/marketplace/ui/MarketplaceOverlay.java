@@ -9,27 +9,44 @@ import de.omegazirkel.risingworld.Marketplace;
 import de.omegazirkel.risingworld.marketplace.InventoryListingCandidate;
 import de.omegazirkel.risingworld.marketplace.InventoryTransfer;
 import de.omegazirkel.risingworld.marketplace.MarketZone;
+import de.omegazirkel.risingworld.marketplace.MarketplacePlayerPreferences;
 import de.omegazirkel.risingworld.marketplace.MarketplaceListing;
 import de.omegazirkel.risingworld.marketplace.MarketplaceResult;
 import de.omegazirkel.risingworld.marketplace.MarketplaceSale;
 import de.omegazirkel.risingworld.marketplace.PluginSettings;
+import de.omegazirkel.risingworld.marketplace.WalletBridge;
 import de.omegazirkel.risingworld.tools.Colors;
 import de.omegazirkel.risingworld.tools.I18n;
+import de.omegazirkel.risingworld.tools.ui.AssetManager;
 import de.omegazirkel.risingworld.tools.ui.BasePluginOverlayWithTabs;
 import de.omegazirkel.risingworld.tools.ui.ButtonFactory;
+import de.omegazirkel.risingworld.tools.ui.Dropdown;
+import de.omegazirkel.risingworld.tools.ui.DropdownOption;
 import de.omegazirkel.risingworld.tools.ui.InfoButton;
 import de.omegazirkel.risingworld.tools.ui.OZUIElement;
 import de.omegazirkel.risingworld.tools.ui.table.TableCell;
 import de.omegazirkel.risingworld.tools.ui.table.TableRow;
 import de.omegazirkel.risingworld.tools.ui.table.TableScrollView;
+import net.risingworld.api.assets.TextureAsset;
+import net.risingworld.api.definitions.Definitions;
+import net.risingworld.api.definitions.Items.ItemDefinition;
 import net.risingworld.api.objects.Player;
 import net.risingworld.api.ui.UILabel;
 import net.risingworld.api.ui.UIElement;
+import net.risingworld.api.ui.UIScrollView;
+import net.risingworld.api.ui.UIScrollView.ScrollViewMode;
 import net.risingworld.api.ui.UITextField;
+import net.risingworld.api.ui.style.Align;
+import net.risingworld.api.ui.style.DisplayStyle;
+import net.risingworld.api.ui.style.FlexDirection;
 import net.risingworld.api.ui.style.Font;
+import net.risingworld.api.ui.style.Justify;
 import net.risingworld.api.ui.style.Pivot;
+import net.risingworld.api.ui.style.Position;
+import net.risingworld.api.ui.style.ScaleMode;
 import net.risingworld.api.ui.style.TextAnchor;
 import net.risingworld.api.ui.style.Unit;
+import net.risingworld.api.ui.style.Wrap;
 
 public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     private static final int TABLE_BODY_HEIGHT = 356;
@@ -50,7 +67,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     private InventoryListingCandidate selected;
     private UITextField amountField;
     private UITextField priceField;
-    private UITextField currencyField;
+    private String selectedCurrency = "";
     private boolean globalListing;
     private UILabel statusLabel;
 
@@ -129,6 +146,19 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         } else {
             setupManagementTab();
         }
+        setupDefaultBalanceFooter();
+    }
+
+    private void setupDefaultBalanceFooter() {
+        UILabel balance = label(t().get("TC_MARKET_UI_DEFAULT_BALANCE", uiPlayer)
+                .replace("PH_BALANCE", String.valueOf(plugin.defaultCurrencyBalance(uiPlayer)))
+                .replace("PH_CURRENCY", plugin.defaultCurrencyIdentifier()), 12, Font.DefaultBold);
+        balance.setPivot(Pivot.LowerRight);
+        balance.setPosition(97, 428, true);
+        balance.setSize(240, 24, false);
+        balance.setFontColor(0xF2C766FF);
+        balance.setTextAlign(TextAnchor.MiddleRight);
+        body.addChild(balance);
     }
 
     private void setupSellTab() {
@@ -148,24 +178,23 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         listPanel.style.height.set(392, Unit.Pixel);
         body.addChild(listPanel);
 
-        TableScrollView table = new TableScrollView(
-                Arrays.asList(
-                        t().get("TC_MARKET_UI_COL_ITEM", uiPlayer),
-                        t().get("TC_MARKET_UI_COL_VARIANT", uiPlayer),
-                        t().get("TC_MARKET_UI_COL_AVAILABLE", uiPlayer),
-                        t().get("TC_MARKET_UI_COL_ACTION", uiPlayer)),
-                Arrays.asList(45f, 15f, 18f, 22f));
-        table.setScrollBodyHeight(TABLE_BODY_HEIGHT);
-
         List<InventoryListingCandidate> candidates = InventoryTransfer.listingCandidates(uiPlayer);
         if (candidates.isEmpty()) {
-            table.addRow(new TableRow(Arrays.asList(labelCell(t().get("TC_MARKET_UI_EMPTY_INVENTORY", uiPlayer), 100f))));
+            UILabel empty = label(t().get("TC_MARKET_UI_EMPTY_INVENTORY", uiPlayer), 15, Font.Default);
+            empty.setPivot(Pivot.UpperLeft);
+            empty.setPosition(12, 12, false);
+            empty.setSize(90, 40, true);
+            empty.setTextWrap(true);
+            listPanel.addChild(empty);
         } else {
+            UIScrollView scroll = flexScroll(392);
+            OZUIElement wrapper = flexWrapper();
             for (InventoryListingCandidate candidate : candidates) {
-                table.addRow(candidateRow(candidate));
+                wrapper.addChild(candidateCard(candidate));
             }
+            scroll.addChild(wrapper);
+            listPanel.addChild(scroll);
         }
-        listPanel.addChild(table);
     }
 
     private TableRow candidateRow(InventoryListingCandidate candidate) {
@@ -187,6 +216,42 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         button.setSize(86, 22, false);
         button.setBorderEdgeRadius(3, false);
         return button;
+    }
+
+    private OZUIElement candidateCard(InventoryListingCandidate candidate) {
+        OZUIElement card = smallCard(156, 118);
+        card.setClickable(true);
+        card.setClickAction(event -> {
+            selected = candidate;
+            rebuild();
+            setStatus("");
+        });
+
+        card.addChild(cardIcon(itemIcon(candidate.itemName(), candidate.variant()), 10, 10, 32));
+
+        UILabel name = label(candidate.displayName(), 13, Font.DefaultBold);
+        name.setPivot(Pivot.UpperLeft);
+        name.setPosition(50, 10, false);
+        name.setSize(96, 34, false);
+        name.setTextWrap(true);
+        name.setTextAlign(TextAnchor.UpperLeft);
+        card.addChild(name);
+
+        UILabel amount = label(t().get("TC_MARKET_UI_CARD_AMOUNT", uiPlayer)
+                .replace("PH_AMOUNT", String.valueOf(candidate.availableAmount())), 12, Font.Default);
+        amount.setPivot(Pivot.UpperLeft);
+        amount.setPosition(10, 54, false);
+        amount.setSize(136, 22, false);
+        card.addChild(amount);
+
+        UILabel variant = label(t().get("TC_MARKET_UI_CARD_VARIANT", uiPlayer)
+                .replace("PH_VARIANT", String.valueOf(candidate.variant())), 12, Font.Default);
+        variant.setPivot(Pivot.UpperLeft);
+        variant.setPosition(10, 78, false);
+        variant.setSize(136, 22, false);
+        card.addChild(variant);
+
+        return card;
     }
 
     private void setupListingForm() {
@@ -221,8 +286,8 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         priceField = textField("");
         addField(form, t().get("TC_MARKET_UI_FIELD_PRICE", uiPlayer), priceField, 142);
 
-        currencyField = textField(plugin.defaultCurrencyIdentifier());
-        addField(form, t().get("TC_MARKET_UI_FIELD_CURRENCY", uiPlayer), currencyField, 196);
+        Dropdown currencyDropdown = currencyDropdown();
+        addField(form, t().get("TC_MARKET_UI_FIELD_CURRENCY", uiPlayer), currencyDropdown, 196);
 
         int modeX = 0;
         if (plugin.localListingAllowed(uiPlayer)) {
@@ -294,6 +359,11 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private void setupListingsTab(boolean global) {
+        addListingsLayoutToggle();
+        if (MarketplacePlayerPreferences.LAYOUT_CARD.equals(MarketplacePlayerPreferences.listingLayout(uiPlayer))) {
+            setupListingCards(global);
+            return;
+        }
         TableScrollView table = new TableScrollView(
                 Arrays.asList(
                         t().get("TC_MARKET_UI_COL_ITEM", uiPlayer),
@@ -303,7 +373,8 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
                         t().get("TC_MARKET_UI_COL_ZONE", uiPlayer),
                         t().get("TC_MARKET_UI_COL_ACTION", uiPlayer)),
                 Arrays.asList(28f, 10f, 18f, 18f, 14f, 12f));
-        table.setScrollBodyHeight(TABLE_BODY_HEIGHT);
+        table.setPosition(0, 42, false);
+        table.setScrollBodyHeight(TABLE_BODY_HEIGHT - 42);
 
         List<MarketplaceListing> listings = visibleListings(global);
         if (listings.isEmpty()) {
@@ -314,6 +385,62 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             }
         }
         body.addChild(table);
+    }
+
+    private void setupListingCards(boolean global) {
+        List<MarketplaceListing> listings = visibleListings(global);
+        UIScrollView scroll = flexScroll(TABLE_BODY_HEIGHT - 42);
+        scroll.setPosition(0, 42, false);
+        OZUIElement wrapper = flexWrapper();
+        if (listings.isEmpty()) {
+            UILabel empty = label(emptyListingsText(global), 15, Font.Default);
+            empty.setPivot(Pivot.UpperLeft);
+            empty.setPosition(12, 12, false);
+            empty.setSize(90, 40, true);
+            empty.setTextWrap(true);
+            wrapper.addChild(empty);
+        } else {
+            for (MarketplaceListing listing : listings) {
+                wrapper.addChild(listingCard(listing));
+            }
+        }
+        scroll.addChild(wrapper);
+        body.addChild(scroll);
+    }
+
+    private void addListingsLayoutToggle() {
+        boolean table = MarketplacePlayerPreferences.LAYOUT_TABLE.equals(MarketplacePlayerPreferences.listingLayout(uiPlayer));
+        OZUIElement cards = layoutButton(t().get("TC_MARKET_UI_LAYOUT_CARDS", uiPlayer), 14, table ? false : true,
+                () -> {
+                    MarketplacePlayerPreferences.setListingLayout(uiPlayer, MarketplacePlayerPreferences.LAYOUT_CARD);
+                    rebuild();
+                });
+        body.addChild(cards);
+        OZUIElement tableButton = layoutButton(t().get("TC_MARKET_UI_LAYOUT_TABLE", uiPlayer), 140, table,
+                () -> {
+                    MarketplacePlayerPreferences.setListingLayout(uiPlayer, MarketplacePlayerPreferences.LAYOUT_TABLE);
+                    rebuild();
+                });
+        body.addChild(tableButton);
+    }
+
+    private OZUIElement layoutButton(String text, int x, boolean active, Runnable action) {
+        OZUIElement button = new OZUIElement();
+        button.setPivot(Pivot.UpperLeft);
+        button.setPosition(x, 8, false);
+        button.setSize(116, 28, false);
+        button.setBorder(1);
+        button.setBorderEdgeRadius(3, false);
+        button.setClickable(true);
+        button.setClickAction(event -> action.run());
+        styleTab(button, active);
+        UILabel label = label(text, 12, Font.DefaultBold);
+        label.setPivot(Pivot.MiddleCenter);
+        label.setPosition(50, 50, true);
+        label.setSize(100, 100, true);
+        label.setTextAlign(TextAnchor.MiddleCenter);
+        button.addChild(label);
+        return button;
     }
 
     private List<MarketplaceListing> visibleListings(boolean global) {
@@ -341,13 +468,58 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private TableRow listingRow(MarketplaceListing listing) {
+        long fee = plugin.marketplaceBuyerFee(uiPlayer, listing);
+        int feePercent = plugin.marketplaceBuyerFeePercent(uiPlayer, listing);
         return new TableRow(Arrays.asList(
                 labelCell(listing.itemName() + ":" + listing.itemVariant(), 28f),
                 labelCell(String.valueOf(listing.amount()), 10f),
-                labelCell(listing.price() + currencyLabel(listing.currencyIdentifier()), 18f),
+                labelCell(priceWithFee(listing.price(), fee, feePercent, listing.currencyIdentifier()), 18f),
                 labelCell(listing.sellerName(), 18f),
                 labelCell(listing.marketZoneId(), 14f),
                 new TableCell(buyButton(listing), 12f)));
+    }
+
+    private OZUIElement listingCard(MarketplaceListing listing) {
+        long fee = plugin.marketplaceBuyerFee(uiPlayer, listing);
+        int feePercent = plugin.marketplaceBuyerFeePercent(uiPlayer, listing);
+        OZUIElement card = smallCard(252, 150);
+        card.addChild(cardIcon(itemIcon(listing.itemName(), listing.itemVariant()), 12, 12, 36));
+
+        UILabel title = label(listing.itemName() + ":" + listing.itemVariant(), 14, Font.DefaultBold);
+        title.setPivot(Pivot.UpperLeft);
+        title.setPosition(60, 12, false);
+        title.setSize(178, 34, false);
+        title.setTextWrap(true);
+        title.setTextAlign(TextAnchor.UpperLeft);
+        card.addChild(title);
+
+        UILabel amount = label(t().get("TC_MARKET_UI_CARD_AMOUNT", uiPlayer)
+                .replace("PH_AMOUNT", String.valueOf(listing.amount())), 12, Font.Default);
+        amount.setPivot(Pivot.UpperLeft);
+        amount.setPosition(12, 56, false);
+        amount.setSize(110, 22, false);
+        card.addChild(amount);
+
+        UILabel seller = label(listing.sellerName(), 12, Font.Default);
+        seller.setPivot(Pivot.UpperLeft);
+        seller.setPosition(126, 56, false);
+        seller.setSize(112, 22, false);
+        card.addChild(seller);
+
+        UILabel price = label(priceWithFee(listing.price(), fee, feePercent, listing.currencyIdentifier()), 13,
+                Font.DefaultBold);
+        price.setPivot(Pivot.UpperLeft);
+        price.setPosition(12, 84, false);
+        price.setSize(226, 24, false);
+        price.setFontColor(0xF2C766FF);
+        card.addChild(price);
+
+        UIElement action = buyButton(listing);
+        action.setPivot(Pivot.LowerRight);
+        action.setPosition(238, 138, false);
+        action.setSize(86, 26, false);
+        card.addChild(action);
+        return card;
     }
 
     private void setupSalesTab() {
@@ -404,9 +576,13 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
 
     private UIElement buyButton(MarketplaceListing listing) {
         if (listing.sellerDbId() == uiPlayer.getDbID()) {
-            UILabel own = label(t().get("TC_MARKET_UI_OWN_LISTING", uiPlayer), 12, Font.DefaultBold);
-            own.setSize(78, 22, false);
-            return own;
+            InfoButton button = ButtonFactory.info(t().get("TC_MARKET_UI_CANCEL_LISTING", uiPlayer),
+                    event -> showCancelListingConfirmation(listing));
+            button.setPivot(Pivot.UpperLeft);
+            button.setPosition(4, 5, false);
+            button.setSize(72, 22, false);
+            button.setBorderEdgeRadius(3, false);
+            return button;
         }
         InfoButton button = ButtonFactory.info(t().get("TC_MARKET_UI_BUY", uiPlayer),
                 event -> showBuyConfirmation(listing));
@@ -419,10 +595,15 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
 
     private void showBuyConfirmation(MarketplaceListing listing) {
         OZUIElement dialog = confirmationDialog(t().get("TC_MARKET_UI_BUY_CONFIRM_TITLE", uiPlayer));
+        long fee = plugin.marketplaceBuyerFee(uiPlayer, listing);
+        int feePercent = plugin.marketplaceBuyerFeePercent(uiPlayer, listing);
         String details = t().get("TC_MARKET_UI_BUY_CONFIRM_TEXT", uiPlayer)
                 .replace("PH_ITEM", listing.itemName() + ":" + listing.itemVariant())
                 .replace("PH_AMOUNT", String.valueOf(listing.amount()))
                 .replace("PH_PRICE", String.valueOf(listing.price()))
+                .replace("PH_FEE", String.valueOf(fee))
+                .replace("PH_FEE_PERCENT", String.valueOf(feePercent))
+                .replace("PH_TOTAL", String.valueOf(listing.price() + fee))
                 .replace("PH_CURRENCY", currencyLabel(listing.currencyIdentifier()).trim())
                 .replace("PH_MODE", t().get(listing.globalListing() ? "TC_MARKET_UI_MODE_GLOBAL" : "TC_MARKET_UI_MODE_LOCAL",
                         uiPlayer))
@@ -431,6 +612,23 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         addDialogButtons(dialog, t().get("TC_MARKET_UI_CANCEL", uiPlayer), t().get("TC_MARKET_UI_BUY", uiPlayer),
                 () -> {
                     MarketplaceResult result = plugin.buyMarketplaceListing(uiPlayer, listing.id());
+                    uiPlayer.sendTextMessage((result.success() ? c.okay : c.error) + result.message());
+                    rebuild();
+                });
+    }
+
+    private void showCancelListingConfirmation(MarketplaceListing listing) {
+        OZUIElement dialog = confirmationDialog(t().get("TC_MARKET_UI_CANCEL_LISTING_CONFIRM_TITLE", uiPlayer));
+        String details = t().get("TC_MARKET_UI_CANCEL_LISTING_CONFIRM_TEXT", uiPlayer)
+                .replace("PH_ITEM", listing.itemName() + ":" + listing.itemVariant())
+                .replace("PH_AMOUNT", String.valueOf(listing.amount()))
+                .replace("PH_PRICE", String.valueOf(listing.price()))
+                .replace("PH_CURRENCY", currencyLabel(listing.currencyIdentifier()).trim());
+        addDialogMessage(dialog, details);
+        addDialogButtons(dialog, t().get("TC_MARKET_UI_CANCEL", uiPlayer),
+                t().get("TC_MARKET_UI_WITHDRAW_LISTING", uiPlayer),
+                () -> {
+                    MarketplaceResult result = plugin.cancelMarketplaceListing(uiPlayer, listing.id());
                     uiPlayer.sendTextMessage((result.success() ? c.okay : c.error) + result.message());
                     rebuild();
                 });
@@ -458,8 +656,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             return;
         }
         amountField.getCurrentText(uiPlayer, amountText -> priceField.getCurrentText(uiPlayer,
-                priceText -> currencyField.getCurrentText(uiPlayer,
-                        currencyText -> validateAndConfirmListing(amountText, priceText, currencyText))));
+                priceText -> validateAndConfirmListing(amountText, priceText, selectedCurrency)));
     }
 
     private void validateAndConfirmListing(String amountText, String priceText, String currencyText) {
@@ -642,13 +839,13 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             onConfirm.run();
         });
         confirm.setPivot(Pivot.UpperLeft);
-        confirm.setPosition(222, 184, false);
-        confirm.setSize(120, 32, false);
+        confirm.setPosition(202, 184, false);
+        confirm.setSize(160, 32, false);
         confirm.setBorderEdgeRadius(3, false);
         dialog.addChild(confirm);
     }
 
-    private void addField(OZUIElement form, String labelText, UITextField field, int y) {
+    private void addField(OZUIElement form, String labelText, UIElement field, int y) {
         UILabel fieldLabel = label(labelText, 12, Font.DefaultBold);
         fieldLabel.setPivot(Pivot.UpperLeft);
         fieldLabel.setPosition(0, y, false);
@@ -659,6 +856,20 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         field.setPosition(112, y, false);
         field.setSize(160, 30, false);
         form.addChild(field);
+    }
+
+    private Dropdown currencyDropdown() {
+        List<DropdownOption> options = plugin.walletCurrencies().stream()
+                .map(currency -> new DropdownOption(currency.defaultCurrency() ? "" : currency.identifier(),
+                        currency.identifier() + (currency.defaultCurrency() ? " *" : "")))
+                .toList();
+        if (options.isEmpty()) {
+            options = List.of(new DropdownOption("", plugin.defaultCurrencyIdentifier()));
+        }
+        Dropdown dropdown = new Dropdown(options, selectedCurrency, key -> selectedCurrency = key == null ? "" : key);
+        dropdown.setPivot(Pivot.UpperLeft);
+        dropdown.setSize(160, 30, false);
+        return dropdown;
     }
 
     private UITextField textField(String value) {
@@ -701,6 +912,79 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         body.addChild(message);
     }
 
+    private UIScrollView flexScroll(int height) {
+        UIScrollView scroll = new UIScrollView(ScrollViewMode.Vertical);
+        scroll.setPivot(Pivot.UpperLeft);
+        scroll.setPosition(0, 0, false);
+        scroll.style.width.set(100, Unit.Percent);
+        scroll.style.height.set(height, Unit.Pixel);
+        scroll.style.paddingLeft.set(10);
+        scroll.style.paddingRight.set(10);
+        scroll.style.paddingTop.set(10);
+        scroll.style.paddingBottom.set(34);
+        return scroll;
+    }
+
+    private OZUIElement flexWrapper() {
+        OZUIElement wrapper = new OZUIElement();
+        wrapper.setPivot(Pivot.UpperLeft);
+        wrapper.style.width.set(100, Unit.Percent);
+        wrapper.style.height.set(100, Unit.Percent);
+        wrapper.style.display.set(DisplayStyle.Flex);
+        wrapper.style.flexDirection.set(FlexDirection.Row);
+        wrapper.style.flexWrap.set(Wrap.Wrap);
+        wrapper.style.alignContent.set(Align.FlexStart);
+        wrapper.style.justifyContent.set(Justify.FlexStart);
+        return wrapper;
+    }
+
+    private OZUIElement smallCard(int width, int height) {
+        OZUIElement card = new OZUIElement();
+        card.setPivot(Pivot.UpperLeft);
+        card.style.width.set(width, Unit.Pixel);
+        card.style.height.set(height, Unit.Pixel);
+        card.style.marginLeft.set(6);
+        card.style.marginRight.set(6);
+        card.style.marginTop.set(6);
+        card.style.marginBottom.set(10);
+        card.setBackgroundColor(0.10f, 0.09f, 0.08f, 0.92f);
+        card.setHoverBackgroundColor(0x2A2419DD);
+        card.setBorder(1);
+        card.setBorderColor(0.95f, 0.75f, 0.25f, 0.42f);
+        card.setBorderEdgeRadius(6, false);
+        return card;
+    }
+
+    private OZUIElement cardIcon(TextureAsset asset, int x, int y, int size) {
+        OZUIElement icon = new OZUIElement();
+        icon.setPivot(Pivot.UpperLeft);
+        icon.setPosition(x, y, false);
+        icon.setSize(size, size, false);
+        icon.setBackgroundColor(0, 0, 0, 0);
+        if (asset != null) {
+            icon.style.backgroundImage.set(asset);
+            icon.style.backgroundImageScaleMode.set(ScaleMode.ScaleToFit);
+        }
+        return icon;
+    }
+
+    private TextureAsset itemIcon(String itemName, int itemVariant) {
+        TextureAsset asset = null;
+        if (itemName != null && !itemName.isBlank()) {
+            ItemDefinition definition = Definitions.getItemDefinition(itemName);
+            if (definition != null) {
+                asset = definition.getIcon(itemVariant);
+            }
+        }
+        if (asset == null) {
+            asset = AssetManager.getIcon("marketplace-icon");
+        }
+        if (asset == null) {
+            asset = AssetManager.getIcon("icon-ki-placeholder");
+        }
+        return asset;
+    }
+
     private String sellUnavailableMessage() {
         PluginSettings settings = plugin.marketplaceSettings();
         if (!settings.localMarketplaceEnabled && !settings.globalMarketplaceEnabled) {
@@ -721,6 +1005,13 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         return currency == null || currency.isBlank()
                 ? " " + plugin.defaultCurrencyIdentifier()
                 : " " + currency;
+    }
+
+    private String priceWithFee(long price, long fee, int feePercent, String currency) {
+        String label = price + currencyLabel(currency);
+        return fee > 0L
+                ? label + " +" + fee + currencyLabel(currency) + " (" + feePercent + "%)"
+                : label;
     }
 
     private int parseInt(String value) {

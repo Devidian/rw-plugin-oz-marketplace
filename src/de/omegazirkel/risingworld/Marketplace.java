@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 import de.omegazirkel.risingworld.marketplace.MarketZone;
+import de.omegazirkel.risingworld.marketplace.MarketplacePlayerPreferences;
 import de.omegazirkel.risingworld.marketplace.MarketplaceDatabase;
 import de.omegazirkel.risingworld.marketplace.MarketplaceListing;
 import de.omegazirkel.risingworld.marketplace.MarketplaceResult;
@@ -17,11 +18,13 @@ import de.omegazirkel.risingworld.marketplace.PluginSettings;
 import de.omegazirkel.risingworld.marketplace.PluginGUI;
 import de.omegazirkel.risingworld.marketplace.WalletBridge;
 import de.omegazirkel.risingworld.marketplace.ui.MarketplacePlayerPluginData;
+import de.omegazirkel.risingworld.marketplace.ui.MarketplacePlayerPluginSettings;
 import de.omegazirkel.risingworld.marketplace.ui.MarketplaceZoneIndicatorProvider;
 import de.omegazirkel.risingworld.tools.Colors;
 import de.omegazirkel.risingworld.tools.FileChangeListener;
 import de.omegazirkel.risingworld.tools.I18n;
 import de.omegazirkel.risingworld.tools.OZLogger;
+import de.omegazirkel.risingworld.tools.PlayerSettings;
 import de.omegazirkel.risingworld.tools.db.SQLiteConnectionFactory;
 import de.omegazirkel.risingworld.tools.settings.PlayerPluginAdminSettings;
 import de.omegazirkel.risingworld.tools.ui.PlayerPluginSettingsOverlay;
@@ -40,6 +43,7 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
     private static PluginSettings s;
     private static MarketplaceService service;
     private static Connection sqliteCon;
+    private static PlayerSettings playerSettings;
     private static I18n t;
     public static String name;
 
@@ -57,6 +61,7 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
         try {
             sqliteCon = SQLiteConnectionFactory.open(this);
             MarketplaceDatabase database = new MarketplaceDatabase(sqliteCon);
+            playerSettings = new PlayerSettings(sqliteCon);
             service = new MarketplaceService(database, new WalletBridge(this), s);
         } catch (SQLException ex) {
             logger().error("Failed to initialize marketplace database: " + ex.getMessage());
@@ -66,6 +71,8 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
         registerEventListener(this);
         PluginGUI.getInstance(this);
         SharedIndicators.registerProvider(name, new MarketplaceZoneIndicatorProvider(this));
+        PlayerPluginSettingsOverlay
+                .registerPlayerPluginSettings(new MarketplacePlayerPluginSettings(getDescription("version")));
         PlayerPluginSettingsOverlay.registerPlayerPluginData(new MarketplacePlayerPluginData(getDescription("version")));
         PlayerPluginSettingsOverlay.registerPlayerPluginAdminSettings(
                 new PlayerPluginAdminSettings(name, getDescription("version"), () -> s.adminSettingsEntries(),
@@ -102,6 +109,7 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
     @EventMethod
     public void onPlayerSpawnEvent(PlayerSpawnEvent event) {
         Player player = event.getPlayer();
+        MarketplacePlayerPreferences.load(player);
         if (s.enableWelcomeMessage) {
             player.sendTextMessage(c.okay + getDescription("name") + " " + getDescription("version")
                     + " enabled. Use /" + s.marketCommand + ".");
@@ -127,7 +135,7 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
             return;
         }
         if (parts.length == 1) {
-            PluginGUI.getInstance().openMarketplaceOverlay(player);
+            PluginGUI.getInstance().openMainMenu(player);
             return;
         }
         if (parts[1].equalsIgnoreCase("list")) {
@@ -135,7 +143,6 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
             return;
         }
         switch (parts[1].toLowerCase()) {
-            case "sell" -> sell(player, parts);
             case "buy" -> buy(player, parts);
             case "cancel" -> cancel(player, parts);
             case "sales" -> sales(player);
@@ -143,21 +150,6 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
             case "help" -> usage(player);
             default -> usage(player);
         }
-    }
-
-    private void sell(Player player, String[] parts) {
-        if (parts.length < 6) {
-            usage(player);
-            return;
-        }
-        String itemName = parts[2];
-        int variant = parseInt(parts[3], 0);
-        int amount = parseInt(parts[4], 0);
-        long price = parseLong(parts[5], 0L);
-        String currency = parts.length >= 7 ? parts[6] : "";
-        boolean global = parts.length >= 8 && parts[7].equalsIgnoreCase("global");
-        MarketplaceResult result = service.createListing(player, itemName, variant, amount, price, currency, global);
-        player.sendTextMessage((result.success() ? c.okay : c.error) + result.message());
     }
 
     private void buy(Player player, String[] parts) {
@@ -390,6 +382,13 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
         return service.buy(player, listingId);
     }
 
+    public MarketplaceResult cancelMarketplaceListing(Player player, long listingId) {
+        if (service == null) {
+            return MarketplaceResult.fail("Marketplace database is not available.");
+        }
+        return service.cancel(player, listingId);
+    }
+
     public MarketplaceResult hideMarketplaceSale(Player player, long saleId) {
         if (service == null) {
             return MarketplaceResult.fail("Marketplace database is not available.");
@@ -402,6 +401,38 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
             return "default";
         }
         return service.defaultCurrencyIdentifier();
+    }
+
+    public List<WalletBridge.CurrencyInfo> walletCurrencies() {
+        if (service == null) {
+            return List.of();
+        }
+        return service.availableCurrencies();
+    }
+
+    public long marketplaceBuyerFee(Player buyer, MarketplaceListing listing) {
+        if (service == null) {
+            return 0L;
+        }
+        return service.buyerFee(buyer, listing);
+    }
+
+    public int marketplaceBuyerFeePercent(Player buyer, MarketplaceListing listing) {
+        if (service == null) {
+            return 0;
+        }
+        return service.buyerFeePercent(buyer, listing);
+    }
+
+    public long defaultCurrencyBalance(Player player) {
+        if (service == null || player == null) {
+            return 0L;
+        }
+        return service.defaultCurrencyBalance(player);
+    }
+
+    public static PlayerSettings playerSettings() {
+        return playerSettings;
     }
 
     public boolean localListingAllowed(Player player) {
@@ -443,7 +474,7 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
             List<MarketplaceListing> listings = service.listVisibleListings(player);
             if (listings.isEmpty()) {
                 player.sendTextMessage(c.info + "No marketplace listings visible here.");
-                player.sendTextMessage(c.text + "Use /" + s.marketCommand + " sell <item> <variant> <amount> <price> [currency] [global].");
+                player.sendTextMessage(c.text + "Use /" + s.marketCommand + " to open the Marketplace radial menu.");
                 return;
             }
             player.sendTextMessage(c.okay + "Marketplace listings:");
@@ -481,7 +512,7 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
     }
 
     private void usage(Player player) {
-        player.sendTextMessage(c.warning + "Usage: /" + s.marketCommand + " list | sell <item> <variant> <amount> <price> [currency] [global] | buy <id> | cancel <id> | sales");
+        player.sendTextMessage(c.warning + "Usage: /" + s.marketCommand + " | list | buy <id> | cancel <id> | sales");
         if (player.isAdmin()) {
             player.sendTextMessage(c.warning + "Admin: /" + s.marketCommand + " zone set <id> <radiusChunks> <feePercent> <globalMode> [label] | zone list | zone delete <id>");
         }

@@ -3,6 +3,7 @@ package de.omegazirkel.risingworld.marketplace;
 import java.sql.SQLException;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import de.omegazirkel.risingworld.Marketplace;
@@ -37,6 +38,10 @@ public class MarketplaceService {
 
     public String defaultCurrencyIdentifier() {
         return wallet.defaultCurrencyIdentifier();
+    }
+
+    public List<WalletBridge.CurrencyInfo> availableCurrencies() {
+        return wallet.listCurrencies();
     }
 
     public MarketplaceResult createZone(String id, String name, Vector3i center, int radius, int feePercent,
@@ -149,6 +154,11 @@ public class MarketplaceService {
         if (price <= 0 || amount <= 0) {
             return MarketplaceResult.fail("Price and amount must be greater than 0.");
         }
+        String listingCurrency = normalizeListingCurrency(currencyIdentifier);
+        MarketplaceResult currencyValidation = validateCurrency(listingCurrency);
+        if (!currencyValidation.success()) {
+            return currencyValidation;
+        }
         if (!globalListing && !settings.localMarketplaceEnabled) {
             return MarketplaceResult.fail("Local marketplace listings are disabled.");
         }
@@ -183,7 +193,7 @@ public class MarketplaceService {
                     itemVariant,
                     amount,
                     price,
-                    currencyIdentifier == null ? "" : currencyIdentifier.trim(),
+                    listingCurrency,
                     zone.map(MarketZone::id).orElse("global"),
                     globalListing,
                     now(),
@@ -373,6 +383,36 @@ public class MarketplaceService {
         return database.listActiveListings(zone.get().id(), true);
     }
 
+    public long buyerFee(Player buyer, MarketplaceListing listing) {
+        if (buyer == null || listing == null) {
+            return 0L;
+        }
+        try {
+            return fee(listing, currentZone(buyer).orElse(null));
+        } catch (SQLException ex) {
+            Marketplace.logger().warn("Failed to calculate marketplace fee for listing " + listing.id() + ": "
+                    + ex.getMessage());
+            return fee(listing, null);
+        }
+    }
+
+    public int buyerFeePercent(Player buyer, MarketplaceListing listing) {
+        if (buyer == null || listing == null) {
+            return 0;
+        }
+        try {
+            return feePercent(listing, currentZone(buyer).orElse(null));
+        } catch (SQLException ex) {
+            Marketplace.logger().warn("Failed to calculate marketplace fee percent for listing " + listing.id()
+                    + ": " + ex.getMessage());
+            return feePercent(listing, null);
+        }
+    }
+
+    public long defaultCurrencyBalance(Player player) {
+        return player == null ? 0L : wallet.balanceDefault(player.getDbID());
+    }
+
     public List<MarketplaceSale> listSales(Player seller, int limit) throws SQLException {
         return database.listSalesForSeller(seller.getDbID(), limit);
     }
@@ -417,6 +457,30 @@ public class MarketplaceService {
         return buyerZone.id().equals(listing.marketZoneId())
                 ? buyerZone.feePercent()
                 : settings.defaultLocalFeePercent;
+    }
+
+    private MarketplaceResult validateCurrency(String currencyIdentifier) {
+        String effectiveCurrency = currencyIdentifier == null || currencyIdentifier.isBlank()
+                ? defaultCurrencyIdentifier()
+                : currencyIdentifier;
+        if (effectiveCurrency == null || effectiveCurrency.isBlank()) {
+            return MarketplaceResult.fail("Wallet default currency is not available.");
+        }
+        List<WalletBridge.CurrencyInfo> currencies = wallet.listCurrencies();
+        if (currencies.isEmpty()) {
+            return MarketplaceResult.fail("Could not load Wallet currencies.");
+        }
+        String normalized = effectiveCurrency.trim().toUpperCase(Locale.ROOT);
+        boolean exists = currencies.stream().anyMatch(currency -> currency.identifier().equals(normalized));
+        return exists
+                ? MarketplaceResult.ok("Currency accepted.")
+                : MarketplaceResult.fail("Unknown Wallet currency: " + effectiveCurrency + ".");
+    }
+
+    private String normalizeListingCurrency(String currencyIdentifier) {
+        String normalized = currencyIdentifier == null ? "" : currencyIdentifier.trim().toUpperCase(Locale.ROOT);
+        String defaultCurrency = defaultCurrencyIdentifier();
+        return normalized.equalsIgnoreCase(defaultCurrency) ? "" : normalized;
     }
 
     private void releaseListing(long listingId, String expectedStatus) {

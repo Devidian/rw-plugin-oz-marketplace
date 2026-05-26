@@ -26,6 +26,7 @@ public class MarketplacePluginInfoStatusProvider implements PluginInfoStatusProv
         PluginSettings settings = PluginSettings.getInstance();
         return t().get("TC_MARKET_INFO_PANEL_INFO", player)
                 .replace("PH_PLUGIN_NAME", pluginName)
+                .replace("PH_VERSION", version)
                 .replace("PH_PLUGIN_CMD", settings.marketCommand);
     }
 
@@ -34,7 +35,6 @@ public class MarketplacePluginInfoStatusProvider implements PluginInfoStatusProv
         PluginSettings settings = PluginSettings.getInstance();
         MarketZone zone = plugin.safeCurrentMarketZone(player).orElse(null);
         return t().get("TC_MARKET_INFO_PANEL_STATUS", player)
-                .replace("PH_VERSION", version)
                 .replace("PH_WALLET_STATUS", available(plugin.walletAvailable()))
                 .replace("PH_LOCAL_ENABLED", String.valueOf(settings.localMarketplaceEnabled))
                 .replace("PH_GLOBAL_ENABLED", String.valueOf(settings.globalMarketplaceEnabled))
@@ -43,10 +43,7 @@ public class MarketplacePluginInfoStatusProvider implements PluginInfoStatusProv
                 .replace("PH_ZONE_GLOBAL_MODE", zone == null ? "-" : globalMode(zone.globalTradeMode()))
                 .replace("PH_LOCAL_FEE", String.valueOf(settings.defaultLocalFeePercent))
                 .replace("PH_GLOBAL_FEE", String.valueOf(settings.defaultGlobalFeePercent))
-                .replace("PH_MAX_LISTINGS", String.valueOf(settings.maxListingsPerPlayer))
-                .replace("PH_LOG_LEVEL", settings.logLevel)
-                .replace("PH_RELOAD_ON_CHANGE", String.valueOf(settings.reloadOnChange))
-                .replace("PH_WELCOME_MESSAGE", String.valueOf(settings.enableWelcomeMessage));
+                .replace("PH_MAX_LISTINGS", String.valueOf(settings.maxListingsPerPlayer));
     }
 
     private I18n t() {

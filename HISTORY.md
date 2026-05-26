@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- fix: keep the Marketplace PlayerSettings card within the shared Tools settings width
+- fix: replace `PH_PLUGIN_NAME` in the Marketplace PlayerSettings empty state
+- change: use the dedicated market-zone shared-indicator icon for market-zone signals
+- feat: add a default Marketplace PlayerSettings page
+- feat: validate listing currencies against Wallet before removing seller inventory
+- feat: replace Marketplace sell-currency text entry with a Wallet-backed currency dropdown
+- feat: show default Wallet balance in the Marketplace overlay footer
+- feat: show buyer fee amount, fee percent, and total in listing rows/cards and purchase confirmation
+- feat: add card-first Local/Global listing views with persisted card/table layout preference
+- feat: show sellable inventory candidates as icon cards in the Sell tab
+- feat: add Marketplace radial Info/Status menu action with the shared Tools info icon
+- feat: allow sellers to cancel their own listings from Local/Global listing views
 - feat: add shared Tools Info/Status panel content for Marketplace and route info/status commands to it
 - feat: group and localize Marketplace admin settings metadata
 - refactor: route Marketplace settings logging through the main `OZ.Marketplace` logger
