@@ -8,6 +8,7 @@ import java.util.Map;
 
 import net.risingworld.api.definitions.Definitions;
 import net.risingworld.api.definitions.Items.ItemDefinition;
+import net.risingworld.api.definitions.Objects.ObjectDefinition;
 import net.risingworld.api.objects.Inventory;
 import net.risingworld.api.objects.Inventory.SlotType;
 import net.risingworld.api.objects.Item;
@@ -40,10 +41,14 @@ public final class InventoryTransfer {
             }
             int variant = item.getVariant();
             ItemDefinition candidateDefinition = definition;
-            String key = candidateDefinition.name + ":" + variant;
+            String itemName = MarketplaceItemNames.storedItemName(item, candidateDefinition);
+            if (itemName.isBlank()) {
+                continue;
+            }
+            String key = itemName + ":" + variant;
             CandidateAccumulator accumulator = grouped.computeIfAbsent(key,
-                    ignored -> new CandidateAccumulator(candidateDefinition.name,
-                            displayName(item, candidateDefinition, variant),
+                    ignored -> new CandidateAccumulator(itemName,
+                            MarketplaceItemNames.candidateLabel(item, candidateDefinition, variant),
                             variant, maxStackSize(item, candidateDefinition)));
             accumulator.availableAmount += item.getStack();
             accumulator.maxStackSize = Math.max(accumulator.maxStackSize, maxStackSize(item, candidateDefinition));
@@ -59,8 +64,7 @@ public final class InventoryTransfer {
     }
 
     public static MarketplaceResult removeFromSeller(Player seller, String itemName, int itemVariant, int amount) {
-        ItemDefinition definition = Definitions.getItemDefinition(itemName);
-        if (definition == null) {
+        if (MarketplaceItemNames.definition(itemName) == null && MarketplaceItemNames.objectDefinition(itemName) == null) {
             return MarketplaceResult.fail("Unknown item: " + itemName);
         }
         if (amount <= 0) {
@@ -72,8 +76,7 @@ public final class InventoryTransfer {
             int slots = inventory.getSlotCount(slotType);
             for (int slot = 0; slot < slots; slot++) {
                 Item item = inventory.getItem(slot, slotType);
-                if (item == null || !item.isValid() || item.getTypeID() != definition.id
-                        || item.getVariant() != itemVariant) {
+                if (item == null || !item.isValid() || !MarketplaceItemNames.matches(item, itemName, itemVariant)) {
                     continue;
                 }
                 int remove = Math.min(remaining, item.getStack());
@@ -92,27 +95,18 @@ public final class InventoryTransfer {
 
     public static MarketplaceResult addToBuyer(Player buyer, String itemName, int itemVariant, int amount) {
         ItemDefinition definition = Definitions.getItemDefinition(itemName);
-        if (definition == null) {
+        ObjectDefinition objectDefinition = MarketplaceItemNames.objectDefinition(itemName);
+        if (definition == null && objectDefinition == null) {
             return MarketplaceResult.fail("Unknown item: " + itemName);
         }
-        Item item = buyer.getInventory().addItem(definition.id, itemVariant, amount);
+        Item item = objectDefinition != null
+                ? buyer.getInventory().addObjectItem(objectDefinition.id, itemVariant, amount)
+                : buyer.getInventory().addItem(definition.id, itemVariant, amount);
         if (item == null || !item.isValid()) {
             return MarketplaceResult.fail("Could not add item to buyer inventory.");
         }
         buyer.getInventory().syncWithClient();
         return MarketplaceResult.ok("Item added to buyer inventory.");
-    }
-
-    private static String displayName(Item item, ItemDefinition definition, int variant) {
-        String itemName = item.getName();
-        if (itemName != null && !itemName.isBlank()) {
-            return itemName;
-        }
-        if (definition.getVariant(variant) != null && definition.getVariant(variant).name != null
-                && !definition.getVariant(variant).name.isBlank()) {
-            return definition.getVariant(variant).name;
-        }
-        return definition.name;
     }
 
     private static int maxStackSize(Item item, ItemDefinition definition) {

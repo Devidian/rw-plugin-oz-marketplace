@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## [0.2.0] - 2026-06-08 | Search and persistence hardening
+
+- feat: add name search controls to Marketplace Local and Global listing tabs
+- change: remove background and border from compact Marketplace Wallet balance chips
+- fix: move Marketplace Wallet balances above the full overlay panel
+- feat: show compact Wallet currency balance chips above the Marketplace overlay body
+- feat: add Marketplace shortcut visibility player setting
+- fix: widen seller withdraw actions and preserve object item names when listing object items
+- feat: simplify the Marketplace management tab with outside-zone create-only state, inside-zone controls, and numeric fee updates
+- feat: display Marketplace listings and sales with derived item names and variant suffixes
+- fix: prevent confirmation dialog action buttons from overlapping
+
 ## [0.1.0] - 2026-05-26 | Initial marketplace release
 
 - fix: keep the Marketplace PlayerSettings card within the shared Tools settings width

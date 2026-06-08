@@ -1,5 +1,6 @@
 # Roadmaps
 
+- [Roadmap Plan 04 Marketplace UI Persistence And Variants](roadmap-plan-04-marketplace-ui-persistence-and-variants.md)
 - [Roadmap Plan 03 Marketplace UI And Currency Validation](roadmap-plan-03-marketplace-ui-and-currency-validation.md)
 - [Roadmap Plan 02 Marketplace UI And Trade Rules](roadmap-plan-02-marketplace-ui-and-trade-rules.md)
 

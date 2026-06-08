@@ -176,10 +176,31 @@ public class MarketplaceDatabase {
         return Optional.empty();
     }
 
-    public void deleteZone(String id) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("DELETE FROM marketplace_zones WHERE id = ?;")) {
-            statement.setString(1, id);
-            statement.executeUpdate();
+    public ZoneDeleteResult deleteZoneAndPromoteListings(String id) throws SQLException {
+        boolean previousAutoCommit = connection.getAutoCommit();
+        connection.setAutoCommit(false);
+        try {
+            int promotedListings;
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    UPDATE marketplace_listings
+                    SET market_zone_id = 'global', global_listing = 1
+                    WHERE market_zone_id = ? AND status = 'ACTIVE';
+                    """)) {
+                statement.setString(1, id);
+                promotedListings = statement.executeUpdate();
+            }
+            int deletedZones;
+            try (PreparedStatement statement = connection.prepareStatement("DELETE FROM marketplace_zones WHERE id = ?;")) {
+                statement.setString(1, id);
+                deletedZones = statement.executeUpdate();
+            }
+            connection.commit();
+            return new ZoneDeleteResult(deletedZones > 0, promotedListings);
+        } catch (SQLException ex) {
+            connection.rollback();
+            throw ex;
+        } finally {
+            connection.setAutoCommit(previousAutoCommit);
         }
     }
 
@@ -434,5 +455,8 @@ public class MarketplaceDatabase {
                 result.getLong("seller_payout"),
                 result.getString("market_zone_id"),
                 result.getLong("sold_at"));
+    }
+
+    public record ZoneDeleteResult(boolean deleted, int promotedListings) {
     }
 }

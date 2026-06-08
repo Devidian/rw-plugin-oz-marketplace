@@ -1,6 +1,6 @@
 name: "OZ - Marketplace"
 main: de.omegazirkel.risingworld.Marketplace
-version: 0.1.0
+version: 0.2.0
 author: "Maik 'Devidian' Laschober"
 team: "Omega Zirkel"
 description: "Player-to-player marketplace with zones, fees, listings, Wallet purchases, and sale history"

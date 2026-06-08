@@ -24,7 +24,7 @@ Supporting repositories:
 - [x] Phase 6: Rework the Sell flow to an inventory icon-gallery/card grid with amount display, item selection, sell overlay/form, and final confirmation panel.
 - [x] Phase 7: Add card/table layout switching for Local and Global tabs, with card layout as the default and player preference persistence where appropriate.
 - [x] Phase 8: Add a radial-menu Info/Status button in the Marketplace main menu.
-- [ ] Phase 9: Update README/HISTORY and validate.
+- [x] Phase 9: Update README/HISTORY and validate.
 
 ## Risks
 - Listing creation must remain transactional: invalid currency, failed inventory removal, and failed persistence must not lose items.
@@ -55,4 +55,4 @@ Keep command flows available as fallback. UI card/list preference changes can be
 - Phase 6 complete: the Sell tab now presents inventory candidates as icon cards with amount/variant context and keeps the existing confirmation step before listing creation.
 - Phase 7 complete: Local and Global tabs support card/table layout switching, default to cards, and persist the player's preference through Tools player settings.
 - Phase 8 complete: the Marketplace radial menu includes an Info/Status action using the shared Tools `icon-ki-info-status` asset.
-- Validation passed with `mvn -B test`.
+- README/HISTORY were updated. Validation passed with `mvn -B test` and `mvn -B -DskipTests package`.

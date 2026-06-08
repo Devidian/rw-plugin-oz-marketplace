@@ -19,7 +19,7 @@ Supporting repositories/plugins: `rw-plugin-oz-tools`, `rw-plugin-oz-wallet`
 ## Validation Strategy
 - [x] `mvn -B -DskipTests package`
 - [x] `mvn -B test` when tests exist
-- [ ] Runtime smoke test with Tools, Wallet, and Marketplace installed
+- [x] Runtime smoke test with Tools, Wallet, and Marketplace installed
 
 ## Affected Repositories/Plugins
 - `rw-plugin-oz-marketplace`
@@ -35,4 +35,9 @@ Reverting this phase restores the command-first MVP behavior, but removes atomic
 - [x] Align fee flow with root roadmap: buyer pays listing price plus fee, seller receives listing price
 - [x] Keep package/install scope limited to Tools, Wallet, and Marketplace
 - [x] Update HISTORY
-- [ ] Complete runtime smoke test
+- [x] Complete runtime smoke test
+
+## Runtime Progress
+- Tools, Wallet, and Marketplace loaded without startup exceptions on the running `strato.V80` development server on 2026-06-08.
+- The active-world Marketplace SQLite schema contains the expected listing reservation, sale hiding, zone area, and global-trade migration columns.
+- Player testing confirmed Marketplace works as expected.

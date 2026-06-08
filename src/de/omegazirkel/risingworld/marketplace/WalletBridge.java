@@ -91,6 +91,18 @@ public class WalletBridge {
         return value instanceof Long ? (Long) value : 0L;
     }
 
+    public BalanceInfo balance(int playerDbId, String currencyIdentifier) {
+        Object result = callRaw("balance",
+                new Class<?>[] { int.class, String.class },
+                new Object[] { playerDbId, currencyIdentifier });
+        if (!WalletCallResult.from(result).success()) {
+            return new BalanceInfo(false, 0L);
+        }
+        Object balance = field(result, "balance");
+        Object value = callGetter(balance, "getBalance");
+        return value instanceof Long ? new BalanceInfo(true, (Long) value) : new BalanceInfo(false, 0L);
+    }
+
     private WalletCallResult call(String methodName, Class<?>[] paramTypes, Object[] args) {
         WalletCallResult result = WalletCallResult.from(callRaw(methodName, paramTypes, args));
         if (!result.success() && result.message().isBlank()) {
@@ -155,6 +167,9 @@ public class WalletBridge {
                     pluginIdentifier instanceof String ? (String) pluginIdentifier : "",
                     defaultCurrency instanceof Boolean && (Boolean) defaultCurrency);
         }
+    }
+
+    public record BalanceInfo(boolean success, long balance) {
     }
 
     private static Object callGetter(Object target, String getter) {

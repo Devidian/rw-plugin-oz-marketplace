@@ -113,9 +113,16 @@ public class MarketplaceService {
     }
 
     public MarketplaceResult deleteZone(String id) {
+        if (id == null || id.isBlank()) {
+            return MarketplaceResult.fail("Zone id is required.");
+        }
         try {
-            database.deleteZone(id.trim().toLowerCase());
-            return MarketplaceResult.ok("Market zone deleted: " + id);
+            MarketplaceDatabase.ZoneDeleteResult result = database.deleteZoneAndPromoteListings(id.trim().toLowerCase());
+            if (!result.deleted()) {
+                return MarketplaceResult.fail("Market zone not found: " + id);
+            }
+            return MarketplaceResult.ok("Market zone deleted: " + id
+                    + ". Local listings promoted to global: " + result.promotedListings() + ".");
         } catch (SQLException ex) {
             Marketplace.logger().error("Failed to delete market zone: " + ex.getMessage());
             return MarketplaceResult.fail("Could not delete market zone.");
@@ -411,6 +418,11 @@ public class MarketplaceService {
 
     public long defaultCurrencyBalance(Player player) {
         return player == null ? 0L : wallet.balanceDefault(player.getDbID());
+    }
+
+    public WalletBridge.BalanceInfo balance(Player player, String currencyIdentifier) {
+        return player == null ? new WalletBridge.BalanceInfo(false, 0L)
+                : wallet.balance(player.getDbID(), currencyIdentifier);
     }
 
     public List<MarketplaceSale> listSales(Player seller, int limit) throws SQLException {

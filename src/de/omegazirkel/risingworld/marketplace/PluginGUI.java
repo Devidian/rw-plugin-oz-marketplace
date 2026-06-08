@@ -14,6 +14,7 @@ import net.risingworld.api.ui.UIElement;
 import net.risingworld.api.objects.Player;
 
 public class PluginGUI {
+    private static final String OVERLAY_ATTRIBUTE = "oz.marketplace.ui.overlay";
     private static PluginGUI instance = null;
     private Marketplace plugin;
 
@@ -25,8 +26,8 @@ public class PluginGUI {
         AssetManager.loadIconFromPlugin(plugin, "icon-ki-zone-indicator-marketplace");
         PluginGUI gui = getInstance();
         gui.plugin = plugin;
-        PluginMenuManager.registerPluginMenu(new MenuItem(AssetManager.getIcon("marketplace-icon"), "Marketplace",
-                gui::openMainMenu));
+        PluginMenuManager.registerPluginMenu(new MenuItem(Marketplace.name, AssetManager.getIcon("marketplace-icon"),
+                "Marketplace", gui::openMainMenu));
         return gui;
     }
 
@@ -54,14 +55,22 @@ public class PluginGUI {
     }
 
     public void openMarketplaceOverlay(Player player) {
-        UIElement existing = (UIElement) player.getAttribute("oz.marketplace.ui.overlay");
+        UIElement existing = (UIElement) player.getAttribute(OVERLAY_ATTRIBUTE);
         if (existing != null) {
-            player.removeUIElement(existing);
-            CursorManager.hide(player);
+            closeMarketplaceOverlay(player);
         }
         MarketplaceOverlay overlay = new MarketplaceOverlay(plugin, player);
-        player.setAttribute("oz.marketplace.ui.overlay", overlay);
+        player.setAttribute(OVERLAY_ATTRIBUTE, overlay);
         player.addUIElement(overlay);
         CursorManager.show(player);
+    }
+
+    public void closeMarketplaceOverlay(Player player) {
+        UIElement existing = (UIElement) player.getAttribute(OVERLAY_ATTRIBUTE);
+        if (existing != null) {
+            player.removeUIElement(existing);
+            player.deleteAttribute(OVERLAY_ATTRIBUTE);
+            CursorManager.hide(player);
+        }
     }
 }

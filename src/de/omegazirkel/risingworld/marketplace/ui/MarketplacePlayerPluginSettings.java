@@ -1,13 +1,12 @@
 package de.omegazirkel.risingworld.marketplace.ui;
 
 import de.omegazirkel.risingworld.Marketplace;
+import de.omegazirkel.risingworld.marketplace.MarketplacePlayerPreferences;
 import de.omegazirkel.risingworld.tools.I18n;
 import de.omegazirkel.risingworld.tools.ui.BasePlayerPluginSettingsPanel;
 import de.omegazirkel.risingworld.tools.ui.OZUIElement;
 import de.omegazirkel.risingworld.tools.ui.PlayerPluginSettings;
 import net.risingworld.api.objects.Player;
-import net.risingworld.api.ui.UILabel;
-import net.risingworld.api.ui.style.Unit;
 
 public class MarketplacePlayerPluginSettings extends PlayerPluginSettings {
     public MarketplacePlayerPluginSettings(String pluginVersion) {
@@ -30,9 +29,12 @@ public class MarketplacePlayerPluginSettings extends PlayerPluginSettings {
             protected void redrawContent() {
                 flexWrapper.removeAllChilds();
                 OZUIElement element = defaultSettingsContainer();
-                element.style.width.set(95, Unit.Percent);
-                UILabel label = defaultSettingsLabel(text(uiPlayer, "TC_SETTINGS_EMPTY"));
-                element.addChild(label);
+                element.addChild(defaultSettingsLabel(text(uiPlayer, "TC_LABEL_MARKETPLACE_SHORTCUT")));
+                boolean visible = MarketplacePlayerPreferences.shortcutVisible(uiPlayer);
+                element.addChild(switchButtons(uiPlayer, visible, event -> {
+                    MarketplacePlayerPreferences.setShortcutVisible(uiPlayer, !visible);
+                    redrawContent();
+                }));
                 flexWrapper.addChild(element);
             }
         };

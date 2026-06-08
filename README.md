@@ -55,11 +55,11 @@ The overlay footer shows the player's Wallet default-currency balance for quick 
 
 The `Sell` tab scans the player's inventory, groups sellable items by item definition name and variant, and presents them as icon cards with amount and variant context. Selecting a card fills a listing form for amount, price, Wallet currency, and local/global mode. The currency selector is sourced from Wallet and defaults to the Wallet default currency. Local listings require the current market zone. Global listings can be created outside market zones when zone-only mode is disabled. Listing currency identifiers are validated against the Wallet currency registry before any inventory is removed. Items are only removed from inventory after the player confirms and the existing listing service accepts the listing.
 
-The `Local` and `Global` tabs show visible listings for the current access context. Both tabs default to a card layout and include a card/table toggle that persists per player. The `Local` tab is hidden outside market zones, and disabled marketplace modes are hidden from the overlay. Listings show the listing price plus the buyer fee amount and percent where a fee applies, and buying from the UI asks for confirmation with price, fee, and total before calling the same Wallet-backed purchase flow used by `/mp buy <listing-id>`. Sellers can cancel their own active listings from these tabs; cancellation uses the same item-return flow as `/mp cancel <listing-id>`.
+The `Local` and `Global` tabs show visible listings for the current access context. Both tabs default to a card layout and include a card/table toggle that persists per player, plus a name search that filters visible offers by their displayed item label. The `Local` tab is hidden outside market zones, and disabled marketplace modes are hidden from the overlay. Listings use derived display names with variant suffixes when needed, show the listing price plus the buyer fee amount and percent where a fee applies, and buying from the UI asks for confirmation with price, fee, and total before calling the same Wallet-backed purchase flow used by `/mp buy <listing-id>`. Sellers can cancel their own active listings from these tabs; cancellation uses the same item-return flow as `/mp cancel <listing-id>`.
 
 The `Sales` tab shows the seller's latest visible completed sales with item, amount, payout, fee, and market zone. The `Remove` action hides a completed sale from that seller's history after confirmation. Removed sale rows no longer appear in the tab or `/mp sales`, but the raw sale record remains in the database with `seller_hidden_at` set for audit/history retention.
 
-Admins see a `Management` tab for the current Rising World Area. It creates or updates the area as a market zone, syncs the zone name from the Area name, cycles global-trade mode between `default`, `allow`, and `deny`, sets common fee values, and deletes the current zone with confirmation.
+Admins see a `Management` tab for the current Rising World Area. Outside a market zone it only offers market-zone creation. Inside a market zone it syncs the zone name from the Area name, cycles global-trade mode between `default`, `allow`, and `deny`, sets a numeric fee override, and dissolves the current zone with confirmation. Dissolving a zone promotes active local listings to global listings in the same database transaction before deleting the zone.
 
 New listings are created through the Marketplace UI.
 
@@ -71,7 +71,7 @@ Players see the Marketplace icon in the shared Tools indicator bar while standin
 
 - `/mp zone set <id> <radiusChunks> <feePercent> <globalMode> [label]`: create or update a legacy chunk-range market zone centered on the admin's current chunk. `globalMode` accepts `deny`, `default`, or `allow`.
 - `/mp zone list`: list market zones
-- `/mp zone delete <id>`: remove a market zone
+- `/mp zone delete [current-id]`: remove only the market zone the admin is currently standing in. The optional id is a guard and must match the current zone.
 
 New UI-managed market zones apply to whole existing Rising World Areas. Area-zone creation is blocked unless the admin is standing inside an Area. The legacy `/mp zone set` command remains for admin recovery and explicit chunk-range maintenance.
 

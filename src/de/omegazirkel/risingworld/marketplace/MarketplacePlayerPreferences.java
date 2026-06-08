@@ -1,6 +1,7 @@
 package de.omegazirkel.risingworld.marketplace;
 
 import de.omegazirkel.risingworld.Marketplace;
+import de.omegazirkel.risingworld.tools.ui.PluginShortcutVisibility;
 import net.risingworld.api.objects.Player;
 
 public final class MarketplacePlayerPreferences {
@@ -12,11 +13,18 @@ public final class MarketplacePlayerPreferences {
     }
 
     public static void load(Player player) {
-        if (player == null || Marketplace.playerSettings() == null || player.hasAttribute(LISTING_LAYOUT_KEY)) {
+        if (player == null || Marketplace.playerSettings() == null) {
             return;
         }
-        player.setAttribute(LISTING_LAYOUT_KEY,
-                Marketplace.playerSettings().getString(player.getDbID(), LISTING_LAYOUT_KEY).orElse(LAYOUT_CARD));
+        if (!player.hasAttribute(LISTING_LAYOUT_KEY)) {
+            player.setAttribute(LISTING_LAYOUT_KEY,
+                    Marketplace.playerSettings().getString(player.getDbID(), LISTING_LAYOUT_KEY).orElse(LAYOUT_CARD));
+        }
+        String shortcutKey = shortcutKey();
+        if (!player.hasAttribute(shortcutKey)) {
+            player.setAttribute(shortcutKey,
+                    Marketplace.playerSettings().getBoolean(player.getDbID(), shortcutKey).orElse(true));
+        }
     }
 
     public static String listingLayout(Player player) {
@@ -39,5 +47,31 @@ public final class MarketplacePlayerPreferences {
         if (Marketplace.playerSettings() != null) {
             Marketplace.playerSettings().setString(player.getDbID(), LISTING_LAYOUT_KEY, normalizedValue);
         }
+    }
+
+    public static boolean shortcutVisible(Player player) {
+        if (player == null) {
+            return true;
+        }
+        if (!player.hasAttribute(shortcutKey())) {
+            load(player);
+        }
+        Object value = player.getAttribute(shortcutKey());
+        return !(value instanceof Boolean) || (Boolean) value;
+    }
+
+    public static void setShortcutVisible(Player player, boolean value) {
+        if (player == null) {
+            return;
+        }
+        String key = shortcutKey();
+        player.setAttribute(key, value);
+        if (Marketplace.playerSettings() != null) {
+            Marketplace.playerSettings().setBoolean(player.getDbID(), key, value);
+        }
+    }
+
+    private static String shortcutKey() {
+        return PluginShortcutVisibility.playerSettingKey(Marketplace.name);
     }
 }

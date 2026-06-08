@@ -29,6 +29,7 @@ import de.omegazirkel.risingworld.tools.db.SQLiteConnectionFactory;
 import de.omegazirkel.risingworld.tools.settings.PlayerPluginAdminSettings;
 import de.omegazirkel.risingworld.tools.ui.PlayerPluginSettingsOverlay;
 import de.omegazirkel.risingworld.tools.ui.PluginInfoStatusProviders;
+import de.omegazirkel.risingworld.tools.ui.PluginShortcutVisibility;
 import de.omegazirkel.risingworld.tools.ui.SharedIndicators;
 import net.risingworld.api.Plugin;
 import net.risingworld.api.events.EventMethod;
@@ -70,6 +71,7 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
 
         registerEventListener(this);
         PluginGUI.getInstance(this);
+        PluginShortcutVisibility.register(name, MarketplacePlayerPreferences::shortcutVisible);
         SharedIndicators.registerProvider(name, new MarketplaceZoneIndicatorProvider(this));
         PlayerPluginSettingsOverlay
                 .registerPlayerPluginSettings(new MarketplacePlayerPluginSettings(getDescription("version")));
@@ -85,6 +87,7 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
     @Override
     public void onDisable() {
         if (name != null) {
+            PluginShortcutVisibility.unregister(name);
             PluginInfoStatusProviders.unregisterProvider(name);
         }
         SharedIndicators.unregisterProvider(name);
@@ -199,8 +202,8 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
             sendZones(player);
             return;
         }
-        if (parts.length >= 4 && parts[2].equalsIgnoreCase("delete")) {
-            MarketplaceResult result = service.deleteZone(parts[3]);
+        if (parts.length >= 3 && parts[2].equalsIgnoreCase("delete")) {
+            MarketplaceResult result = deleteCurrentMarketZone(player, parts.length >= 4 ? parts[3] : null);
             player.sendTextMessage((result.success() ? c.okay : c.error) + result.message());
             return;
         }
@@ -296,6 +299,10 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
     }
 
     public MarketplaceResult deleteCurrentMarketZone(Player player) {
+        return deleteCurrentMarketZone(player, null);
+    }
+
+    private MarketplaceResult deleteCurrentMarketZone(Player player, String expectedZoneId) {
         if (!player.isAdmin()) {
             return MarketplaceResult.fail("Only admins can manage market zones.");
         }
@@ -303,6 +310,9 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
             Optional<MarketZone> zone = service.currentZone(player);
             if (zone.isEmpty()) {
                 return MarketplaceResult.fail("You are not standing in a market zone.");
+            }
+            if (expectedZoneId != null && !expectedZoneId.isBlank() && !zone.get().id().equals(expectedZoneId)) {
+                return MarketplaceResult.fail("You can only delete the market zone you are currently standing in.");
             }
             return service.deleteZone(zone.get().id());
         } catch (SQLException ex) {
@@ -431,6 +441,13 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
         return service.defaultCurrencyBalance(player);
     }
 
+    public WalletBridge.BalanceInfo walletBalance(Player player, String currencyIdentifier) {
+        if (service == null || player == null) {
+            return new WalletBridge.BalanceInfo(false, 0L);
+        }
+        return service.balance(player, currencyIdentifier);
+    }
+
     public static PlayerSettings playerSettings() {
         return playerSettings;
     }
@@ -514,7 +531,7 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
     private void usage(Player player) {
         player.sendTextMessage(c.warning + "Usage: /" + s.marketCommand + " | list | buy <id> | cancel <id> | sales");
         if (player.isAdmin()) {
-            player.sendTextMessage(c.warning + "Admin: /" + s.marketCommand + " zone set <id> <radiusChunks> <feePercent> <globalMode> [label] | zone list | zone delete <id>");
+            player.sendTextMessage(c.warning + "Admin: /" + s.marketCommand + " zone set <id> <radiusChunks> <feePercent> <globalMode> [label] | zone list | zone delete [current-id]");
         }
     }
 
