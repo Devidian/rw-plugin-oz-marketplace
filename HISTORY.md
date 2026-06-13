@@ -1,6 +1,9 @@
 # History
 
-## Unreleased
+## [0.2.1] - 2026-06-13 | Item labels and seller notification
+
+- fix: align item and object-kit labels with Shop default/named variant behavior
+- feat: notify online sellers after a Marketplace sale is durably completed
 
 ## [0.2.0] - 2026-06-08 | Search and persistence hardening
 

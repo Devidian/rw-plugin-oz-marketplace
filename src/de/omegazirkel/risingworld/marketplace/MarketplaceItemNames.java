@@ -3,9 +3,12 @@ package de.omegazirkel.risingworld.marketplace;
 import java.util.Locale;
 
 import net.risingworld.api.definitions.Definitions;
+import net.risingworld.api.definitions.Clothing.ClothingDefinition;
+import net.risingworld.api.definitions.Constructions.ConstructionDefinition;
 import net.risingworld.api.definitions.Items.ItemDefinition;
 import net.risingworld.api.definitions.Items.ItemDefinition.Variant;
 import net.risingworld.api.definitions.Objects.ObjectDefinition;
+import net.risingworld.api.definitions.Plants.PlantDefinition;
 import net.risingworld.api.objects.Item;
 
 public final class MarketplaceItemNames {
@@ -13,14 +16,35 @@ public final class MarketplaceItemNames {
     }
 
     public static String listingLabel(String itemName, int variant) {
-        String baseName = objectVariantDisplayName(itemName, variant);
+        ObjectDefinition objectDefinition = objectDefinition(itemName, variant);
+        int labelVariant = objectDefinition == null ? variant : objectVariant(itemName, variant, objectDefinition);
+        ItemDefinition itemDefinition = definition(itemName);
+        if (objectDefinition == null && itemDefinition != null) {
+            Variant itemVariant = itemDefinition.getVariant(variant);
+            String itemDisplayName = itemDefinition.name == null || itemDefinition.name.isBlank()
+                    ? itemName
+                    : itemDefinition.name;
+            if (itemVariant != null) {
+                if (!isDefaultVariantName(itemVariant.name)) {
+                    return derivedBaseName(itemDisplayName) + " " + derivedBaseName(itemVariant.name);
+                }
+                return derivedBaseName(itemDisplayName);
+            }
+        }
+        String baseName = objectDisplayName(itemName, variant);
+        if (baseName.isBlank() && objectDefinition == null) {
+            baseName = objectVariantDisplayName(itemName, variant);
+        }
         if (baseName.isBlank()) {
-            baseName = objectDisplayName(itemName);
+            baseName = itemVariantDisplayName(itemName, variant);
+        }
+        if (baseName.isBlank()) {
+            baseName = directDefinitionDisplayName(itemName);
         }
         if (baseName.isBlank()) {
             baseName = derivedBaseName(itemName);
         }
-        return variant == 0 ? baseName : baseName + "-" + variant;
+        return labelVariant == 0 ? derivedBaseName(baseName) : derivedBaseName(baseName) + "-" + labelVariant;
     }
 
     public static String candidateLabel(Item item, ItemDefinition definition, int variant) {
@@ -34,7 +58,7 @@ public final class MarketplaceItemNames {
                     ? itemVariant.name
                     : definition == null ? "" : definition.name;
         }
-        return variant == 0 ? derivedBaseName(name) : derivedBaseName(name) + "-" + variant;
+        return listingLabel(name, variant);
     }
 
     public static ItemDefinition definition(String itemName) {
@@ -45,10 +69,28 @@ public final class MarketplaceItemNames {
     }
 
     public static ObjectDefinition objectDefinition(String itemName) {
+        return objectDefinition(itemName, 0);
+    }
+
+    public static ObjectDefinition objectDefinition(String itemName, int variant) {
         if (itemName == null || itemName.isBlank()) {
             return null;
         }
-        return Definitions.getObjectDefinition(itemName);
+        ObjectDefinition direct = Definitions.getObjectDefinition(itemName);
+        if (direct != null) {
+            return direct;
+        }
+        ItemDefinition itemDefinition = definition(itemName);
+        if (itemDefinition != null) {
+            Variant itemVariant = itemDefinition.getVariant(variant);
+            if (itemVariant != null && !isDefaultVariantName(itemVariant.name)) {
+                ObjectDefinition byVariantName = Definitions.getObjectDefinition(itemVariant.name);
+                if (byVariantName != null) {
+                    return byVariantName;
+                }
+            }
+        }
+        return isObjectKit(itemName) ? Definitions.getObjectDefinition(variant) : null;
     }
 
     public static String storedItemName(Item item, ItemDefinition definition) {
@@ -82,8 +124,8 @@ public final class MarketplaceItemNames {
         return "";
     }
 
-    private static String objectDisplayName(String itemName) {
-        ObjectDefinition definition = objectDefinition(itemName);
+    private static String objectDisplayName(String itemName, int variant) {
+        ObjectDefinition definition = objectDefinition(itemName, variant);
         if (definition == null || definition.name == null || definition.name.isBlank()) {
             return "";
         }
@@ -91,15 +133,52 @@ public final class MarketplaceItemNames {
     }
 
     private static String objectVariantDisplayName(String itemName, int variant) {
-        ObjectDefinition definition = objectDefinition(itemName);
+        ObjectDefinition definition = objectDefinition(itemName, variant);
         if (definition == null) {
             return "";
         }
-        ObjectDefinition.Variant objectVariant = definition.getVariant(variant);
-        if (objectVariant == null || objectVariant.name == null || objectVariant.name.isBlank()) {
+        ObjectDefinition.Variant objectVariant = definition.getVariant(objectVariant(itemName, variant, definition));
+        if (objectVariant == null || isDefaultVariantName(objectVariant.name)) {
             return "";
         }
-        return derivedBaseName(objectVariant.name);
+        return objectVariant.name;
+    }
+
+    private static int objectVariant(String itemName, int variant, ObjectDefinition definition) {
+        return Definitions.getObjectDefinition(itemName) != null ? variant : 0;
+    }
+
+    private static String itemVariantDisplayName(String itemName, int variant) {
+        ItemDefinition definition = definition(itemName);
+        if (definition == null) {
+            return "";
+        }
+        Variant itemVariant = definition.getVariant(variant);
+        if (itemVariant == null || isDefaultVariantName(itemVariant.name)) {
+            return definition.name == null ? "" : definition.name;
+        }
+        return itemVariant.name;
+    }
+
+    private static String directDefinitionDisplayName(String itemName) {
+        ConstructionDefinition construction = Definitions.getConstructionDefinition(itemName);
+        if (construction != null && construction.name != null && !construction.name.isBlank()) {
+            return construction.name;
+        }
+        ClothingDefinition clothing = Definitions.getClothingDefinition(itemName);
+        if (clothing != null && clothing.name != null && !clothing.name.isBlank()) {
+            return clothing.name;
+        }
+        PlantDefinition plant = Definitions.getPlantDefinition(itemName);
+        return plant != null && plant.name != null && !plant.name.isBlank() ? plant.name : "";
+    }
+
+    private static boolean isDefaultVariantName(String name) {
+        return name == null || name.isBlank() || name.trim().equalsIgnoreCase("default");
+    }
+
+    private static boolean isObjectKit(String itemName) {
+        return itemName != null && itemName.toLowerCase(Locale.ROOT).startsWith("objectkit");
     }
 
     private static String derivedBaseName(String value) {

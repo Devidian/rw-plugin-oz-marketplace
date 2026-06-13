@@ -59,6 +59,8 @@ The `Local` and `Global` tabs show visible listings for the current access conte
 
 The `Sales` tab shows the seller's latest visible completed sales with item, amount, payout, fee, and market zone. The `Remove` action hides a completed sale from that seller's history after confirmation. Removed sale rows no longer appear in the tab or `/mp sales`, but the raw sale record remains in the database with `seller_hidden_at` set for audit/history retention.
 
+Online sellers receive a localized notification after a sale is durably completed. Failed or rolled-back purchases do not send a sale notification.
+
 Admins see a `Management` tab for the current Rising World Area. Outside a market zone it only offers market-zone creation. Inside a market zone it syncs the zone name from the Area name, cycles global-trade mode between `default`, `allow`, and `deny`, sets a numeric fee override, and dissolves the current zone with confirmation. Dissolving a zone promotes active local listings to global listings in the same database transaction before deleting the zone.
 
 New listings are created through the Marketplace UI.

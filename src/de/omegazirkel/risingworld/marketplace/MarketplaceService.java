@@ -7,6 +7,8 @@ import java.util.Locale;
 import java.util.Optional;
 
 import de.omegazirkel.risingworld.Marketplace;
+import de.omegazirkel.risingworld.tools.I18n;
+import net.risingworld.api.Server;
 import net.risingworld.api.objects.Area;
 import net.risingworld.api.objects.Player;
 import net.risingworld.api.utils.Vector3i;
@@ -323,6 +325,7 @@ public class MarketplaceService {
                         + listing.id());
                 return MarketplaceResult.fail("Purchase needs admin review; listing finalization failed.");
             }
+            notifyOnlineSeller(listing, buyer);
             return MarketplaceResult.ok("Purchased listing #" + listing.id() + ".");
         } catch (SQLException ex) {
             Marketplace.logger().error("Failed to buy listing: " + ex.getMessage());
@@ -331,6 +334,20 @@ public class MarketplaceService {
             }
             return MarketplaceResult.fail("Could not buy listing.");
         }
+    }
+
+    private void notifyOnlineSeller(MarketplaceListing listing, Player buyer) {
+        Player seller = Server.getPlayerByDbID(listing.sellerDbId());
+        if (seller == null) {
+            return;
+        }
+        String message = I18n.getInstance(Marketplace.name).get("TC_MARKET_SELLER_SALE_NOTIFICATION", seller)
+                .replace("PH_AMOUNT", String.valueOf(listing.amount()))
+                .replace("PH_ITEM", MarketplaceItemNames.listingLabel(listing.itemName(), listing.itemVariant()))
+                .replace("PH_PRICE", String.valueOf(listing.price()))
+                .replace("PH_CURRENCY", listing.currencyIdentifier())
+                .replace("PH_BUYER", buyer.getName());
+        seller.sendTextMessage(message);
     }
 
     public MarketplaceResult cancel(Player seller, long listingId) {
