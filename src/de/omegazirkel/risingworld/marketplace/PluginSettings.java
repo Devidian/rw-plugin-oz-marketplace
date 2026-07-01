@@ -34,6 +34,8 @@ public class PluginSettings {
     public long minimumGlobalFee = 0L;
     public int maxListingsPerPlayer = 20;
     public boolean showMarketplaceZoneIndicator = true;
+    public boolean exposeMarketplaceZones = true;
+    public boolean exposeMarketplaceOffers = true;
     private Path settingsFile;
 
     private static OZLogger logger() {
@@ -84,8 +86,10 @@ public class PluginSettings {
             minimumGlobalFee = decimal(settings, defaults, "minimumGlobalFee", 0L, 0L, Long.MAX_VALUE);
             maxListingsPerPlayer = integer(settings, defaults, "maxListingsPerPlayer", 20, 1, 1000);
             showMarketplaceZoneIndicator = bool(settings, defaults, "showMarketplaceZoneIndicator", true);
+            exposeMarketplaceZones = bool(settings, defaults, "exposeMarketplaceZones", true);
+            exposeMarketplaceOffers = bool(settings, defaults, "exposeMarketplaceOffers", true);
 
-            logger().info(plugin.getName() + " Plugin settings loaded");
+            logger().info((plugin == null ? "OZMarketplace" : plugin.getName()) + " Plugin settings loaded");
             logger().info("Marketplace command is /" + marketCommand);
             logger().setLevel(logLevel);
         } catch (IOException ex) {
@@ -133,7 +137,15 @@ public class PluginSettings {
                         maxListingsPerPlayer, "20", AdminSettingsType.INTEGER),
                 entry("showMarketplaceZoneIndicator", "Marketplace-zone indicator",
                         "Shows the Marketplace icon in the shared Tools indicator bar while players are in an active market zone.",
-                        showMarketplaceZoneIndicator, "true", AdminSettingsType.BOOLEAN));
+                        showMarketplaceZoneIndicator, "true", AdminSettingsType.BOOLEAN),
+                AdminSettingsEntry.group("exportRoutes", "Export routes",
+                        "Future native route exposure flags for external manager services."),
+                entry("exposeMarketplaceZones", "Expose marketplace zones",
+                        "Enables the future Marketplace zone export route.", exposeMarketplaceZones, "true",
+                        AdminSettingsType.BOOLEAN),
+                entry("exposeMarketplaceOffers", "Expose marketplace offers",
+                        "Enables the future Marketplace area-offer export route.", exposeMarketplaceOffers, "true",
+                        AdminSettingsType.BOOLEAN));
     }
 
     private AdminSettingsEntry entry(String key, String label, String description, Object value, String defaultValue,

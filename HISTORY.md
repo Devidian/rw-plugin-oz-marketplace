@@ -1,5 +1,10 @@
 # History
 
+## [Unreleased]
+
+- feat: add route-ready Marketplace zone and area-offer export DTOs/services with `lastChange` filtering
+- feat: add future native route exposure flags for Marketplace zones and offers
+
 ## [0.2.1] - 2026-06-13 | Item labels and seller notification
 
 - fix: align item and object-kit labels with Shop default/named variant behavior

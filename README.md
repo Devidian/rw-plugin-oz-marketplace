@@ -30,6 +30,8 @@ minimumLocalFee=0
 minimumGlobalFee=0
 maxListingsPerPlayer=20
 showMarketplaceZoneIndicator=true
+exposeMarketplaceZones=true
+exposeMarketplaceOffers=true
 ```
 
 Marketplace fees are charged to buyers on top of the listing price and removed from the economy. Sellers receive the listed price. The applied fee is the higher value of the percent fee and the configured minimum fee.
@@ -88,6 +90,15 @@ Marketplace data is stored in the plugin world SQLite database through `rw-plugi
 - `marketplace_sales`
 
 The v3 schema is additive and can be left in place when disabling the plugin. Existing databases are migrated by adding `marketplace_sales.seller_hidden_at`, `marketplace_zones.area_id`, and `marketplace_zones.global_trade_mode`. Existing boolean global zone flags are mapped to explicit `allow` or `deny`.
+
+## Future export route preparation
+
+Marketplace contains route-ready export DTOs/services for future native plugin
+routes. Prepared exports cover market zones and active offers for a Rising World
+area id. Both exports support `lastChange` cursor filtering over the persisted
+`created_at` values and match the transitional bridge contract.
+`exposeMarketplaceZones=true` and `exposeMarketplaceOffers=true` control whether
+the future native routes should be exposed.
 
 ## Validation
 
