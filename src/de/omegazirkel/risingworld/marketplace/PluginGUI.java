@@ -26,7 +26,7 @@ public class PluginGUI {
         AssetManager.loadIconFromPlugin(plugin, "icon-ki-zone-indicator-marketplace");
         PluginGUI gui = getInstance();
         gui.plugin = plugin;
-        PluginMenuManager.registerPluginMenu(new MenuItem(Marketplace.name, AssetManager.getIcon("marketplace-icon"),
+        PluginMenuManager.registerPluginMenu(new MenuItem(Marketplace.name, "marketplace-icon",
                 "Marketplace", gui::openMainMenu));
         return gui;
     }
@@ -44,7 +44,7 @@ public class PluginGUI {
             return;
         }
         List<MenuItem> menuItems = new ArrayList<>();
-        menuItems.add(new MenuItem(AssetManager.getIcon("marketplace-icon"), "Marketplace",
+        menuItems.add(new MenuItem("marketplace-icon", "Marketplace",
                 player -> {
                     player.hideRadialMenu(true);
                     openMarketplaceOverlay(player);

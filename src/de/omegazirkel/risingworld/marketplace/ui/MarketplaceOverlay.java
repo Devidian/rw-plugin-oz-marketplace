@@ -196,8 +196,8 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         entry.setBorderColor(0.95f, 0.75f, 0.25f, 0.48f);
         entry.setBorderEdgeRadius(4, false);
 
-        TextureAsset iconAsset = currency.iconKey().isBlank() ? AssetManager.getIcon("icon-ki-coin-default")
-                : AssetManager.getIcon(currency.iconKey());
+        TextureAsset iconAsset = currency.iconKey().isBlank() ? AssetManager.getIcon(uiPlayer, "icon-ki-coin-default")
+                : AssetManager.getIcon(uiPlayer, currency.iconKey());
         OZUIElement icon = new OZUIElement();
         icon.setPivot(Pivot.UpperLeft);
         icon.setPosition(6, 4, false);
@@ -1105,7 +1105,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             }
         }
         if (asset == null) {
-            asset = AssetManager.getIcon("icon-ki-placeholder");
+            asset = AssetManager.getIcon(uiPlayer, "icon-ki-placeholder");
         }
         return asset;
     }
