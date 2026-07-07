@@ -2,6 +2,7 @@ build/
 dist/
 nbproject/
 target/
+Logs/
 .classpath
 .settings/
 .project
