@@ -22,6 +22,6 @@ public class MarketplaceZoneIndicatorProvider implements SharedIndicatorProvider
 
     @Override
     public String getIcon(Player player) {
-        return "icon-ki-zone-indicator-marketplace";
+        return "zone-marketplace-indicator";
     }
 }

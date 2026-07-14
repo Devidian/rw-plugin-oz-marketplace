@@ -54,5 +54,5 @@ Keep command flows available as fallback. UI card/list preference changes can be
 - Phase 5 complete: table rows, card rows, and purchase confirmation show calculated buyer fee, fee percent, and total from `MarketplaceService`.
 - Phase 6 complete: the Sell tab now presents inventory candidates as icon cards with amount/variant context and keeps the existing confirmation step before listing creation.
 - Phase 7 complete: Local and Global tabs support card/table layout switching, default to cards, and persist the player's preference through Tools player settings.
-- Phase 8 complete: the Marketplace radial menu includes an Info/Status action using the shared Tools `icon-ki-info-status` asset.
+- Phase 8 complete: the Marketplace radial menu includes an Info/Status action using the shared Tools `info-status` asset.
 - README/HISTORY were updated. Validation passed with `mvn -B test` and `mvn -B -DskipTests package`.

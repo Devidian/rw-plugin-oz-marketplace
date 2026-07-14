@@ -1,7 +1,8 @@
 # History
 
-## [Unreleased]
+## [0.2.3] - 2026-07-14 | Icon set and export polish
 
+- change: rename Marketplace icon keys to their final semantic names
 - feat: add route-ready Marketplace zone and area-offer export DTOs/services with `lastChange` filtering
 - feat: add future native route exposure flags for Marketplace zones and offers
 

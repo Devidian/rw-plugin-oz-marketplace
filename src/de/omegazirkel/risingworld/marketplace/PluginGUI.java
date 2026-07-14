@@ -22,11 +22,11 @@ public class PluginGUI {
     }
 
     public static PluginGUI getInstance(Marketplace plugin) {
-        AssetManager.loadIconFromPlugin(plugin, "marketplace-icon");
-        AssetManager.loadIconFromPlugin(plugin, "icon-ki-zone-indicator-marketplace");
+        AssetManager.loadIconFromPlugin(plugin, "oz-marketplace");
+        AssetManager.loadIconFromPlugin(plugin, "zone-marketplace-indicator");
         PluginGUI gui = getInstance();
         gui.plugin = plugin;
-        PluginMenuManager.registerPluginMenu(new MenuItem(Marketplace.name, "marketplace-icon",
+        PluginMenuManager.registerPluginMenu(new MenuItem(Marketplace.name, "oz-marketplace",
                 "Marketplace", gui::openMainMenu));
         return gui;
     }
@@ -44,7 +44,7 @@ public class PluginGUI {
             return;
         }
         List<MenuItem> menuItems = new ArrayList<>();
-        menuItems.add(new MenuItem("marketplace-icon", "Marketplace",
+        menuItems.add(new MenuItem("oz-marketplace", "Marketplace",
                 player -> {
                     player.hideRadialMenu(true);
                     openMarketplaceOverlay(player);
