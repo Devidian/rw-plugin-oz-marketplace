@@ -52,6 +52,9 @@ public class MarketplaceDatabase {
                         item_name TEXT NOT NULL,
                         item_variant INTEGER NOT NULL,
                         amount INTEGER NOT NULL,
+                        item_durability INTEGER NOT NULL DEFAULT 0,
+                        item_status INTEGER NOT NULL DEFAULT 0,
+                        item_modifier TEXT NOT NULL DEFAULT '',
                         price BIGINT NOT NULL,
                         currency_identifier TEXT NOT NULL,
                         market_zone_id TEXT,
@@ -60,6 +63,9 @@ public class MarketplaceDatabase {
                         status TEXT NOT NULL DEFAULT 'ACTIVE'
                     );
                     """);
+            ensureColumn(statement, "marketplace_listings", "item_durability", "INTEGER NOT NULL DEFAULT 0");
+            ensureColumn(statement, "marketplace_listings", "item_status", "INTEGER NOT NULL DEFAULT 0");
+            ensureColumn(statement, "marketplace_listings", "item_modifier", "TEXT NOT NULL DEFAULT ''");
             statement.execute("""
                     CREATE INDEX IF NOT EXISTS idx_marketplace_listings_active
                     ON marketplace_listings(status, market_zone_id, global_listing, created_at DESC);
@@ -85,6 +91,13 @@ public class MarketplaceDatabase {
             migrate(statement);
             statement.execute("PRAGMA user_version = " + SCHEMA_VERSION + ";");
         }
+    }
+
+    private void ensureColumn(Statement statement, String table, String column, String definition) throws SQLException {
+        try (ResultSet result = statement.executeQuery("PRAGMA table_info(" + table + ")")) {
+            while (result.next()) if (column.equalsIgnoreCase(result.getString("name"))) return;
+        }
+        statement.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
     }
 
     private void migrate(Statement statement) throws SQLException {
@@ -207,9 +220,9 @@ public class MarketplaceDatabase {
     public long createListing(MarketplaceListing listing) throws SQLException {
         String sql = """
                 INSERT INTO marketplace_listings(
-                    seller_db_id, seller_name, item_name, item_variant, amount, price, currency_identifier,
+                    seller_db_id, seller_name, item_name, item_variant, amount, item_durability, item_status, item_modifier, price, currency_identifier,
                     market_zone_id, global_listing, created_at, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE');
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE');
                 """;
         try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             statement.setInt(1, listing.sellerDbId());
@@ -217,11 +230,14 @@ public class MarketplaceDatabase {
             statement.setString(3, listing.itemName());
             statement.setInt(4, listing.itemVariant());
             statement.setInt(5, listing.amount());
-            statement.setLong(6, listing.price());
-            statement.setString(7, listing.currencyIdentifier());
-            statement.setString(8, listing.marketZoneId());
-            statement.setInt(9, listing.globalListing() ? 1 : 0);
-            statement.setLong(10, listing.createdAt());
+            statement.setInt(6, listing.itemState().durability());
+            statement.setShort(7, listing.itemState().status());
+            statement.setString(8, listing.itemState().modifier());
+            statement.setLong(9, listing.price());
+            statement.setString(10, listing.currencyIdentifier());
+            statement.setString(11, listing.marketZoneId());
+            statement.setInt(12, listing.globalListing() ? 1 : 0);
+            statement.setLong(13, listing.createdAt());
             statement.executeUpdate();
             try (ResultSet keys = statement.getGeneratedKeys()) {
                 return keys.next() ? keys.getLong(1) : 0L;
@@ -432,6 +448,7 @@ public class MarketplaceDatabase {
                 result.getString("item_name"),
                 result.getInt("item_variant"),
                 result.getInt("amount"),
+                new MarketplaceItemState(result.getInt("item_durability"), result.getShort("item_status"), result.getString("item_modifier")),
                 result.getLong("price"),
                 result.getString("currency_identifier"),
                 result.getString("market_zone_id"),

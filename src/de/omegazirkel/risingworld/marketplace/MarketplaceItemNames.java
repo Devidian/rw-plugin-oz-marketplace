@@ -68,6 +68,14 @@ public final class MarketplaceItemNames {
         return Definitions.getItemDefinition(itemName);
     }
 
+    public static int durabilityPercent(String itemName, MarketplaceItemState state) {
+        ItemDefinition definition = definition(itemName);
+        if (definition == null || definition.durability <= 0 || state == null) {
+            return -1;
+        }
+        return Math.max(0, Math.min(100, (int) Math.floor(state.durability() * 100.0d / definition.durability)));
+    }
+
     public static ObjectDefinition objectDefinition(String itemName) {
         return objectDefinition(itemName, 0);
     }

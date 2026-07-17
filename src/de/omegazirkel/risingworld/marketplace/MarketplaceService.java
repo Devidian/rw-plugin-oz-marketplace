@@ -154,6 +154,11 @@ public class MarketplaceService {
 
     public MarketplaceResult createListing(Player seller, String itemName, int itemVariant, int amount, long price,
             String currencyIdentifier, boolean globalListing) {
+        return createListing(seller, itemName, itemVariant, amount, price, currencyIdentifier, globalListing, null);
+    }
+
+    public MarketplaceResult createListing(Player seller, String itemName, int itemVariant, int amount, long price,
+            String currencyIdentifier, boolean globalListing, MarketplaceItemState requestedItemState) {
         if (!walletAvailable()) {
             return MarketplaceResult.fail("OZ - Wallet is required before Marketplace can create listings.");
         }
@@ -172,6 +177,7 @@ public class MarketplaceService {
             return MarketplaceResult.fail("Local marketplace listings are disabled.");
         }
         boolean inventoryRemoved = false;
+        MarketplaceItemState itemState = null;
         try {
             if (database.activeListingCount(seller.getDbID()) >= settings.maxListingsPerPlayer) {
                 return MarketplaceResult.fail("You reached the active listing limit.");
@@ -189,7 +195,11 @@ public class MarketplaceService {
             if (globalListing && zone.isPresent() && !zone.get().globalTradeAllowed(settings.globalMarketplaceEnabled)) {
                 return MarketplaceResult.fail("This market zone does not allow global trade.");
             }
-            MarketplaceResult inventory = InventoryTransfer.removeFromSeller(seller, itemName, itemVariant, amount);
+            itemState = requestedItemState == null
+                    ? InventoryTransfer.snapshotForSeller(seller, itemName, itemVariant, amount)
+                    : requestedItemState;
+            if (itemState == null) return MarketplaceResult.fail("You do not have enough matching items in one item state.");
+            MarketplaceResult inventory = InventoryTransfer.removeFromSeller(seller, itemName, itemVariant, amount, itemState);
             if (!inventory.success()) {
                 return inventory;
             }
@@ -201,6 +211,7 @@ public class MarketplaceService {
                     itemName.trim(),
                     itemVariant,
                     amount,
+                    itemState,
                     price,
                     listingCurrency,
                     zone.map(MarketZone::id).orElse("global"),
@@ -209,7 +220,7 @@ public class MarketplaceService {
                     STATUS_ACTIVE);
             long id = database.createListing(listing);
             if (id <= 0L) {
-                MarketplaceResult returned = InventoryTransfer.addToBuyer(seller, itemName, itemVariant, amount);
+                MarketplaceResult returned = InventoryTransfer.addToBuyer(seller, itemName, itemVariant, amount, itemState);
                 if (!returned.success()) {
                     Marketplace.logger().error("Failed to return inventory after marketplace listing id generation failed.");
                 }
@@ -218,8 +229,8 @@ public class MarketplaceService {
             return MarketplaceResult.ok("Listing #" + id + " created.");
         } catch (SQLException ex) {
             Marketplace.logger().error("Failed to create listing: " + ex.getMessage());
-            if (inventoryRemoved) {
-                MarketplaceResult returned = InventoryTransfer.addToBuyer(seller, itemName, itemVariant, amount);
+            if (inventoryRemoved && itemState != null) {
+                MarketplaceResult returned = InventoryTransfer.addToBuyer(seller, itemName, itemVariant, amount, itemState);
                 if (!returned.success()) {
                     Marketplace.logger().error("Failed to return inventory after marketplace listing creation failed.");
                 }
@@ -301,7 +312,7 @@ public class MarketplaceService {
                 }
             }
             MarketplaceResult addItem = InventoryTransfer.addToBuyer(buyer, listing.itemName(), listing.itemVariant(),
-                    listing.amount());
+                    listing.amount(), listing.itemState());
             if (!addItem.success()) {
                 if (sellerPayout > 0) {
                     WalletBridge.WalletCallResult payoutRollback = wallet.withdraw(listing.sellerDbId(), sellerPayout,
@@ -366,7 +377,7 @@ public class MarketplaceService {
             }
             listingReserved = true;
             MarketplaceResult returned = InventoryTransfer.addToBuyer(seller, listing.itemName(), listing.itemVariant(),
-                    listing.amount());
+                    listing.amount(), listing.itemState());
             if (!returned.success()) {
                 releaseListing(listing.id(), STATUS_PENDING_CANCEL);
                 return returned;

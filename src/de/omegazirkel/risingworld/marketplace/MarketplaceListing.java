@@ -7,6 +7,7 @@ public record MarketplaceListing(
         String itemName,
         int itemVariant,
         int amount,
+        MarketplaceItemState itemState,
         long price,
         String currencyIdentifier,
         String marketZoneId,

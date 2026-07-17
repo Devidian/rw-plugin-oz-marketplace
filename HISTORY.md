@@ -1,5 +1,11 @@
 # History
 
+## [0.2.5] - 2026-07-17 | Item-state custody and listing clarity
+
+- fix: preserve item durability, status and modifier for listing creation, purchase, cancellation and rollback
+- feat: show durable-item condition in listing cards, tables and confirmation dialogs
+- fix: keep withdrawal actions clear of listing prices in cards
+
 ## [0.2.4] - 2026-07-17 | Wallet bridge compatibility
 
 - feat: support the current Wallet bridge contract and localize unavailable purchase states

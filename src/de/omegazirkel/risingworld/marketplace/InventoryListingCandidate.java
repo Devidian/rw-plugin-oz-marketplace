@@ -5,5 +5,6 @@ public record InventoryListingCandidate(
         String displayName,
         int variant,
         int availableAmount,
-        int maxStackSize) {
+        int maxStackSize,
+        MarketplaceItemState itemState) {
 }

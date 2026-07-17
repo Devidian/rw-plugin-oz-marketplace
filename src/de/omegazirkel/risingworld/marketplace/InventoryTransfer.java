@@ -8,6 +8,7 @@ import java.util.Map;
 
 import net.risingworld.api.definitions.Definitions;
 import net.risingworld.api.definitions.Items.ItemDefinition;
+import net.risingworld.api.definitions.Items.Modifier;
 import net.risingworld.api.definitions.Objects.ObjectDefinition;
 import net.risingworld.api.objects.Inventory;
 import net.risingworld.api.objects.Inventory.SlotType;
@@ -45,11 +46,14 @@ public final class InventoryTransfer {
             if (itemName.isBlank()) {
                 continue;
             }
-            String key = itemName + ":" + variant;
+            MarketplaceItemState itemState = new MarketplaceItemState(item.getDurability(), item.getStatus(),
+                    item.getModifier() == null ? "" : item.getModifier().name());
+            String key = itemName + ":" + variant + ":" + itemState.durability() + ":" + itemState.status()
+                    + ":" + itemState.modifier();
             CandidateAccumulator accumulator = grouped.computeIfAbsent(key,
                     ignored -> new CandidateAccumulator(itemName,
                             MarketplaceItemNames.candidateLabel(item, candidateDefinition, variant),
-                            variant, maxStackSize(item, candidateDefinition)));
+                            variant, maxStackSize(item, candidateDefinition), itemState));
             accumulator.availableAmount += item.getStack();
             accumulator.maxStackSize = Math.max(accumulator.maxStackSize, maxStackSize(item, candidateDefinition));
         }
@@ -64,6 +68,11 @@ public final class InventoryTransfer {
     }
 
     public static MarketplaceResult removeFromSeller(Player seller, String itemName, int itemVariant, int amount) {
+        return removeFromSeller(seller, itemName, itemVariant, amount, null);
+    }
+
+    public static MarketplaceResult removeFromSeller(Player seller, String itemName, int itemVariant, int amount,
+            MarketplaceItemState state) {
         if (MarketplaceItemNames.definition(itemName) == null && MarketplaceItemNames.objectDefinition(itemName) == null) {
             return MarketplaceResult.fail("Unknown item: " + itemName);
         }
@@ -76,7 +85,8 @@ public final class InventoryTransfer {
             int slots = inventory.getSlotCount(slotType);
             for (int slot = 0; slot < slots; slot++) {
                 Item item = inventory.getItem(slot, slotType);
-                if (item == null || !item.isValid() || !MarketplaceItemNames.matches(item, itemName, itemVariant)) {
+                if (item == null || !item.isValid() || !MarketplaceItemNames.matches(item, itemName, itemVariant)
+                        || (state != null && !matchesState(item, state))) {
                     continue;
                 }
                 int remove = Math.min(remaining, item.getStack());
@@ -94,6 +104,11 @@ public final class InventoryTransfer {
     }
 
     public static MarketplaceResult addToBuyer(Player buyer, String itemName, int itemVariant, int amount) {
+        return addToBuyer(buyer, itemName, itemVariant, amount, MarketplaceItemState.NEUTRAL);
+    }
+
+    public static MarketplaceResult addToBuyer(Player buyer, String itemName, int itemVariant, int amount,
+            MarketplaceItemState state) {
         ItemDefinition definition = Definitions.getItemDefinition(itemName);
         ObjectDefinition objectDefinition = MarketplaceItemNames.objectDefinition(itemName);
         if (definition == null && objectDefinition == null) {
@@ -105,8 +120,31 @@ public final class InventoryTransfer {
         if (item == null || !item.isValid()) {
             return MarketplaceResult.fail("Could not add item to buyer inventory.");
         }
+        MarketplaceItemState effective = state == null ? MarketplaceItemState.NEUTRAL : state;
+        item.setDurability(effective.durability());
+        item.setStatus(effective.status());
+        if (!effective.modifier().isBlank()) {
+            try { item.setModifier(Modifier.valueOf(effective.modifier())); } catch (IllegalArgumentException ignored) { }
+        }
         buyer.getInventory().syncWithClient();
         return MarketplaceResult.ok("Item added to buyer inventory.");
+    }
+
+    public static MarketplaceItemState snapshotForSeller(Player seller, String itemName, int itemVariant, int amount) {
+        if (seller == null || seller.getInventory() == null || amount <= 0) return null;
+        for (SlotType type : SlotType.values()) for (int slot = 0; slot < seller.getInventory().getSlotCount(type); slot++) {
+            Item item = seller.getInventory().getItem(slot, type);
+            if (item != null && item.isValid() && MarketplaceItemNames.matches(item, itemName, itemVariant)
+                    && item.getStack() >= amount) return new MarketplaceItemState(item.getDurability(), item.getStatus(),
+                            item.getModifier() == null ? "" : item.getModifier().name());
+        }
+        return null;
+    }
+
+    private static boolean matchesState(Item item, MarketplaceItemState state) {
+        String modifier = item.getModifier() == null ? "" : item.getModifier().name();
+        return item.getDurability() == state.durability() && item.getStatus() == state.status()
+                && modifier.equals(state.modifier());
     }
 
     private static int maxStackSize(Item item, ItemDefinition definition) {
@@ -121,18 +159,21 @@ public final class InventoryTransfer {
         private final String itemName;
         private final String displayName;
         private final int variant;
+        private final MarketplaceItemState itemState;
         private int availableAmount;
         private int maxStackSize;
 
-        private CandidateAccumulator(String itemName, String displayName, int variant, int maxStackSize) {
+        private CandidateAccumulator(String itemName, String displayName, int variant, int maxStackSize,
+                MarketplaceItemState itemState) {
             this.itemName = itemName;
             this.displayName = displayName;
             this.variant = variant;
             this.maxStackSize = maxStackSize;
+            this.itemState = itemState;
         }
 
         private InventoryListingCandidate toCandidate() {
-            return new InventoryListingCandidate(itemName, displayName, variant, availableAmount, maxStackSize);
+            return new InventoryListingCandidate(itemName, displayName, variant, availableAmount, maxStackSize, itemState);
         }
     }
 }

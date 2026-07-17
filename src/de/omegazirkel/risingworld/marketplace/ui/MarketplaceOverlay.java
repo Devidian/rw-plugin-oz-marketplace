@@ -11,6 +11,7 @@ import de.omegazirkel.risingworld.marketplace.InventoryListingCandidate;
 import de.omegazirkel.risingworld.marketplace.InventoryTransfer;
 import de.omegazirkel.risingworld.marketplace.MarketZone;
 import de.omegazirkel.risingworld.marketplace.MarketplaceItemNames;
+import de.omegazirkel.risingworld.marketplace.MarketplaceItemState;
 import de.omegazirkel.risingworld.marketplace.MarketplacePlayerPreferences;
 import de.omegazirkel.risingworld.marketplace.MarketplaceListing;
 import de.omegazirkel.risingworld.marketplace.MarketplaceResult;
@@ -269,7 +270,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
 
     private TableRow candidateRow(InventoryListingCandidate candidate) {
         return new TableRow(Arrays.asList(
-                labelCell(candidate.displayName(), 45f),
+                labelCell(candidate.displayName() + conditionSuffix(candidate.itemName(), candidate.itemState()), 45f),
                 labelCell(String.valueOf(candidate.variant()), 15f),
                 labelCell(String.valueOf(candidate.availableAmount()), 18f),
                 new TableCell(selectButton(candidate), 22f)));
@@ -308,7 +309,8 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         card.addChild(name);
 
         UILabel amount = label(t().get("TC_MARKET_UI_CARD_AMOUNT", uiPlayer)
-                .replace("PH_AMOUNT", String.valueOf(candidate.availableAmount())), 12, Font.Default);
+                .replace("PH_AMOUNT", String.valueOf(candidate.availableAmount()))
+                + conditionSuffix(candidate.itemName(), candidate.itemState()), 12, Font.Default);
         amount.setPivot(Pivot.UpperLeft);
         amount.setPosition(10, 58, false);
         amount.setSize(154, 20, false);
@@ -323,7 +325,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         form.setPivot(Pivot.UpperLeft);
         form.setPosition(65, 14, true);
         form.style.width.set(32, Unit.Percent);
-        form.style.height.set(416, Unit.Pixel);
+        form.style.height.set(430, Unit.Pixel);
         body.addChild(form);
 
         UILabel formTitle = label(t().get("TC_MARKET_UI_FORM_TITLE", uiPlayer), 17, Font.DefaultBold);
@@ -342,29 +344,48 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         selectedLabel.setTextWrap(true);
         form.addChild(selectedLabel);
 
+        UILabel condition = label(selected == null ? "" : conditionLabel(selected.itemName(), selected.itemState()), 12,
+                Font.DefaultBold);
+        condition.setPivot(Pivot.UpperLeft);
+        condition.setPosition(0, 76, false);
+        condition.setSize(100, 20, true);
+        form.addChild(condition);
+
+        if (selected != null && isDamaged(selected.itemName(), selected.itemState())) {
+            UILabel warning = label(t().get("TC_MARKET_UI_DURABILITY_WARNING", uiPlayer)
+                    .replace("PH_PERCENT", String.valueOf(durabilityPercent(selected.itemName(), selected.itemState()))),
+                    12, Font.DefaultBold);
+            warning.setPivot(Pivot.UpperLeft);
+            warning.setPosition(0, 96, false);
+            warning.setSize(100, 24, true);
+            warning.setTextWrap(true);
+            warning.setFontColor(0xE6A04CFF);
+            form.addChild(warning);
+        }
+
         amountField = textField(selected == null ? "" : String.valueOf(Math.min(selected.availableAmount(),
                 Math.max(1, selected.maxStackSize()))));
-        addField(form, t().get("TC_MARKET_UI_FIELD_AMOUNT", uiPlayer), amountField, 88);
+        addField(form, t().get("TC_MARKET_UI_FIELD_AMOUNT", uiPlayer), amountField, 124);
 
         priceField = textField("");
-        addField(form, t().get("TC_MARKET_UI_FIELD_PRICE", uiPlayer), priceField, 142);
+        addField(form, t().get("TC_MARKET_UI_FIELD_PRICE", uiPlayer), priceField, 178);
 
         Dropdown currencyDropdown = currencyDropdown();
-        addField(form, t().get("TC_MARKET_UI_FIELD_CURRENCY", uiPlayer), currencyDropdown, 196);
+        addField(form, t().get("TC_MARKET_UI_FIELD_CURRENCY", uiPlayer), currencyDropdown, 232);
 
         int modeX = 0;
         if (plugin.localListingAllowed(uiPlayer)) {
-            form.addChild(modeButton(false, modeX, 250));
+            form.addChild(modeButton(false, modeX, 286));
             modeX += 128;
         }
         if (plugin.globalListingAllowed(uiPlayer)) {
-            form.addChild(modeButton(true, modeX, 250));
+            form.addChild(modeButton(true, modeX, 286));
         }
 
         InfoButton confirm = ButtonFactory.info(t().get("TC_MARKET_UI_CONFIRM", uiPlayer),
                 event -> validateAndConfirmListing());
         confirm.setPivot(Pivot.UpperLeft);
-        confirm.setPosition(0, 304, false);
+        confirm.setPosition(0, 340, false);
         confirm.setSize(148, 30, false);
         confirm.setBorderEdgeRadius(3, false);
         form.addChild(confirm);
@@ -374,14 +395,14 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             rebuild();
         });
         refresh.setPivot(Pivot.UpperLeft);
-        refresh.setPosition(160, 304, false);
+        refresh.setPosition(160, 340, false);
         refresh.setSize(112, 30, false);
         refresh.setBorderEdgeRadius(3, false);
         form.addChild(refresh);
 
         statusLabel = label("", 13, Font.DefaultBold);
         statusLabel.setPivot(Pivot.UpperLeft);
-        statusLabel.setPosition(0, 344, false);
+        statusLabel.setPosition(0, 380, false);
         statusLabel.setSize(100, 42, true);
         statusLabel.setTextWrap(true);
         form.addChild(statusLabel);
@@ -432,11 +453,12 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
                 Arrays.asList(
                         t().get("TC_MARKET_UI_COL_ITEM", uiPlayer),
                         t().get("TC_MARKET_UI_COL_AMOUNT", uiPlayer),
+                        t().get("TC_MARKET_UI_COL_CONDITION", uiPlayer),
                         t().get("TC_MARKET_UI_COL_PRICE", uiPlayer),
                         t().get("TC_MARKET_UI_COL_SELLER", uiPlayer),
                         t().get("TC_MARKET_UI_COL_ZONE", uiPlayer),
                         t().get("TC_MARKET_UI_COL_ACTION", uiPlayer)),
-                Arrays.asList(26f, 9f, 17f, 16f, 14f, 18f));
+                Arrays.asList(21f, 9f, 12f, 16f, 15f, 12f, 15f));
         table.setPosition(0, 42, false);
         table.setScrollBodyHeight(TABLE_BODY_HEIGHT - 42);
 
@@ -594,18 +616,19 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         long fee = plugin.marketplaceBuyerFee(uiPlayer, listing);
         int feePercent = plugin.marketplaceBuyerFeePercent(uiPlayer, listing);
         return new TableRow(Arrays.asList(
-                labelCell(listingLabel(listing), 26f),
+                labelCell(listingLabel(listing), 21f),
                 labelCell(String.valueOf(listing.amount()), 9f),
-                labelCell(priceWithFee(listing.price(), fee, feePercent, listing.currencyIdentifier()), 17f),
-                labelCell(listing.sellerName(), 16f),
-                labelCell(listing.marketZoneId(), 14f),
-                new TableCell(buyButton(listing), 18f)));
+                labelCell(conditionValue(listing.itemName(), listing.itemState()), 12f),
+                labelCell(priceWithFee(listing.price(), fee, feePercent, listing.currencyIdentifier()), 16f),
+                labelCell(listing.sellerName(), 15f),
+                labelCell(listing.marketZoneId(), 12f),
+                new TableCell(buyButton(listing), 15f)));
     }
 
     private OZUIElement listingCard(MarketplaceListing listing) {
         long fee = plugin.marketplaceBuyerFee(uiPlayer, listing);
         int feePercent = plugin.marketplaceBuyerFeePercent(uiPlayer, listing);
-        OZUIElement card = smallCard(252, 150);
+        OZUIElement card = smallCard(252, 176);
         card.addChild(cardIcon(itemIcon(listing.itemName(), listing.itemVariant()), 12, 12, 36));
 
         UILabel title = label(listingLabel(listing), 14, Font.DefaultBold);
@@ -625,21 +648,31 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
 
         UILabel seller = label(listing.sellerName(), 12, Font.Default);
         seller.setPivot(Pivot.UpperLeft);
-        seller.setPosition(126, 56, false);
-        seller.setSize(112, 22, false);
+        seller.setPosition(12, 76, false);
+        seller.setSize(226, 20, false);
+        seller.setText(t().get("TC_MARKET_UI_CARD_SELLER", uiPlayer).replace("PH_SELLER", listing.sellerName()));
         card.addChild(seller);
+
+        String conditionLabel = conditionLabel(listing.itemName(), listing.itemState());
+        if (!conditionLabel.isBlank()) {
+            UILabel condition = label(conditionLabel, 12, Font.Default);
+            condition.setPivot(Pivot.UpperLeft);
+            condition.setPosition(12, 98, false);
+            condition.setSize(226, 20, false);
+            card.addChild(condition);
+        }
 
         UILabel price = label(priceWithFee(listing.price(), fee, feePercent, listing.currencyIdentifier()), 13,
                 Font.DefaultBold);
         price.setPivot(Pivot.UpperLeft);
-        price.setPosition(12, 84, false);
-        price.setSize(226, 24, false);
+        price.setPosition(12, 118, false);
+        price.setSize(110, 24, false);
         price.setFontColor(0xF2C766FF);
         card.addChild(price);
 
         UIElement action = buyButton(listing);
         action.setPivot(Pivot.LowerRight);
-        action.setPosition(238, 138, false);
+        action.setPosition(238, 164, false);
         action.setSize(112, 26, false);
         card.addChild(action);
         return card;
@@ -730,7 +763,8 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
                 .replace("PH_CURRENCY", currencyLabel(listing.currencyIdentifier()).trim())
                 .replace("PH_MODE", t().get(listing.globalListing() ? "TC_MARKET_UI_MODE_GLOBAL" : "TC_MARKET_UI_MODE_LOCAL",
                         uiPlayer))
-                .replace("PH_SELLER", listing.sellerName());
+                .replace("PH_SELLER", listing.sellerName())
+                + conditionDetails(listing.itemName(), listing.itemState());
         addDialogMessage(dialog, details);
         addDialogButtons(dialog, t().get("TC_MARKET_UI_CANCEL", uiPlayer), t().get("TC_MARKET_UI_BUY", uiPlayer),
                 () -> {
@@ -746,7 +780,8 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
                 .replace("PH_ITEM", listingLabel(listing))
                 .replace("PH_AMOUNT", String.valueOf(listing.amount()))
                 .replace("PH_PRICE", String.valueOf(listing.price()))
-                .replace("PH_CURRENCY", currencyLabel(listing.currencyIdentifier()).trim());
+                .replace("PH_CURRENCY", currencyLabel(listing.currencyIdentifier()).trim())
+                + conditionDetails(listing.itemName(), listing.itemState());
         addDialogMessage(dialog, details);
         addDialogButtons(dialog, t().get("TC_MARKET_UI_CANCEL", uiPlayer),
                 t().get("TC_MARKET_UI_WITHDRAW_LISTING", uiPlayer),
@@ -836,12 +871,13 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
                 .replace("PH_PRICE", String.valueOf(price))
                 .replace("PH_CURRENCY", currencyLabel)
                 .replace("PH_MODE", t().get(globalListing ? "TC_MARKET_UI_MODE_GLOBAL" : "TC_MARKET_UI_MODE_LOCAL", uiPlayer))
-                .replace("PH_ZONE", zoneLabel);
+                .replace("PH_ZONE", zoneLabel)
+                + conditionDetails(selected.itemName(), selected.itemState());
         addDialogMessage(dialog, details);
         addDialogButtons(dialog, t().get("TC_MARKET_UI_CANCEL", uiPlayer), t().get("TC_MARKET_UI_CREATE", uiPlayer),
                 () -> {
                     MarketplaceResult result = plugin.createMarketplaceListing(uiPlayer, selected.itemName(), selected.variant(),
-                            amount, price, currency, globalListing);
+                            amount, price, currency, globalListing, selected.itemState());
                     uiPlayer.sendTextMessage((result.success() ? c.okay : c.error) + result.message());
                     setStatus(result.message());
                     if (result.success()) {
@@ -955,7 +991,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     private void addDialogButtons(OZUIElement dialog, String cancelText, String confirmText, Runnable onConfirm) {
         OZUIElement cancel = ButtonFactory.cancel(cancelText, event -> removeChild(dialog));
         cancel.setPivot(Pivot.UpperLeft);
-        cancel.setPosition(72, 184, false);
+        cancel.setPosition(26, 184, false);
         cancel.setSize(132, 32, false);
         cancel.setBorderEdgeRadius(3, false);
         dialog.addChild(cancel);
@@ -966,7 +1002,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         });
         confirm.setPivot(Pivot.UpperLeft);
         int confirmWidth = Math.max(132, Math.min(190, confirmText == null ? 132 : confirmText.length() * 9 + 28));
-        confirm.setPosition(430 - 72 - confirmWidth, 184, false);
+        confirm.setPosition(430 - 26 - confirmWidth, 184, false);
         confirm.setSize(confirmWidth, 32, false);
         confirm.setBorderEdgeRadius(3, false);
         dialog.addChild(confirm);
@@ -1117,6 +1153,37 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
 
     private String listingLabel(MarketplaceListing listing) {
         return listingLabel(listing.itemName(), listing.itemVariant());
+    }
+
+    private int durabilityPercent(String itemName, MarketplaceItemState itemState) {
+        return MarketplaceItemNames.durabilityPercent(itemName, itemState);
+    }
+
+    private boolean isDamaged(String itemName, MarketplaceItemState itemState) {
+        int percent = durabilityPercent(itemName, itemState);
+        return percent >= 0 && percent < 100;
+    }
+
+    private String conditionLabel(String itemName, MarketplaceItemState itemState) {
+        int percent = durabilityPercent(itemName, itemState);
+        if (percent < 0) {
+            return "";
+        }
+        return t().get("TC_MARKET_UI_CONDITION", uiPlayer).replace("PH_PERCENT", String.valueOf(percent));
+    }
+
+    private String conditionValue(String itemName, MarketplaceItemState itemState) {
+        int percent = durabilityPercent(itemName, itemState);
+        return percent < 0 ? "" : percent + "%";
+    }
+
+    private String conditionDetails(String itemName, MarketplaceItemState itemState) {
+        String condition = conditionLabel(itemName, itemState);
+        return condition.isBlank() ? "" : "\n" + condition;
+    }
+
+    private String conditionSuffix(String itemName, MarketplaceItemState itemState) {
+        return isDamaged(itemName, itemState) ? " (" + durabilityPercent(itemName, itemState) + "%)" : "";
     }
 
     private String listingLabel(String itemName, int itemVariant) {

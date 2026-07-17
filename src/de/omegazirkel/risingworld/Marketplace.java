@@ -10,6 +10,7 @@ import de.omegazirkel.risingworld.marketplace.MarketZone;
 import de.omegazirkel.risingworld.marketplace.MarketplacePlayerPreferences;
 import de.omegazirkel.risingworld.marketplace.MarketplaceDatabase;
 import de.omegazirkel.risingworld.marketplace.MarketplaceListing;
+import de.omegazirkel.risingworld.marketplace.MarketplaceItemState;
 import de.omegazirkel.risingworld.marketplace.MarketplaceResult;
 import de.omegazirkel.risingworld.marketplace.MarketplaceSale;
 import de.omegazirkel.risingworld.marketplace.MarketplaceService;
@@ -379,10 +380,15 @@ public class Marketplace extends Plugin implements Listener, FileChangeListener 
 
     public MarketplaceResult createMarketplaceListing(Player player, String itemName, int variant, int amount,
             long price, String currency, boolean global) {
+        return createMarketplaceListing(player, itemName, variant, amount, price, currency, global, null);
+    }
+
+    public MarketplaceResult createMarketplaceListing(Player player, String itemName, int variant, int amount,
+            long price, String currency, boolean global, MarketplaceItemState itemState) {
         if (service == null) {
             return MarketplaceResult.fail("Marketplace database is not available.");
         }
-        return service.createListing(player, itemName, variant, amount, price, currency, global);
+        return service.createListing(player, itemName, variant, amount, price, currency, global, itemState);
     }
 
     public MarketplaceResult buyMarketplaceListing(Player player, long listingId) {
