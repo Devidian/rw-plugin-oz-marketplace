@@ -91,6 +91,18 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     @Override
+    protected String legendText() {
+        PluginSettings settings = plugin.marketplaceSettings();
+        if (!settings.globalMarketplaceEnabled) {
+            return t().get("TC_MARKET_UI_STATUS_GLOBAL_DISABLED", uiPlayer);
+        }
+        if (settings.marketZoneOnlyMode) {
+            return t().get("TC_MARKET_UI_STATUS_ZONE_ONLY", uiPlayer);
+        }
+        return t().get("TC_MARKET_UI_STATUS_GLOBAL_ENABLED", uiPlayer);
+    }
+
+    @Override
     protected void setupTabs() {
         if (marketTab == null || !tabAvailable(marketTab)) {
             marketTab = MarketTab.SELL;
@@ -232,8 +244,8 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         OZUIElement listPanel = new OZUIElement();
         listPanel.setPivot(Pivot.UpperLeft);
         listPanel.setPosition(14, 14, false);
-        listPanel.style.width.set(57, Unit.Percent);
-        listPanel.style.height.set(392, Unit.Pixel);
+        listPanel.style.width.set(61, Unit.Percent);
+        listPanel.style.height.set(416, Unit.Pixel);
         body.addChild(listPanel);
 
         List<InventoryListingCandidate> candidates = InventoryTransfer.listingCandidates(uiPlayer);
@@ -245,7 +257,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             empty.setTextWrap(true);
             listPanel.addChild(empty);
         } else {
-            UIScrollView scroll = flexScroll(392);
+            UIScrollView scroll = flexScroll(416);
             OZUIElement wrapper = flexWrapper();
             for (InventoryListingCandidate candidate : candidates) {
                 wrapper.addChild(candidateCard(candidate));
@@ -277,7 +289,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private OZUIElement candidateCard(InventoryListingCandidate candidate) {
-        OZUIElement card = smallCard(156, 118);
+        OZUIElement card = smallCard(174, 92);
         card.setClickable(true);
         card.setClickAction(event -> {
             selected = candidate;
@@ -289,8 +301,8 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
 
         UILabel name = label(candidate.displayName(), 13, Font.DefaultBold);
         name.setPivot(Pivot.UpperLeft);
-        name.setPosition(50, 10, false);
-        name.setSize(96, 34, false);
+        name.setPosition(50, 8, false);
+        name.setSize(114, 30, false);
         name.setTextWrap(true);
         name.setTextAlign(TextAnchor.UpperLeft);
         card.addChild(name);
@@ -298,16 +310,9 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         UILabel amount = label(t().get("TC_MARKET_UI_CARD_AMOUNT", uiPlayer)
                 .replace("PH_AMOUNT", String.valueOf(candidate.availableAmount())), 12, Font.Default);
         amount.setPivot(Pivot.UpperLeft);
-        amount.setPosition(10, 54, false);
-        amount.setSize(136, 22, false);
+        amount.setPosition(10, 58, false);
+        amount.setSize(154, 20, false);
         card.addChild(amount);
-
-        UILabel variant = label(t().get("TC_MARKET_UI_CARD_VARIANT", uiPlayer)
-                .replace("PH_VARIANT", String.valueOf(candidate.variant())), 12, Font.Default);
-        variant.setPivot(Pivot.UpperLeft);
-        variant.setPosition(10, 78, false);
-        variant.setSize(136, 22, false);
-        card.addChild(variant);
 
         return card;
     }
@@ -316,9 +321,9 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         normalizeListingMode();
         OZUIElement form = new OZUIElement();
         form.setPivot(Pivot.UpperLeft);
-        form.setPosition(60, 14, true);
-        form.style.width.set(37, Unit.Percent);
-        form.style.height.set(392, Unit.Pixel);
+        form.setPosition(65, 14, true);
+        form.style.width.set(32, Unit.Percent);
+        form.style.height.set(416, Unit.Pixel);
         body.addChild(form);
 
         UILabel formTitle = label(t().get("TC_MARKET_UI_FORM_TITLE", uiPlayer), 17, Font.DefaultBold);
@@ -1043,7 +1048,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         scroll.style.paddingLeft.set(10);
         scroll.style.paddingRight.set(10);
         scroll.style.paddingTop.set(10);
-        scroll.style.paddingBottom.set(34);
+        scroll.style.paddingBottom.set(16);
         return scroll;
     }
 

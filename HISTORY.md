@@ -1,5 +1,9 @@
 # History
 
+## [0.2.4] - 2026-07-17 | Wallet bridge compatibility
+
+- feat: support the current Wallet bridge contract and localize unavailable purchase states
+
 ## [0.2.3] - 2026-07-14 | Icon set and export polish
 
 - change: rename Marketplace icon keys to their final semantic names

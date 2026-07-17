@@ -81,6 +81,13 @@ public class WalletBridge {
                 new Object[] { playerDbId, value, reason, currencyIdentifier, pluginIdentifier });
     }
 
+    public WalletCallResult transferIdempotent(int payerDbId, int payeeDbId, long value, String reason,
+            String currencyIdentifier, String pluginIdentifier, String correlationId) {
+        return call("transferIdempotent",
+                new Class<?>[] { int.class, int.class, long.class, String.class, String.class, String.class, String.class },
+                new Object[] { payerDbId, payeeDbId, value, reason, currencyIdentifier, pluginIdentifier, correlationId });
+    }
+
     public long balanceDefault(int playerDbId) {
         Object result = callRaw("balanceDefault", new Class<?>[] { int.class }, new Object[] { playerDbId });
         if (!WalletCallResult.from(result).success()) {
