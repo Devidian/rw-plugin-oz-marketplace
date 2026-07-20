@@ -23,10 +23,10 @@ import de.omegazirkel.risingworld.tools.Colors;
 import de.omegazirkel.risingworld.tools.I18n;
 import de.omegazirkel.risingworld.tools.ui.AssetManager;
 import de.omegazirkel.risingworld.tools.ui.BasePluginOverlayWithTabs;
-import de.omegazirkel.risingworld.tools.ui.ButtonFactory;
+import de.omegazirkel.risingworld.tools.ui.AdvancedButtonFactory;
 import de.omegazirkel.risingworld.tools.ui.Dropdown;
 import de.omegazirkel.risingworld.tools.ui.DropdownOption;
-import de.omegazirkel.risingworld.tools.ui.InfoButton;
+import de.omegazirkel.risingworld.tools.ui.AdvancedButton;
 import de.omegazirkel.risingworld.tools.ui.OZUIElement;
 import de.omegazirkel.risingworld.tools.ui.table.TableCell;
 import de.omegazirkel.risingworld.tools.ui.table.TableRow;
@@ -277,8 +277,8 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
                 new TableCell(selectButton(candidate), 22f)));
     }
 
-    private InfoButton selectButton(InventoryListingCandidate candidate) {
-        InfoButton button = ButtonFactory.info(t().get("TC_MARKET_UI_SELECT", uiPlayer), event -> {
+    private AdvancedButton selectButton(InventoryListingCandidate candidate) {
+        AdvancedButton button = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_SELECT", uiPlayer), event -> {
             selected = candidate;
             rebuild();
             setStatus("");
@@ -383,7 +383,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             form.addChild(modeButton(true, modeX, 286));
         }
 
-        InfoButton confirm = ButtonFactory.info(t().get("TC_MARKET_UI_CONFIRM", uiPlayer),
+        AdvancedButton confirm = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_CONFIRM", uiPlayer),
                 event -> validateAndConfirmListing());
         confirm.setPivot(Pivot.UpperLeft);
         confirm.setPosition(0, 340, false);
@@ -391,7 +391,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         confirm.setBorderEdgeRadius(3, false);
         form.addChild(confirm);
 
-        InfoButton refresh = ButtonFactory.info(t().get("TC_MARKET_UI_REFRESH", uiPlayer), event -> {
+        AdvancedButton refresh = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_REFRESH", uiPlayer), event -> {
             selected = null;
             rebuild();
         });
@@ -525,7 +525,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         searchField.setMaxCharacters(80);
         body.addChild(searchField);
 
-        InfoButton apply = ButtonFactory.info(t().get("TC_MARKET_UI_SEARCH_APPLY", uiPlayer), event -> {
+        AdvancedButton apply = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_SEARCH_APPLY", uiPlayer), event -> {
             searchField.getCurrentText(uiPlayer, text -> {
                 listingFilter = text == null ? "" : text.trim();
                 rebuild();
@@ -536,7 +536,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         apply.setSize(86, 28, false);
         body.addChild(apply);
 
-        InfoButton clear = ButtonFactory.info(t().get("TC_MARKET_UI_SEARCH_CLEAR", uiPlayer), event -> {
+        AdvancedButton clear = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_SEARCH_CLEAR", uiPlayer), event -> {
             listingFilter = "";
             rebuild();
         });
@@ -734,7 +734,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private UIElement removeSaleButton(MarketplaceSale sale) {
-        InfoButton button = ButtonFactory.info(t().get("TC_MARKET_UI_REMOVE", uiPlayer),
+        AdvancedButton button = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_REMOVE", uiPlayer),
                 event -> showRemoveSaleConfirmation(sale));
         button.setPivot(Pivot.UpperLeft);
         button.setPosition(4, 5, false);
@@ -745,7 +745,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
 
     private UIElement buyButton(MarketplaceListing listing) {
         if (listing.sellerDbId() == uiPlayer.getDbID()) {
-            InfoButton button = ButtonFactory.info(t().get("TC_MARKET_UI_CANCEL_LISTING", uiPlayer),
+            AdvancedButton button = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_CANCEL_LISTING", uiPlayer),
                     event -> showCancelListingConfirmation(listing));
             button.setPivot(Pivot.UpperLeft);
             button.setPosition(4, 5, false);
@@ -753,7 +753,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             button.setBorderEdgeRadius(3, false);
             return button;
         }
-        InfoButton button = ButtonFactory.info(t().get("TC_MARKET_UI_BUY", uiPlayer),
+        AdvancedButton button = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_BUY", uiPlayer),
                 event -> showBuyConfirmation(listing));
         button.setPivot(Pivot.UpperLeft);
         button.setPosition(4, 5, false);
@@ -942,7 +942,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
                         value -> runManagementAction(plugin.setCurrentMarketZoneFee(uiPlayer, parseInt(value)))));
 
         y += 70;
-        OZUIElement delete = ButtonFactory.cancel(t().get("TC_MARKET_UI_MANAGEMENT_DELETE", uiPlayer),
+        OZUIElement delete = AdvancedButtonFactory.cancel(t().get("TC_MARKET_UI_MANAGEMENT_DELETE", uiPlayer),
                 event -> showDeleteZoneConfirmation());
         delete.setPivot(Pivot.UpperLeft);
         delete.setPosition(0, y, false);
@@ -952,7 +952,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private void addManagementButton(OZUIElement parent, String text, int x, int y, Runnable action) {
-        InfoButton button = ButtonFactory.info(text, event -> action.run());
+        AdvancedButton button = AdvancedButtonFactory.defaultButton(text, event -> action.run());
         button.setPivot(Pivot.UpperLeft);
         button.setPosition(x, y, false);
         button.setSize(178, 32, false);
@@ -1002,14 +1002,14 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private void addDialogButtons(OZUIElement dialog, String cancelText, String confirmText, Runnable onConfirm) {
-        OZUIElement cancel = ButtonFactory.cancel(cancelText, event -> removeChild(dialog));
+        OZUIElement cancel = AdvancedButtonFactory.cancel(cancelText, event -> removeChild(dialog));
         cancel.setPivot(Pivot.UpperLeft);
         cancel.setPosition(26, 184, false);
         cancel.setSize(132, 32, false);
         cancel.setBorderEdgeRadius(3, false);
         dialog.addChild(cancel);
 
-        OZUIElement confirm = ButtonFactory.ok(confirmText, event -> {
+        OZUIElement confirm = AdvancedButtonFactory.ok(confirmText, event -> {
             removeChild(dialog);
             onConfirm.run();
         });

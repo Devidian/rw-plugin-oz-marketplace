@@ -1,5 +1,9 @@
 # History
 
+## [0.2.9] - 2026-07-20 | Advanced button controls
+
+- change: use the stable shared OZ button controls in Marketplace overlays
+
 ## [0.2.8] - 2026-07-20 | Settings translations
 
 - fix: localize all registered Marketplace admin settings
