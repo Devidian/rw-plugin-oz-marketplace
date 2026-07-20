@@ -715,14 +715,14 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
 
     private TableRow saleRow(MarketplaceSale sale) {
         return new TableRow(Arrays.asList(
-                labelCell(listingLabel(sale.itemName(), sale.itemVariant()), 30f),
-                labelCell(String.valueOf(sale.amount()), 10f),
+                labelCell(listingLabel(sale.itemName(), sale.itemVariant()), 22f),
+                labelCell(String.valueOf(sale.amount()), 8f),
                 labelCell(conditionValue(sale.itemName(), sale.itemState()), 14f),
                 labelCell(buyerName(sale), 14f),
-                labelCell(sale.sellerPayout() + currencyLabel(sale.currencyIdentifier()), 18f),
-                labelCell(String.valueOf(sale.fee()), 14f),
-                labelCell(sale.marketZoneId(), 16f),
-                new TableCell(removeSaleButton(sale), 12f)));
+                labelCell(sale.sellerPayout() + currencyLabel(sale.currencyIdentifier()), 14f),
+                labelCell(String.valueOf(sale.fee()), 10f),
+                labelCell(sale.marketZoneId(), 10f),
+                new TableCell(removeSaleButton(sale), 8f)));
     }
 
     private String buyerName(MarketplaceSale sale) {

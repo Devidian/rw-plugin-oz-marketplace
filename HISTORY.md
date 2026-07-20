@@ -1,5 +1,9 @@
 # History
 
+## [0.2.7] - 2026-07-20 | Sales table alignment
+
+- fix: align Sales-table row widths with their column headers
+
 ## [0.2.6] - 2026-07-20 | Sale-history detail
 
 - feat: show the sold item's condition and buyer in the seller Sales tab
