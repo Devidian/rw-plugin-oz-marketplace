@@ -1,5 +1,10 @@
 # History
 
+## [0.2.10] - 2026-07-20 | Stable listing selection
+
+- fix: keep inventory selection and the sell form stable without redrawing the complete Marketplace overlay
+- fix: prevent inventory-card hover artifacts while preserving compact card spacing
+
 ## [0.2.9] - 2026-07-20 | Advanced button controls
 
 - change: use the stable shared OZ button controls in Marketplace overlays

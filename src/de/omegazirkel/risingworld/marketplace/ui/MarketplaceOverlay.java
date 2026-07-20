@@ -2,6 +2,7 @@ package de.omegazirkel.risingworld.marketplace.ui;
 
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -69,6 +70,9 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
 
     private MarketTab marketTab = MarketTab.SELL;
     private InventoryListingCandidate selected;
+    private OZUIElement selectedCandidateCard;
+    private final IdentityHashMap<OZUIElement, InventoryListingCandidate> candidateCards = new IdentityHashMap<>();
+    private OZUIElement listingForm;
     private UITextField amountField;
     private UITextField priceField;
     private UITextField managementFeeField;
@@ -76,6 +80,8 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     private String listingFilter = "";
     private boolean globalListing;
     private UILabel statusLabel;
+    private String listingAmountDraft;
+    private String listingPriceDraft;
 
     public MarketplaceOverlay(Marketplace plugin, Player player) {
         super(player, p -> p.deleteAttribute("oz.marketplace.ui.overlay"));
@@ -239,10 +245,12 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             return;
         }
         setupCandidateTable();
-        setupListingForm();
+        refreshListingForm();
     }
 
     private void setupCandidateTable() {
+        candidateCards.clear();
+        selectedCandidateCard = null;
         OZUIElement listPanel = new OZUIElement();
         listPanel.setPivot(Pivot.UpperLeft);
         listPanel.setPosition(14, 14, false);
@@ -280,7 +288,9 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     private AdvancedButton selectButton(InventoryListingCandidate candidate) {
         AdvancedButton button = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_SELECT", uiPlayer), event -> {
             selected = candidate;
-            rebuild();
+            listingAmountDraft = null;
+            listingPriceDraft = null;
+            refreshListingForm();
             setStatus("");
         });
         button.setPivot(Pivot.UpperLeft);
@@ -291,14 +301,51 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private OZUIElement candidateCard(InventoryListingCandidate candidate) {
-        OZUIElement card = smallCard(174, 92);
-        card.setClickable(true);
-        card.setClickAction(event -> {
+        OZUIElement placeholder = new OZUIElement();
+        placeholder.setPivot(Pivot.UpperLeft);
+        placeholder.style.width.set(174, Unit.Pixel);
+        placeholder.style.height.set(92, Unit.Pixel);
+        placeholder.style.marginLeft.set(6);
+        placeholder.style.marginRight.set(6);
+        placeholder.style.marginTop.set(6);
+        placeholder.style.marginBottom.set(10);
+        placeholder.setBackgroundColor(0, 0, 0, 0);
+        placeholder.setClickable(true);
+        candidateCards.put(placeholder, candidate);
+        placeholder.setClickAction(event -> {
+            if (selectedCandidateCard != null && selectedCandidateCard != placeholder) {
+                refreshCandidateCard(selectedCandidateCard, false);
+            }
             selected = candidate;
-            rebuild();
+            selectedCandidateCard = placeholder;
+            listingAmountDraft = null;
+            listingPriceDraft = null;
+            refreshCandidateCard(placeholder, true);
+            refreshListingForm();
             setStatus("");
         });
 
+        if (candidate.equals(selected)) {
+            selectedCandidateCard = placeholder;
+        }
+        refreshCandidateCard(placeholder, candidate.equals(selected));
+        return placeholder;
+    }
+
+    private void refreshCandidateCard(OZUIElement placeholder, boolean active) {
+        InventoryListingCandidate candidate = candidateCards.get(placeholder);
+        if (candidate == null) return;
+        placeholder.removeAllChilds();
+        OZUIElement card = smallCard(174, 92);
+        card.setClickable(false);
+        card.setHoverBackgroundColor(0x00000000);
+        card.style.width.set(100, Unit.Percent);
+        card.style.height.set(100, Unit.Percent);
+        card.style.marginLeft.set(0);
+        card.style.marginRight.set(0);
+        card.style.marginTop.set(0);
+        card.style.marginBottom.set(0);
+        applyCandidateCardStyle(card, active);
         card.addChild(cardIcon(itemIcon(candidate.itemName(), candidate.variant()), 10, 10, 32));
 
         UILabel name = label(candidate.displayName(), 13, Font.DefaultBold);
@@ -316,13 +363,27 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         amount.setPosition(10, 58, false);
         amount.setSize(154, 20, false);
         card.addChild(amount);
+        placeholder.addChild(card);
+    }
 
-        return card;
+    private void applyCandidateCardStyle(OZUIElement card, boolean active) {
+        card.setBackgroundColor(active ? 0.18f : 0.10f, active ? 0.15f : 0.09f, active ? 0.10f : 0.08f,
+                active ? 0.98f : 0.92f);
+        card.setBorder(active ? 2 : 1);
+        card.setBorderColor(0.95f, 0.75f, 0.25f, active ? 0.9f : 0.42f);
+    }
+
+    private void refreshListingForm() {
+        if (listingForm != null) {
+            body.removeChild(listingForm);
+        }
+        setupListingForm();
     }
 
     private void setupListingForm() {
         normalizeListingMode();
         OZUIElement form = new OZUIElement();
+        listingForm = form;
         form.setPivot(Pivot.UpperLeft);
         form.setPosition(65, 14, true);
         form.style.width.set(32, Unit.Percent);
@@ -340,15 +401,15 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
                 : selected.displayName() + " (" + selected.itemName() + ":" + selected.variant() + ")";
         UILabel selectedLabel = label(selectedText, 13, Font.Default);
         selectedLabel.setPivot(Pivot.UpperLeft);
-        selectedLabel.setPosition(0, 34, false);
-        selectedLabel.setSize(100, 42, true);
+        selectedLabel.setPosition(0, 30, false);
+        selectedLabel.setSize(100, 28, true);
         selectedLabel.setTextWrap(true);
         form.addChild(selectedLabel);
 
         UILabel condition = label(selected == null ? "" : conditionLabel(selected.itemName(), selected.itemState()), 12,
                 Font.DefaultBold);
         condition.setPivot(Pivot.UpperLeft);
-        condition.setPosition(0, 76, false);
+        condition.setPosition(0, 60, false);
         condition.setSize(100, 20, true);
         form.addChild(condition);
 
@@ -357,36 +418,37 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
                     .replace("PH_PERCENT", String.valueOf(durabilityPercent(selected.itemName(), selected.itemState()))),
                     12, Font.DefaultBold);
             warning.setPivot(Pivot.UpperLeft);
-            warning.setPosition(0, 96, false);
+            warning.setPosition(0, 78, false);
             warning.setSize(100, 24, true);
             warning.setTextWrap(true);
             warning.setFontColor(0xE6A04CFF);
             form.addChild(warning);
         }
 
-        amountField = textField(selected == null ? "" : String.valueOf(Math.min(selected.availableAmount(),
-                Math.max(1, selected.maxStackSize()))));
-        addField(form, t().get("TC_MARKET_UI_FIELD_AMOUNT", uiPlayer), amountField, 124);
+        String defaultAmount = selected == null ? "" : String.valueOf(Math.min(selected.availableAmount(),
+                Math.max(1, selected.maxStackSize())));
+        amountField = textField(listingAmountDraft == null ? defaultAmount : listingAmountDraft);
+        addField(form, t().get("TC_MARKET_UI_FIELD_AMOUNT", uiPlayer), amountField, 106);
 
-        priceField = textField("");
-        addField(form, t().get("TC_MARKET_UI_FIELD_PRICE", uiPlayer), priceField, 178);
+        priceField = textField(listingPriceDraft == null ? "" : listingPriceDraft);
+        addField(form, t().get("TC_MARKET_UI_FIELD_PRICE", uiPlayer), priceField, 160);
 
         Dropdown currencyDropdown = currencyDropdown();
-        addField(form, t().get("TC_MARKET_UI_FIELD_CURRENCY", uiPlayer), currencyDropdown, 232);
+        addField(form, t().get("TC_MARKET_UI_FIELD_CURRENCY", uiPlayer), currencyDropdown, 214);
 
         int modeX = 0;
         if (plugin.localListingAllowed(uiPlayer)) {
-            form.addChild(modeButton(false, modeX, 286));
+            form.addChild(modeButton(false, modeX, 268));
             modeX += 128;
         }
         if (plugin.globalListingAllowed(uiPlayer)) {
-            form.addChild(modeButton(true, modeX, 286));
+            form.addChild(modeButton(true, modeX, 268));
         }
 
         AdvancedButton confirm = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_CONFIRM", uiPlayer),
                 event -> validateAndConfirmListing());
         confirm.setPivot(Pivot.UpperLeft);
-        confirm.setPosition(0, 340, false);
+        confirm.setPosition(0, 316, false);
         confirm.setSize(148, 30, false);
         confirm.setBorderEdgeRadius(3, false);
         form.addChild(confirm);
@@ -396,14 +458,14 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             rebuild();
         });
         refresh.setPivot(Pivot.UpperLeft);
-        refresh.setPosition(160, 340, false);
+        refresh.setPosition(160, 316, false);
         refresh.setSize(112, 30, false);
         refresh.setBorderEdgeRadius(3, false);
         form.addChild(refresh);
 
         statusLabel = label("", 13, Font.DefaultBold);
         statusLabel.setPivot(Pivot.UpperLeft);
-        statusLabel.setPosition(0, 380, false);
+        statusLabel.setPosition(0, 356, false);
         statusLabel.setSize(100, 42, true);
         statusLabel.setTextWrap(true);
         form.addChild(statusLabel);
@@ -429,8 +491,12 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         button.setBorderEdgeRadius(3, false);
         button.setClickable(true);
         button.setClickAction(event -> {
-            globalListing = global;
-            rebuild();
+            amountField.getCurrentText(uiPlayer, amount -> priceField.getCurrentText(uiPlayer, price -> {
+                listingAmountDraft = amount == null ? "" : amount;
+                listingPriceDraft = price == null ? "" : price;
+                globalListing = global;
+                refreshListingForm();
+            }));
         });
         styleTab(button, globalListing == global);
         UILabel label = label(t().get(global ? "TC_MARKET_UI_MODE_GLOBAL" : "TC_MARKET_UI_MODE_LOCAL", uiPlayer),
