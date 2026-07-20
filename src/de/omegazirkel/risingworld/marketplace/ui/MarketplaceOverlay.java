@@ -16,6 +16,7 @@ import de.omegazirkel.risingworld.marketplace.MarketplacePlayerPreferences;
 import de.omegazirkel.risingworld.marketplace.MarketplaceListing;
 import de.omegazirkel.risingworld.marketplace.MarketplaceResult;
 import de.omegazirkel.risingworld.marketplace.MarketplaceSale;
+import de.omegazirkel.risingworld.tools.PlayerDatabaseHelper;
 import de.omegazirkel.risingworld.marketplace.PluginSettings;
 import de.omegazirkel.risingworld.marketplace.WalletBridge;
 import de.omegazirkel.risingworld.tools.Colors;
@@ -683,11 +684,13 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
                 Arrays.asList(
                         t().get("TC_MARKET_UI_COL_ITEM", uiPlayer),
                         t().get("TC_MARKET_UI_COL_AMOUNT", uiPlayer),
+                        t().get("TC_MARKET_UI_COL_CONDITION", uiPlayer),
+                        t().get("TC_MARKET_UI_COL_BUYER", uiPlayer),
                         t().get("TC_MARKET_UI_COL_PAYOUT", uiPlayer),
                         t().get("TC_MARKET_UI_COL_FEE", uiPlayer),
                         t().get("TC_MARKET_UI_COL_ZONE", uiPlayer),
                         t().get("TC_MARKET_UI_COL_ACTION", uiPlayer)),
-                Arrays.asList(30f, 10f, 18f, 14f, 16f, 12f));
+                Arrays.asList(22f, 8f, 14f, 14f, 14f, 10f, 10f, 8f));
         table.setScrollBodyHeight(TABLE_BODY_HEIGHT);
 
         List<MarketplaceSale> sales = visibleSales();
@@ -714,10 +717,20 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         return new TableRow(Arrays.asList(
                 labelCell(listingLabel(sale.itemName(), sale.itemVariant()), 30f),
                 labelCell(String.valueOf(sale.amount()), 10f),
+                labelCell(conditionValue(sale.itemName(), sale.itemState()), 14f),
+                labelCell(buyerName(sale), 14f),
                 labelCell(sale.sellerPayout() + currencyLabel(sale.currencyIdentifier()), 18f),
                 labelCell(String.valueOf(sale.fee()), 14f),
                 labelCell(sale.marketZoneId(), 16f),
                 new TableCell(removeSaleButton(sale), 12f)));
+    }
+
+    private String buyerName(MarketplaceSale sale) {
+        PlayerDatabaseHelper.PlayerRecord buyer = PlayerDatabaseHelper.findPlayersByDbIds(plugin,
+                java.util.Set.of(sale.buyerDbId())).get(sale.buyerDbId());
+        return buyer == null
+                        ? t().get("TC_MARKET_UI_UNKNOWN", uiPlayer)
+                        : buyer.name;
     }
 
     private UIElement removeSaleButton(MarketplaceSale sale) {

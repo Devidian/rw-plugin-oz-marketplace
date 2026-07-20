@@ -79,6 +79,9 @@ public class MarketplaceDatabase {
                         item_name TEXT NOT NULL,
                         item_variant INTEGER NOT NULL,
                         amount INTEGER NOT NULL,
+                        item_durability INTEGER NOT NULL DEFAULT 0,
+                        item_status INTEGER NOT NULL DEFAULT 0,
+                        item_modifier TEXT NOT NULL DEFAULT '',
                         price BIGINT NOT NULL,
                         currency_identifier TEXT NOT NULL,
                         fee BIGINT NOT NULL,
@@ -101,6 +104,9 @@ public class MarketplaceDatabase {
     }
 
     private void migrate(Statement statement) throws SQLException {
+        ensureColumn(statement, "marketplace_sales", "item_durability", "INTEGER NOT NULL DEFAULT 0");
+        ensureColumn(statement, "marketplace_sales", "item_status", "INTEGER NOT NULL DEFAULT 0");
+        ensureColumn(statement, "marketplace_sales", "item_modifier", "TEXT NOT NULL DEFAULT ''");
         if (!columnExists("marketplace_sales", "seller_hidden_at")) {
             statement.execute("""
                     ALTER TABLE marketplace_sales
@@ -343,8 +349,8 @@ public class MarketplaceDatabase {
         try (PreparedStatement statement = connection.prepareStatement("""
                 INSERT INTO marketplace_sales(
                     listing_id, seller_db_id, buyer_db_id, item_name, item_variant, amount, price, currency_identifier,
-                    fee, seller_payout, market_zone_id, sold_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    item_durability, item_status, item_modifier, fee, seller_payout, market_zone_id, sold_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """, Statement.RETURN_GENERATED_KEYS)) {
             statement.setLong(1, sale.listingId());
             statement.setInt(2, sale.sellerDbId());
@@ -354,10 +360,13 @@ public class MarketplaceDatabase {
             statement.setInt(6, sale.amount());
             statement.setLong(7, sale.price());
             statement.setString(8, sale.currencyIdentifier());
-            statement.setLong(9, sale.fee());
-            statement.setLong(10, sale.sellerPayout());
-            statement.setString(11, sale.marketZoneId());
-            statement.setLong(12, sale.soldAt());
+            statement.setInt(9, sale.itemState().durability());
+            statement.setShort(10, sale.itemState().status());
+            statement.setString(11, sale.itemState().modifier());
+            statement.setLong(12, sale.fee());
+            statement.setLong(13, sale.sellerPayout());
+            statement.setString(14, sale.marketZoneId());
+            statement.setLong(15, sale.soldAt());
             statement.executeUpdate();
             try (ResultSet keys = statement.getGeneratedKeys()) {
                 return keys.next() ? keys.getLong(1) : 0L;
@@ -466,6 +475,8 @@ public class MarketplaceDatabase {
                 result.getString("item_name"),
                 result.getInt("item_variant"),
                 result.getInt("amount"),
+                new MarketplaceItemState(result.getInt("item_durability"), result.getShort("item_status"),
+                        result.getString("item_modifier")),
                 result.getLong("price"),
                 result.getString("currency_identifier"),
                 result.getLong("fee"),

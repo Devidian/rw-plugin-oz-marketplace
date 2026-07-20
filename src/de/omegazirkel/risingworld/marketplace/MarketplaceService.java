@@ -328,7 +328,7 @@ public class MarketplaceService {
             }
             externalTransferCompleted = true;
             boolean completed = database.completeSale(new MarketplaceSale(0L, listing.id(), listing.sellerDbId(), buyer.getDbID(),
-                    listing.itemName(), listing.itemVariant(), listing.amount(), listing.price(),
+                    listing.itemName(), listing.itemVariant(), listing.amount(), listing.itemState(), listing.price(),
                     listing.currencyIdentifier(), fee, sellerPayout, zone.map(MarketZone::id).orElse("global"), now()),
                     STATUS_PENDING_PURCHASE, STATUS_SOLD);
             if (!completed) {

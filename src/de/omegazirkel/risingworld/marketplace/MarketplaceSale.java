@@ -8,6 +8,7 @@ public record MarketplaceSale(
         String itemName,
         int itemVariant,
         int amount,
+        MarketplaceItemState itemState,
         long price,
         String currencyIdentifier,
         long fee,

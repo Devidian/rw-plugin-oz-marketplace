@@ -1,5 +1,11 @@
 # History
 
+## [0.2.6] - 2026-07-20 | Sale-history detail
+
+- feat: show the sold item's condition and buyer in the seller Sales tab
+- fix: keep existing sale-history rows readable with an Unknown buyer fallback
+- db: preserve item durability, status and modifier in completed sale records
+
 ## [0.2.5] - 2026-07-17 | Item-state custody and listing clarity
 
 - fix: preserve item durability, status and modifier for listing creation, purchase, cancellation and rollback
