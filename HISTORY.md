@@ -1,5 +1,9 @@
 # History
 
+## [0.2.8] - 2026-07-20 | Settings translations
+
+- fix: localize all registered Marketplace admin settings
+
 ## [0.2.7] - 2026-07-20 | Sales table alignment
 
 - fix: align Sales-table row widths with their column headers
