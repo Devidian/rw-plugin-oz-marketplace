@@ -36,6 +36,10 @@ If Wallet is missing, the plugin may load but trading must stay disabled and adm
 - Global listings are only usable in zones that allow global trade.
 - Follow `.codex/agents.toml` and `docs/policies/repository-policy.md`.
 - Keep `README.md`, `HISTORY.md`, and `PLANS.md` aligned with behavior changes.
+- Keep the `plugin.yml` entry class as the sole Rising World `Listener` and sole
+  `registerEventListener(...)` target. It may only wire lifecycle, delegate
+  events/settings, and expose thin compatibility facades; feature workflows,
+  persistence, UI, integrations, and timers belong in thematic classes.
 
 ## Validation
 - Run `scripts/verify-plugin-api.sh --summary` for API-impacting work.
