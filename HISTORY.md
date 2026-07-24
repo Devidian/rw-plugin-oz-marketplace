@@ -2,7 +2,11 @@
 
 ## Unreleased
 
+## [0.2.11] - 2026-07-24 | Shared runtime bridges
+
 - refactor: use the central OZ Tools Wallet bridge
+- refactor: keep the plugin entry point limited to lifecycle wiring and event delegation
+- change: update the shared OZ Tools dependency to version 0.23.8
 
 ## [0.2.10] - 2026-07-20 | Stable listing selection
 
