@@ -1,5 +1,9 @@
 # History
 
+## Unreleased
+
+- refactor: use the central OZ Tools Wallet bridge
+
 ## [0.2.10] - 2026-07-20 | Stable listing selection
 
 - fix: keep inventory selection and the sell form stable without redrawing the complete Marketplace overlay
