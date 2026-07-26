@@ -72,3 +72,16 @@ Planning is stored in repository-local docs.
 - [x] Show market-zone name, fee percent, and global-trade state
 - [x] Add `showMarketplaceZoneIndicator` setting and admin setting entry
 - [x] Validate with `mvn -B test`
+
+## Clothing Item Resolution
+
+- [x] Store concrete clothing definition names in new listings
+- [x] Match, return, deliver, label, and render icons for concrete clothing items
+- [x] Document compatibility and rollback limits for existing generic clothing listings
+
+## Construction Item Resolution
+
+- [x] Store concrete construction definition names and texture variants in new listings
+- [x] Match, return, deliver, label, and render icons for concrete construction items
+- [x] Preserve construction colors as part of listing custody state
+- [x] Document compatibility and rollback limits for existing generic construction listings

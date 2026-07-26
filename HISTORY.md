@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.2.12] - 2026-07-26 | Concrete item listings
+
+- fix: persist, label, deliver, and render concrete clothing definitions instead of `clothingitem`
+- fix: persist, label, deliver, and render concrete construction definitions instead of `constructionitem`
+- fix: preserve custom construction colors across listing, cancellation, rollback, purchase, and sale history
+- db: add backward-compatible construction color columns to Marketplace schema v4
+
 ## [0.2.11] - 2026-07-24 | Shared runtime bridges
 
 - refactor: use the central OZ Tools Wallet bridge

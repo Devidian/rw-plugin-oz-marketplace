@@ -55,9 +55,14 @@ Players can open the Marketplace radial menu through `/mp` or the Marketplace en
 
 The overlay footer shows the player's Wallet default-currency balance for quick pricing context.
 
-The `Sell` tab scans the player's inventory, groups sellable items by item definition name and variant, and presents them as icon cards with amount and variant context. Selecting a card fills a listing form for amount, price, Wallet currency, and local/global mode. The currency selector is sourced from Wallet and defaults to the Wallet default currency. Local listings require the current market zone. Global listings can be created outside market zones when zone-only mode is disabled. Listing currency identifiers are validated against the Wallet currency registry before any inventory is removed. Items are only removed from inventory after the player confirms and the existing listing service accepts the listing.
+The `Sell` tab scans the player's inventory, groups sellable items by concrete item name, variant, and mutable custody state, and presents them as icon cards with amount and variant context. Construction and clothing inventory entries use their concrete `ConstructionItem`/`ClothingItem` definition names instead of the generic `constructionitem`/`clothingitem` carrier definitions, so listing labels, custody, icons, and buyer delivery retain the actual shape or clothing type. Custom construction colors are kept separate while listed and restored unchanged on cancellation, rollback, or buyer delivery. Selecting a card fills a listing form for amount, price, Wallet currency, and local/global mode. The currency selector is sourced from Wallet and defaults to the Wallet default currency. Local listings require the current market zone. Global listings can be created outside market zones when zone-only mode is disabled. Listing currency identifiers are validated against the Wallet currency registry before any inventory is removed. Items are only removed from inventory after the player confirms and the existing listing service accepts the listing.
 
 The `Local` and `Global` tabs show visible listings for the current access context. Both tabs default to a card layout and include a card/table toggle that persists per player, plus a name search that filters visible offers by their displayed item label. The `Local` tab is hidden outside market zones, and disabled marketplace modes are hidden from the overlay. Listings use derived display names with variant suffixes when needed, show the listing price plus the buyer fee amount and percent where a fee applies, and buying from the UI asks for confirmation with price, fee, and total before calling the same Wallet-backed purchase flow used by `/mp buy <listing-id>`. Sellers can cancel their own active listings from these tabs; cancellation uses the same item-return flow as `/mp cancel <listing-id>`.
+
+Existing listings that already persisted only `constructionitem` or
+`clothingitem` cannot be migrated automatically because the concrete definition
+ID was not stored. Recreate those listings after updating, and do not downgrade
+while listings with concrete construction or clothing names are active.
 
 The `Sales` tab shows the seller's latest visible completed sales with item, amount, condition, buyer, payout, fee, and market zone. Legacy or unavailable buyer records display `Unknown`. The `Remove` action hides a completed sale from that seller's history after confirmation. Removed sale rows no longer appear in the tab or `/mp sales`, but the raw sale record remains in the database with `seller_hidden_at` set for audit/history retention.
 
@@ -89,7 +94,7 @@ Marketplace data is stored in the plugin world SQLite database through `rw-plugi
 - `marketplace_listings`
 - `marketplace_sales`
 
-The v3 schema is additive and can be left in place when disabling the plugin. Existing databases are migrated by adding `marketplace_sales.seller_hidden_at`, `marketplace_zones.area_id`, and `marketplace_zones.global_trade_mode`. Existing boolean global zone flags are mapped to explicit `allow` or `deny`.
+The v4 schema is additive and can be left in place when disabling the plugin. Existing databases are migrated by adding `marketplace_sales.seller_hidden_at`, `marketplace_zones.area_id`, `marketplace_zones.global_trade_mode`, and default-zero `item_color` columns for listing and sale custody state. Existing boolean global zone flags are mapped to explicit `allow` or `deny`. Older plugin versions ignore the additive color columns, but would return or deliver active colored construction listings without their color; do not downgrade until those listings are completed or cancelled.
 
 ## Future export route preparation
 

@@ -33,6 +33,9 @@ import de.omegazirkel.risingworld.tools.ui.table.TableCell;
 import de.omegazirkel.risingworld.tools.ui.table.TableRow;
 import de.omegazirkel.risingworld.tools.ui.table.TableScrollView;
 import net.risingworld.api.assets.TextureAsset;
+import net.risingworld.api.definitions.Clothing.ClothingDefinition;
+import net.risingworld.api.definitions.Constructions.ConstructionDefinition;
+import net.risingworld.api.definitions.Definitions;
 import net.risingworld.api.definitions.Items.ItemDefinition;
 import net.risingworld.api.definitions.Objects.ObjectDefinition;
 import net.risingworld.api.objects.Player;
@@ -1222,6 +1225,14 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             ItemDefinition.Variant definitionVariant = definition == null ? null : definition.getVariant(itemVariant);
             if (asset == null && definitionVariant != null) {
                 asset = definition.getIcon(definitionVariant.variant);
+            }
+            ConstructionDefinition constructionDefinition = Definitions.getConstructionDefinition(itemName);
+            if (asset == null && constructionDefinition != null) {
+                asset = constructionDefinition.getIcon(itemVariant);
+            }
+            ClothingDefinition clothingDefinition = Definitions.getClothingDefinition(itemName);
+            if (asset == null && clothingDefinition != null) {
+                asset = clothingDefinition.getIcon(itemVariant);
             }
         }
         if (asset == null) {

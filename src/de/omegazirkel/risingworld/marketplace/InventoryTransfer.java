@@ -6,6 +6,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.risingworld.api.definitions.Clothing.ClothingDefinition;
+import net.risingworld.api.definitions.Constructions.ConstructionDefinition;
 import net.risingworld.api.definitions.Definitions;
 import net.risingworld.api.definitions.Items.ItemDefinition;
 import net.risingworld.api.definitions.Items.Modifier;
@@ -46,10 +48,9 @@ public final class InventoryTransfer {
             if (itemName.isBlank()) {
                 continue;
             }
-            MarketplaceItemState itemState = new MarketplaceItemState(item.getDurability(), item.getStatus(),
-                    item.getModifier() == null ? "" : item.getModifier().name());
+            MarketplaceItemState itemState = snapshotState(item);
             String key = itemName + ":" + variant + ":" + itemState.durability() + ":" + itemState.status()
-                    + ":" + itemState.modifier();
+                    + ":" + itemState.modifier() + ":" + itemState.color();
             CandidateAccumulator accumulator = grouped.computeIfAbsent(key,
                     ignored -> new CandidateAccumulator(itemName,
                             MarketplaceItemNames.candidateLabel(item, candidateDefinition, variant),
@@ -73,7 +74,9 @@ public final class InventoryTransfer {
 
     public static MarketplaceResult removeFromSeller(Player seller, String itemName, int itemVariant, int amount,
             MarketplaceItemState state) {
-        if (MarketplaceItemNames.definition(itemName) == null && MarketplaceItemNames.objectDefinition(itemName) == null) {
+        if (MarketplaceItemNames.definition(itemName) == null && MarketplaceItemNames.objectDefinition(itemName) == null
+                && Definitions.getConstructionDefinition(itemName) == null
+                && Definitions.getClothingDefinition(itemName) == null) {
             return MarketplaceResult.fail("Unknown item: " + itemName);
         }
         if (amount <= 0) {
@@ -109,18 +112,27 @@ public final class InventoryTransfer {
 
     public static MarketplaceResult addToBuyer(Player buyer, String itemName, int itemVariant, int amount,
             MarketplaceItemState state) {
+        MarketplaceItemState effective = state == null ? MarketplaceItemState.NEUTRAL : state;
         ItemDefinition definition = Definitions.getItemDefinition(itemName);
         ObjectDefinition objectDefinition = MarketplaceItemNames.objectDefinition(itemName);
-        if (definition == null && objectDefinition == null) {
+        ConstructionDefinition constructionDefinition = Definitions.getConstructionDefinition(itemName);
+        ClothingDefinition clothingDefinition = Definitions.getClothingDefinition(itemName);
+        if (definition == null && objectDefinition == null && constructionDefinition == null
+                && clothingDefinition == null) {
             return MarketplaceResult.fail("Unknown item: " + itemName);
         }
         Item item = objectDefinition != null
                 ? buyer.getInventory().addObjectItem(objectDefinition.id, itemVariant, amount)
-                : buyer.getInventory().addItem(definition.id, itemVariant, amount);
+                : constructionDefinition != null
+                        ? buyer.getInventory().addConstructionItem(constructionDefinition.id, itemVariant,
+                                effective.color(), amount)
+                        : clothingDefinition != null
+                                ? buyer.getInventory().addClothingItem(clothingDefinition.id, itemVariant, 0, amount,
+                                        0L)
+                                : buyer.getInventory().addItem(definition.id, itemVariant, amount);
         if (item == null || !item.isValid()) {
             return MarketplaceResult.fail("Could not add item to buyer inventory.");
         }
-        MarketplaceItemState effective = state == null ? MarketplaceItemState.NEUTRAL : state;
         item.setDurability(effective.durability());
         item.setStatus(effective.status());
         if (!effective.modifier().isBlank()) {
@@ -135,8 +147,7 @@ public final class InventoryTransfer {
         for (SlotType type : SlotType.values()) for (int slot = 0; slot < seller.getInventory().getSlotCount(type); slot++) {
             Item item = seller.getInventory().getItem(slot, type);
             if (item != null && item.isValid() && MarketplaceItemNames.matches(item, itemName, itemVariant)
-                    && item.getStack() >= amount) return new MarketplaceItemState(item.getDurability(), item.getStatus(),
-                            item.getModifier() == null ? "" : item.getModifier().name());
+                    && item.getStack() >= amount) return snapshotState(item);
         }
         return null;
     }
@@ -144,7 +155,16 @@ public final class InventoryTransfer {
     private static boolean matchesState(Item item, MarketplaceItemState state) {
         String modifier = item.getModifier() == null ? "" : item.getModifier().name();
         return item.getDurability() == state.durability() && item.getStatus() == state.status()
-                && modifier.equals(state.modifier());
+                && modifier.equals(state.modifier()) && constructionColor(item) == state.color();
+    }
+
+    private static MarketplaceItemState snapshotState(Item item) {
+        return new MarketplaceItemState(item.getDurability(), item.getStatus(),
+                item.getModifier() == null ? "" : item.getModifier().name(), constructionColor(item));
+    }
+
+    private static int constructionColor(Item item) {
+        return item instanceof Item.ConstructionItem construction ? construction.getColor() : 0;
     }
 
     private static int maxStackSize(Item item, ItemDefinition definition) {

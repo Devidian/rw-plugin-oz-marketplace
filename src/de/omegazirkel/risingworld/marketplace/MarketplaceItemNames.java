@@ -48,7 +48,13 @@ public final class MarketplaceItemNames {
     }
 
     public static String candidateLabel(Item item, ItemDefinition definition, int variant) {
-        String name = objectItemName(item);
+        String name = constructionItemName(item);
+        if (name.isBlank()) {
+            name = clothingItemName(item);
+        }
+        if (name.isBlank()) {
+            name = objectItemName(item);
+        }
         if (name.isBlank()) {
             name = item == null ? "" : item.getName();
         }
@@ -102,6 +108,14 @@ public final class MarketplaceItemNames {
     }
 
     public static String storedItemName(Item item, ItemDefinition definition) {
+        String constructionName = constructionItemName(item);
+        if (!constructionName.isBlank()) {
+            return constructionName;
+        }
+        String clothingName = clothingItemName(item);
+        if (!clothingName.isBlank()) {
+            return clothingName;
+        }
         String objectName = objectItemName(item);
         if (!objectName.isBlank()) {
             return objectName;
@@ -113,6 +127,14 @@ public final class MarketplaceItemNames {
         if (item == null || itemName == null || itemName.isBlank() || item.getVariant() != variant) {
             return false;
         }
+        String constructionName = constructionItemName(item);
+        if (!constructionName.isBlank()) {
+            return constructionName.equalsIgnoreCase(itemName);
+        }
+        String clothingName = clothingItemName(item);
+        if (!clothingName.isBlank()) {
+            return clothingName.equalsIgnoreCase(itemName);
+        }
         String objectName = objectItemName(item);
         if (!objectName.isBlank()) {
             return objectName.equalsIgnoreCase(itemName);
@@ -122,6 +144,22 @@ public final class MarketplaceItemNames {
             definition = Definitions.getItemDefinition(item.getTypeID());
         }
         return definition != null && definition.name != null && definition.name.equalsIgnoreCase(itemName);
+    }
+
+    private static String constructionItemName(Item item) {
+        if (item instanceof Item.ConstructionItem construction) {
+            String name = construction.getConstructionName();
+            return name == null ? "" : name.trim();
+        }
+        return "";
+    }
+
+    private static String clothingItemName(Item item) {
+        if (item instanceof Item.ClothingItem clothing) {
+            String name = clothing.getClothingName();
+            return name == null ? "" : name.trim();
+        }
+        return "";
     }
 
     private static String objectItemName(Item item) {
