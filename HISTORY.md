@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## [0.3.0] - 2026-07-27 | Player markets, partial trades, and wanted listings
+
+- feat: let administrators enable limited or unlimited player-owned market Areas
+- feat: route player-market tax revenue to the market owner and repair lost Area links at startup
+- feat: support partial stack purchases with proportional remaining totals and ceiling-rounded tax
+- feat: add partially fulfillable wanted listings with OZ Mail attachment delivery
+- fix: prevent markets with active listings from being dissolved
+- fix: add consistent left spacing to wanted-listing controls and dialogs
+- fix: localize Marketplace result and command chat messages for each player
+- fix: separate purchase quantity controls from product details and resolve the fee-percent placeholder
+- feat: update the calculated unit-price preview while the purchase quantity changes
+- db: add backward-compatible market ownership and listing fulfillment fields in schema v6
+
 ## [0.2.12] - 2026-07-26 | Concrete item listings
 
 - fix: persist, label, deliver, and render concrete clothing definitions instead of `clothingitem`

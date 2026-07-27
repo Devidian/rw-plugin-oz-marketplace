@@ -8,6 +8,7 @@ import net.risingworld.api.events.EventMethod;
 import net.risingworld.api.events.Listener;
 import net.risingworld.api.events.player.PlayerCommandEvent;
 import net.risingworld.api.events.player.PlayerSpawnEvent;
+import net.risingworld.api.events.player.ui.PlayerUITextFieldChangeEvent;
 
 /** Rising World entry point; marketplace behavior lives in {@link MarketplaceRuntime}. */
 public final class Marketplace extends MarketplaceRuntime implements Listener, FileChangeListener {
@@ -33,4 +34,9 @@ public final class Marketplace extends MarketplaceRuntime implements Listener, F
 
     @Override @EventMethod
     public void onPlayerCommand(PlayerCommandEvent event) { super.onPlayerCommand(event); }
+
+    @Override @EventMethod
+    public void onPlayerUITextFieldChangeEvent(PlayerUITextFieldChangeEvent event) {
+        super.onPlayerUITextFieldChangeEvent(event);
+    }
 }

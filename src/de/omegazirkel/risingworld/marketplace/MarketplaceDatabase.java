@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class MarketplaceDatabase {
-    private static final int SCHEMA_VERSION = 4;
+    private static final int SCHEMA_VERSION = 6;
     private final Connection connection;
 
     public enum HideSaleStatus {
@@ -41,7 +41,10 @@ public class MarketplaceDatabase {
                         fee_percent INTEGER NOT NULL,
                         allow_global_trade INTEGER NOT NULL DEFAULT 0,
                         global_trade_mode INTEGER NOT NULL DEFAULT 1,
-                        created_at BIGINT NOT NULL
+                        created_at BIGINT NOT NULL,
+                        owner_db_id INTEGER NOT NULL DEFAULT 0,
+                        owner_name TEXT NOT NULL DEFAULT '',
+                        owner_area_permission TEXT NOT NULL DEFAULT ''
                     );
                     """);
             statement.execute("""
@@ -61,13 +64,21 @@ public class MarketplaceDatabase {
                         market_zone_id TEXT,
                         global_listing INTEGER NOT NULL DEFAULT 0,
                         created_at BIGINT NOT NULL,
-                        status TEXT NOT NULL DEFAULT 'ACTIVE'
+                        status TEXT NOT NULL DEFAULT 'ACTIVE',
+                        listing_type TEXT NOT NULL DEFAULT 'OFFER',
+                        original_amount INTEGER NOT NULL DEFAULT 0,
+                        fulfilled_amount INTEGER NOT NULL DEFAULT 0,
+                        original_price BIGINT NOT NULL DEFAULT 0
                     );
                     """);
             ensureColumn(statement, "marketplace_listings", "item_durability", "INTEGER NOT NULL DEFAULT 0");
             ensureColumn(statement, "marketplace_listings", "item_status", "INTEGER NOT NULL DEFAULT 0");
             ensureColumn(statement, "marketplace_listings", "item_modifier", "TEXT NOT NULL DEFAULT ''");
             ensureColumn(statement, "marketplace_listings", "item_color", "INTEGER NOT NULL DEFAULT 0");
+            ensureColumn(statement, "marketplace_listings", "listing_type", "TEXT NOT NULL DEFAULT 'OFFER'");
+            ensureColumn(statement, "marketplace_listings", "original_amount", "INTEGER NOT NULL DEFAULT 0");
+            ensureColumn(statement, "marketplace_listings", "fulfilled_amount", "INTEGER NOT NULL DEFAULT 0");
+            ensureColumn(statement, "marketplace_listings", "original_price", "BIGINT NOT NULL DEFAULT 0");
             statement.execute("""
                     CREATE INDEX IF NOT EXISTS idx_marketplace_listings_active
                     ON marketplace_listings(status, market_zone_id, global_listing, created_at DESC);
@@ -133,6 +144,19 @@ public class MarketplaceDatabase {
                     SET global_trade_mode = CASE WHEN allow_global_trade = 1 THEN 2 ELSE 0 END;
                     """);
         }
+        ensureColumn(statement, "marketplace_zones", "owner_db_id", "INTEGER NOT NULL DEFAULT 0");
+        ensureColumn(statement, "marketplace_zones", "owner_name", "TEXT NOT NULL DEFAULT ''");
+        ensureColumn(statement, "marketplace_zones", "owner_area_permission", "TEXT NOT NULL DEFAULT ''");
+        statement.execute("""
+                UPDATE marketplace_listings
+                SET original_amount = amount
+                WHERE original_amount <= 0;
+                """);
+        statement.execute("""
+                UPDATE marketplace_listings
+                SET original_price = price
+                WHERE original_price <= 0;
+                """);
     }
 
     private boolean columnExists(String table, String column) throws SQLException {
@@ -151,8 +175,9 @@ public class MarketplaceDatabase {
         String sql = """
                 INSERT INTO marketplace_zones(
                     id, name, min_chunk_x, max_chunk_x, min_chunk_y, max_chunk_y, min_chunk_z, max_chunk_z,
-                    area_id, fee_percent, allow_global_trade, global_trade_mode, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    area_id, fee_percent, allow_global_trade, global_trade_mode, created_at, owner_db_id, owner_name,
+                    owner_area_permission)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     name=excluded.name,
                     min_chunk_x=excluded.min_chunk_x,
@@ -164,7 +189,10 @@ public class MarketplaceDatabase {
                     area_id=excluded.area_id,
                     fee_percent=excluded.fee_percent,
                     allow_global_trade=excluded.allow_global_trade,
-                    global_trade_mode=excluded.global_trade_mode;
+                    global_trade_mode=excluded.global_trade_mode,
+                    owner_db_id=excluded.owner_db_id,
+                    owner_name=excluded.owner_name,
+                    owner_area_permission=excluded.owner_area_permission;
                 """;
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             writeZone(statement, zone);
@@ -199,18 +227,23 @@ public class MarketplaceDatabase {
         return Optional.empty();
     }
 
-    public ZoneDeleteResult deleteZoneAndPromoteListings(String id) throws SQLException {
+    public ZoneDeleteResult deleteZoneIfEmpty(String id) throws SQLException {
         boolean previousAutoCommit = connection.getAutoCommit();
         connection.setAutoCommit(false);
         try {
-            int promotedListings;
+            int activeListings;
             try (PreparedStatement statement = connection.prepareStatement("""
-                    UPDATE marketplace_listings
-                    SET market_zone_id = 'global', global_listing = 1
-                    WHERE market_zone_id = ? AND status = 'ACTIVE';
+                    SELECT COUNT(*) FROM marketplace_listings
+                    WHERE market_zone_id = ? AND status NOT IN ('SOLD', 'CANCELLED');
                     """)) {
                 statement.setString(1, id);
-                promotedListings = statement.executeUpdate();
+                try (ResultSet result = statement.executeQuery()) {
+                    activeListings = result.next() ? result.getInt(1) : 0;
+                }
+            }
+            if (activeListings > 0) {
+                connection.rollback();
+                return new ZoneDeleteResult(false, activeListings);
             }
             int deletedZones;
             try (PreparedStatement statement = connection.prepareStatement("DELETE FROM marketplace_zones WHERE id = ?;")) {
@@ -218,7 +251,7 @@ public class MarketplaceDatabase {
                 deletedZones = statement.executeUpdate();
             }
             connection.commit();
-            return new ZoneDeleteResult(deletedZones > 0, promotedListings);
+            return new ZoneDeleteResult(deletedZones > 0, 0);
         } catch (SQLException ex) {
             connection.rollback();
             throw ex;
@@ -232,8 +265,9 @@ public class MarketplaceDatabase {
                 INSERT INTO marketplace_listings(
                     seller_db_id, seller_name, item_name, item_variant, amount, item_durability, item_status,
                     item_modifier, item_color, price, currency_identifier,
-                    market_zone_id, global_listing, created_at, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE');
+                    market_zone_id, global_listing, created_at, status, listing_type, original_amount,
+                    fulfilled_amount, original_price)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?);
                 """;
         try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             statement.setInt(1, listing.sellerDbId());
@@ -250,6 +284,10 @@ public class MarketplaceDatabase {
             statement.setString(12, listing.marketZoneId());
             statement.setInt(13, listing.globalListing() ? 1 : 0);
             statement.setLong(14, listing.createdAt());
+            statement.setString(15, listing.listingType());
+            statement.setInt(16, listing.originalAmount());
+            statement.setInt(17, listing.fulfilledAmount());
+            statement.setLong(18, listing.originalPrice());
             statement.executeUpdate();
             try (ResultSet keys = statement.getGeneratedKeys()) {
                 return keys.next() ? keys.getLong(1) : 0L;
@@ -351,6 +389,96 @@ public class MarketplaceDatabase {
         }
     }
 
+    public boolean completePartialSale(MarketplaceSale sale, int purchasedAmount, int remainingAmount,
+            long remainingPrice, String expectedListingStatus, String soldStatus) throws SQLException {
+        boolean previousAutoCommit = connection.getAutoCommit();
+        connection.setAutoCommit(false);
+        try {
+            int changed;
+            if (remainingAmount <= 0) {
+                changed = transitionListingStatus(sale.listingId(), expectedListingStatus, soldStatus) ? 1 : 0;
+            } else {
+                try (PreparedStatement statement = connection.prepareStatement("""
+                        UPDATE marketplace_listings
+                        SET amount = ?, price = ?, fulfilled_amount = fulfilled_amount + ?, status = 'ACTIVE'
+                        WHERE id = ? AND status = ?;
+                        """)) {
+                    statement.setInt(1, remainingAmount);
+                    statement.setLong(2, remainingPrice);
+                    statement.setInt(3, purchasedAmount);
+                    statement.setLong(4, sale.listingId());
+                    statement.setString(5, expectedListingStatus);
+                    changed = statement.executeUpdate();
+                }
+            }
+            if (changed != 1) {
+                connection.rollback();
+                return false;
+            }
+            if (remainingAmount <= 0) {
+                try (PreparedStatement statement = connection.prepareStatement("""
+                        UPDATE marketplace_listings SET fulfilled_amount = original_amount WHERE id = ?;
+                        """)) {
+                    statement.setLong(1, sale.listingId());
+                    statement.executeUpdate();
+                }
+            }
+            recordSale(sale);
+            connection.commit();
+            return true;
+        } catch (SQLException ex) {
+            connection.rollback();
+            throw ex;
+        } finally {
+            connection.setAutoCommit(previousAutoCommit);
+        }
+    }
+
+    public int playerMarketCount(int ownerDbId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT COUNT(*) FROM marketplace_zones WHERE owner_db_id = ?;
+                """)) {
+            statement.setInt(1, ownerDbId);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next() ? result.getInt(1) : 0;
+            }
+        }
+    }
+
+    public boolean areaHasMarket(long areaId, String excludedZoneId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT 1 FROM marketplace_zones WHERE area_id = ? AND id <> ? LIMIT 1;
+                """)) {
+            statement.setLong(1, areaId);
+            statement.setString(2, excludedZoneId == null ? "" : excludedZoneId);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next();
+            }
+        }
+    }
+
+    public int relinkListings(String fromZoneId, String toZoneId, boolean forceGlobal) throws SQLException {
+        String sql = forceGlobal ? """
+                UPDATE marketplace_listings SET market_zone_id = ?, global_listing = 1
+                WHERE market_zone_id = ? AND status NOT IN ('SOLD', 'CANCELLED');
+                """ : """
+                UPDATE marketplace_listings SET market_zone_id = ?
+                WHERE market_zone_id = ? AND status NOT IN ('SOLD', 'CANCELLED');
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, toZoneId);
+            statement.setString(2, fromZoneId);
+            return statement.executeUpdate();
+        }
+    }
+
+    public void deleteZone(String id) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("DELETE FROM marketplace_zones WHERE id = ?;")) {
+            statement.setString(1, id);
+            statement.executeUpdate();
+        }
+    }
+
     public long recordSale(MarketplaceSale sale) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 INSERT INTO marketplace_sales(
@@ -438,6 +566,9 @@ public class MarketplaceDatabase {
         statement.setInt(11, zone.globalTradeMode() == MarketZone.GLOBAL_ALLOW ? 1 : 0);
         statement.setInt(12, MarketZone.normalizeGlobalTradeMode(zone.globalTradeMode()));
         statement.setLong(13, zone.createdAt());
+        statement.setInt(14, zone.ownerDbId());
+        statement.setString(15, zone.ownerName());
+        statement.setString(16, zone.ownerAreaPermission());
     }
 
     private MarketZone readZone(ResultSet result) throws SQLException {
@@ -453,7 +584,10 @@ public class MarketplaceDatabase {
                 result.getInt("max_chunk_z"),
                 result.getInt("fee_percent"),
                 result.getInt("global_trade_mode"),
-                result.getLong("created_at"));
+                result.getLong("created_at"),
+                result.getInt("owner_db_id"),
+                result.getString("owner_name"),
+                result.getString("owner_area_permission"));
     }
 
     private MarketplaceListing readListing(ResultSet result) throws SQLException {
@@ -471,7 +605,11 @@ public class MarketplaceDatabase {
                 result.getString("market_zone_id"),
                 result.getInt("global_listing") == 1,
                 result.getLong("created_at"),
-                result.getString("status"));
+                result.getString("status"),
+                result.getString("listing_type"),
+                result.getInt("original_amount"),
+                result.getInt("fulfilled_amount"),
+                result.getLong("original_price"));
     }
 
     private MarketplaceSale readSale(ResultSet result) throws SQLException {
@@ -493,6 +631,6 @@ public class MarketplaceDatabase {
                 result.getLong("sold_at"));
     }
 
-    public record ZoneDeleteResult(boolean deleted, int promotedListings) {
+    public record ZoneDeleteResult(boolean deleted, int activeListings) {
     }
 }

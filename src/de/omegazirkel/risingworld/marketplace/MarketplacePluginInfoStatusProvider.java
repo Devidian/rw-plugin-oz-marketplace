@@ -43,7 +43,8 @@ public class MarketplacePluginInfoStatusProvider implements PluginInfoStatusProv
                 .replace("PH_ZONE_GLOBAL_MODE", zone == null ? "-" : globalMode(zone.globalTradeMode()))
                 .replace("PH_LOCAL_FEE", String.valueOf(settings.defaultLocalFeePercent))
                 .replace("PH_GLOBAL_FEE", String.valueOf(settings.defaultGlobalFeePercent))
-                .replace("PH_MAX_LISTINGS", String.valueOf(settings.maxListingsPerPlayer));
+                .replace("PH_MAX_LISTINGS", String.valueOf(settings.maxListingsPerPlayer))
+                .replace("PH_MAX_PLAYER_MARKETS", String.valueOf(settings.maxPlayerMarketplaces));
     }
 
     private I18n t() {

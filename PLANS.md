@@ -85,3 +85,10 @@ Planning is stored in repository-local docs.
 - [x] Match, return, deliver, label, and render icons for concrete construction items
 - [x] Preserve construction colors as part of listing custody state
 - [x] Document compatibility and rollback limits for existing generic construction listings
+
+## Player markets, partial trades, and wanted listings
+
+- [x] Add player-market limits, ownership, authorization, repair, and tax payouts
+- [x] Add partial purchase state and ceiling-rounded tax
+- [x] Add wanted listings with partial fulfillment and OZ Mail delivery
+- [x] Complete development-server player-flow acceptance

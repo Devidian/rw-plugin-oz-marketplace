@@ -33,6 +33,7 @@ public class PluginSettings {
     public long minimumLocalFee = 0L;
     public long minimumGlobalFee = 0L;
     public int maxListingsPerPlayer = 20;
+    public int maxPlayerMarketplaces = 0;
     public boolean showMarketplaceZoneIndicator = true;
     public boolean exposeMarketplaceZones = true;
     public boolean exposeMarketplaceOffers = true;
@@ -85,6 +86,7 @@ public class PluginSettings {
             minimumLocalFee = decimal(settings, defaults, "minimumLocalFee", 0L, 0L, Long.MAX_VALUE);
             minimumGlobalFee = decimal(settings, defaults, "minimumGlobalFee", 0L, 0L, Long.MAX_VALUE);
             maxListingsPerPlayer = integer(settings, defaults, "maxListingsPerPlayer", 20, 1, 1000);
+            maxPlayerMarketplaces = signedInteger(settings, defaults, "maxPlayerMarketplaces", 0);
             showMarketplaceZoneIndicator = bool(settings, defaults, "showMarketplaceZoneIndicator", true);
             exposeMarketplaceZones = bool(settings, defaults, "exposeMarketplaceZones", true);
             exposeMarketplaceOffers = bool(settings, defaults, "exposeMarketplaceOffers", true);
@@ -135,6 +137,9 @@ public class PluginSettings {
                 entry("maxListingsPerPlayer", "Max listings per player",
                         "Maximum active listings a player may own at once.",
                         maxListingsPerPlayer, "20", AdminSettingsType.INTEGER),
+                entry("maxPlayerMarketplaces", "Max player marketplaces",
+                        "0 disables player markets, negative is unlimited, positive limits markets per player.",
+                        maxPlayerMarketplaces, "0", AdminSettingsType.INTEGER),
                 entry("showMarketplaceZoneIndicator", "Marketplace-zone indicator",
                         "Shows the Marketplace icon in the shared Tools indicator bar while players are in an active market zone.",
                         showMarketplaceZoneIndicator, "true", AdminSettingsType.BOOLEAN),
@@ -176,5 +181,9 @@ public class PluginSettings {
     private long decimal(Properties settings, Properties defaults, String key, long fallback, long min, long max) {
         long value = Long.parseLong(settings.getProperty(key, defaults.getProperty(key, String.valueOf(fallback))));
         return Math.max(min, Math.min(max, value));
+    }
+
+    private int signedInteger(Properties settings, Properties defaults, String key, int fallback) {
+        return Integer.parseInt(settings.getProperty(key, defaults.getProperty(key, String.valueOf(fallback))));
     }
 }

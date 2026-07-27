@@ -12,7 +12,10 @@ public record MarketZone(
         int maxChunkZ,
         int feePercent,
         int globalTradeMode,
-        long createdAt) {
+        long createdAt,
+        int ownerDbId,
+        String ownerName,
+        String ownerAreaPermission) {
     public static final int GLOBAL_DENY = 0;
     public static final int GLOBAL_DEFAULT = 1;
     public static final int GLOBAL_ALLOW = 2;
@@ -30,7 +33,13 @@ public record MarketZone(
             boolean allowGlobalTrade,
             long createdAt) {
         this(id, name, 0L, minChunkX, maxChunkX, minChunkY, maxChunkY, minChunkZ, maxChunkZ, feePercent,
-                allowGlobalTrade ? GLOBAL_ALLOW : GLOBAL_DENY, createdAt);
+                allowGlobalTrade ? GLOBAL_ALLOW : GLOBAL_DENY, createdAt, 0, "", "");
+    }
+
+    public MarketZone(String id, String name, long areaId, int minChunkX, int maxChunkX, int minChunkY,
+            int maxChunkY, int minChunkZ, int maxChunkZ, int feePercent, int globalTradeMode, long createdAt) {
+        this(id, name, areaId, minChunkX, maxChunkX, minChunkY, maxChunkY, minChunkZ, maxChunkZ, feePercent,
+                globalTradeMode, createdAt, 0, "", "");
     }
 
     public boolean contains(int chunkX, int chunkY, int chunkZ) {
@@ -41,6 +50,14 @@ public record MarketZone(
 
     public boolean isAreaZone() {
         return areaId > 0L;
+    }
+
+    public boolean playerOwned() {
+        return ownerDbId > 0;
+    }
+
+    public boolean ownedBy(int playerDbId) {
+        return playerDbId > 0 && ownerDbId == playerDbId;
     }
 
     public boolean allowGlobalTrade() {

@@ -9,6 +9,7 @@ Player-to-player marketplace plugin for Rising World.
 - listing creation from player inventory
 - Wallet-backed purchases and seller payouts
 - sale history for sellers
+- player-owned markets, partial trades, and wanted listings
 
 `rw-plugin-oz-tools` is a hard runtime dependency. `rw-plugin-oz-wallet` is required for functional listings and purchases. If Wallet is missing, Marketplace loads but trading is disabled and admins receive a warning on spawn.
 
@@ -29,12 +30,18 @@ defaultGlobalFeePercent=5
 minimumLocalFee=0
 minimumGlobalFee=0
 maxListingsPerPlayer=20
+maxPlayerMarketplaces=0
 showMarketplaceZoneIndicator=true
 exposeMarketplaceZones=true
 exposeMarketplaceOffers=true
 ```
 
-Marketplace fees are charged to buyers on top of the listing price and removed from the economy. Sellers receive the listed price. The applied fee is the higher value of the percent fee and the configured minimum fee.
+Marketplace fees are charged on top of the listing price. Positive percentage
+fees are rounded up to a whole unit; a zero-percent fee remains zero. Tax from
+player-owned markets is paid to that market's owner, while tax from admin zones
+leaves the economy. Sellers receive the traded price.
+`maxPlayerMarketplaces=0` disables player-created markets, a negative value is
+unlimited, and a positive value limits each player's owned markets.
 `marketZoneOnlyMode=true` requires players to stand in a market zone for both local and global trading. When it is `false`, global trading works outside market zones while local trading still requires a market zone.
 `showMarketplaceZoneIndicator=true` shows the Marketplace icon in the shared Tools indicator bar while players are inside an active market zone.
 
@@ -42,7 +49,8 @@ Marketplace fees are charged to buyers on top of the listing price and removed f
 
 - `/mp`: open the Marketplace radial menu
 - `/mp list`: list listings visible at the current market zone, or global listings when outside a zone unless zone-only mode is enabled
-- `/mp buy <listing-id>`: buy a visible listing through Wallet
+- `/mp buy <listing-id> [amount]`: buy all or part of a visible listing through Wallet
+- `/mp wanted <item> <variant> <amount> <price> <local|global> [currency]`: command fallback for creating a wanted listing
 - `/mp cancel <listing-id>`: cancel your own listing and return the item
 - `/mp sales`: show your latest visible sale payouts
 - `/mp status` or `/mp info`: open the shared Tools Info/Status panel
@@ -57,7 +65,15 @@ The overlay footer shows the player's Wallet default-currency balance for quick 
 
 The `Sell` tab scans the player's inventory, groups sellable items by concrete item name, variant, and mutable custody state, and presents them as icon cards with amount and variant context. Construction and clothing inventory entries use their concrete `ConstructionItem`/`ClothingItem` definition names instead of the generic `constructionitem`/`clothingitem` carrier definitions, so listing labels, custody, icons, and buyer delivery retain the actual shape or clothing type. Custom construction colors are kept separate while listed and restored unchanged on cancellation, rollback, or buyer delivery. Selecting a card fills a listing form for amount, price, Wallet currency, and local/global mode. The currency selector is sourced from Wallet and defaults to the Wallet default currency. Local listings require the current market zone. Global listings can be created outside market zones when zone-only mode is disabled. Listing currency identifiers are validated against the Wallet currency registry before any inventory is removed. Items are only removed from inventory after the player confirms and the existing listing service accepts the listing.
 
-The `Local` and `Global` tabs show visible listings for the current access context. Both tabs default to a card layout and include a card/table toggle that persists per player, plus a name search that filters visible offers by their displayed item label. The `Local` tab is hidden outside market zones, and disabled marketplace modes are hidden from the overlay. Listings use derived display names with variant suffixes when needed, show the listing price plus the buyer fee amount and percent where a fee applies, and buying from the UI asks for confirmation with price, fee, and total before calling the same Wallet-backed purchase flow used by `/mp buy <listing-id>`. Sellers can cancel their own active listings from these tabs; cancellation uses the same item-return flow as `/mp cancel <listing-id>`.
+The `Local` and `Global` tabs show visible sale listings for the current access context. Both tabs default to a card layout and include a card/table toggle that persists per player, plus a name search that filters visible offers by their displayed item label. The `Local` tab is hidden outside market zones, and disabled marketplace modes are hidden from the overlay. Listings use derived display names with variant suffixes when needed, show the listing price plus the buyer fee amount and percent where a fee applies, and the purchase dialog offers cancel, a selected partial amount, or the complete remaining stack. Partial trades reduce both the remaining amount and remaining total price. Sellers can cancel their own active listings from these tabs; cancellation returns only the remaining item amount.
+
+The `Wanted` tab uses Rising World's item selector to create local or global
+requests. Other players may fulfill any positive partial amount. The requester
+pays the proportional offer amount per fulfillment and the complete tax only
+when the final unit is delivered. Delivered items are placed in the requester's
+OZ Mail mailbox. Marketplace checks mailbox capacity before removing seller
+inventory. After the first fulfilled unit, the requester can no longer withdraw
+the wanted listing.
 
 Existing listings that already persisted only `constructionitem` or
 `clothingitem` cannot be migrated automatically because the concrete definition
@@ -68,7 +84,17 @@ The `Sales` tab shows the seller's latest visible completed sales with item, amo
 
 Online sellers receive a localized notification after a sale is durably completed. Failed or rolled-back purchases do not send a sale notification.
 
-Admins see a `Management` tab for the current Rising World Area. Outside a market zone it only offers market-zone creation. Inside a market zone it syncs the zone name from the Area name, cycles global-trade mode between `default`, `allow`, and `deny`, sets a numeric fee override, and dissolves the current zone with confirmation. Dissolving a zone promotes active local listings to global listings in the same database transaction before deleting the zone.
+Admins and eligible player-market owners see a `Management` tab for the current
+Rising World Area. Players may create a market only where their effective Area
+permission grants `area_addplayer`, and may manage only their own markets.
+Inside an owned market the UI syncs its Area name, cycles global-trade mode,
+sets its fee, and dissolves it after confirmation. A market cannot be dissolved
+while any listing remains active or reserved.
+
+On startup, lost player-market Area links are repaired to the nearest unused
+Area with the owner's stored owner permission. Without an eligible owner Area,
+listings move to the nearest remaining market, or become global when no market
+remains. Every repair is written to the server log.
 
 New listings are created through the Marketplace UI.
 
@@ -94,7 +120,11 @@ Marketplace data is stored in the plugin world SQLite database through `rw-plugi
 - `marketplace_listings`
 - `marketplace_sales`
 
-The v4 schema is additive and can be left in place when disabling the plugin. Existing databases are migrated by adding `marketplace_sales.seller_hidden_at`, `marketplace_zones.area_id`, `marketplace_zones.global_trade_mode`, and default-zero `item_color` columns for listing and sale custody state. Existing boolean global zone flags are mapped to explicit `allow` or `deny`. Older plugin versions ignore the additive color columns, but would return or deliver active colored construction listings without their color; do not downgrade until those listings are completed or cancelled.
+The v6 schema is additive and can be left in place when disabling the plugin.
+It adds player-market ownership plus listing kind, original totals, and
+fulfillment progress. Existing rows migrate as regular offers with their
+current amount and price as original totals. Do not downgrade while wanted or
+partially fulfilled listings remain active.
 
 ## Future export route preparation
 

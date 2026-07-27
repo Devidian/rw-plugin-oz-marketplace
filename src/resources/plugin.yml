@@ -1,9 +1,9 @@
 name: "OZ - Marketplace"
 main: de.omegazirkel.risingworld.Marketplace
-version: 0.2.12
+version: 0.3.0
 author: "Maik 'Devidian' Laschober"
 team: "Omega Zirkel"
-description: "Player-to-player marketplace with zones, fees, listings, Wallet purchases, and sale history"
+description: "Player markets with partial trades, wanted listings, Wallet settlement, and Mail delivery"
 license: N/A
 website: https://api.github.com/repos/Devidian/rw-plugin-oz-marketplace/releases/latest
 loadorder: 0

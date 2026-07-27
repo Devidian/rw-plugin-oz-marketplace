@@ -31,9 +31,11 @@ import de.omegazirkel.risingworld.tools.ui.PlayerPluginSettingsOverlay;
 import de.omegazirkel.risingworld.tools.ui.PluginInfoStatusProviders;
 import de.omegazirkel.risingworld.tools.ui.PluginShortcutVisibility;
 import de.omegazirkel.risingworld.tools.ui.SharedIndicators;
+import de.omegazirkel.risingworld.tools.bridge.MailBridge;
 import net.risingworld.api.Plugin;
 import net.risingworld.api.events.player.PlayerCommandEvent;
 import net.risingworld.api.events.player.PlayerSpawnEvent;
+import net.risingworld.api.events.player.ui.PlayerUITextFieldChangeEvent;
 import net.risingworld.api.objects.Area;
 import net.risingworld.api.objects.Player;
 
@@ -61,7 +63,9 @@ class MarketplaceRuntime extends Plugin {
             sqliteCon = SQLiteConnectionFactory.open(this);
             MarketplaceDatabase database = new MarketplaceDatabase(sqliteCon);
             playerSettings = new PlayerSettings(sqliteCon);
-            service = new MarketplaceService(database, new WalletBridge(this), s);
+            service = new MarketplaceService(database, new WalletBridge(this), new MailBridge(this), s);
+            int repairedMarkets = service.repairLostPlayerMarkets();
+            logger().info("Marketplace startup repair completed; repaired player markets: " + repairedMarkets + ".");
         } catch (SQLException ex) {
             logger().error("Failed to initialize marketplace database: " + ex.getMessage());
             ex.printStackTrace();
@@ -110,11 +114,21 @@ class MarketplaceRuntime extends Plugin {
         Player player = event.getPlayer();
         MarketplacePlayerPreferences.load(player);
         if (s.enableWelcomeMessage) {
-            player.sendTextMessage(c.okay + getDescription("name") + " " + getDescription("version")
-                    + " enabled. Use /" + s.marketCommand + ".");
+            player.sendTextMessage(c.okay + tr(player, "TC_MARKET_CHAT_WELCOME",
+                    "PH_PLUGIN", getDescription("name"),
+                    "PH_VERSION", getDescription("version"),
+                    "PH_COMMAND", s.marketCommand));
         }
         if (player.isAdmin() && service != null && !service.walletAvailable()) {
-            player.sendTextMessage(c.warning + "OZ - Marketplace requires OZ - Wallet for listings and purchases.");
+            player.sendTextMessage(c.warning + tr(player, "TC_MARKET_RESULT_WALLET_REQUIRED"));
+        }
+    }
+
+    public void onPlayerUITextFieldChangeEvent(PlayerUITextFieldChangeEvent event) {
+        Player player = event.getPlayer();
+        Object overlay = player.getAttribute("oz.marketplace.ui.overlay");
+        if (overlay instanceof de.omegazirkel.risingworld.marketplace.ui.MarketplaceOverlay marketplaceOverlay) {
+            marketplaceOverlay.onTextFieldChanged(event.getUITextField(), event.getNewText());
         }
     }
 
@@ -129,7 +143,7 @@ class MarketplaceRuntime extends Plugin {
             return;
         }
         if (service == null) {
-            player.sendTextMessage(c.error + "Marketplace database is not available.");
+            player.sendTextMessage(c.error + tr(player, "TC_MARKET_RESULT_DATABASE_UNAVAILABLE"));
             return;
         }
         if (parts.length == 1) {
@@ -142,6 +156,7 @@ class MarketplaceRuntime extends Plugin {
         }
         switch (parts[1].toLowerCase()) {
             case "buy" -> buy(player, parts);
+            case "wanted" -> wanted(player, parts);
             case "cancel" -> cancel(player, parts);
             case "sales" -> sales(player);
             case "zone" -> zone(player, parts);
@@ -151,12 +166,24 @@ class MarketplaceRuntime extends Plugin {
     }
 
     private void buy(Player player, String[] parts) {
-        if (parts.length != 3) {
+        if (parts.length < 3 || parts.length > 4) {
             usage(player);
             return;
         }
-        MarketplaceResult result = service.buy(player, parseLong(parts[2], 0L));
-        player.sendTextMessage((result.success() ? c.okay : c.error) + result.message());
+        MarketplaceResult result = service.buy(player, parseLong(parts[2], 0L),
+                parts.length == 4 ? parseInt(parts[3], 0) : Integer.MAX_VALUE);
+        sendResult(player, result);
+    }
+
+    private void wanted(Player player, String[] parts) {
+        if (parts.length < 7 || parts.length > 8) {
+            usage(player);
+            return;
+        }
+        boolean global = parts[6].equalsIgnoreCase("global");
+        MarketplaceResult result = service.createWantedListing(player, parts[2], parseInt(parts[3], -1),
+                parseInt(parts[4], 0), parseLong(parts[5], 0L), parts.length == 8 ? parts[7] : "", global);
+        sendResult(player, result);
     }
 
     private void cancel(Player player, String[] parts) {
@@ -165,32 +192,36 @@ class MarketplaceRuntime extends Plugin {
             return;
         }
         MarketplaceResult result = service.cancel(player, parseLong(parts[2], 0L));
-        player.sendTextMessage((result.success() ? c.okay : c.error) + result.message());
+        sendResult(player, result);
     }
 
     private void sales(Player player) {
         try {
             List<MarketplaceSale> sales = service.listSales(player, 10);
             if (sales.isEmpty()) {
-                player.sendTextMessage(c.info + "No sales yet.");
+                player.sendTextMessage(c.info + tr(player, "TC_MARKET_CHAT_NO_SALES"));
                 return;
             }
-            player.sendTextMessage(c.okay + "Latest sales:");
+            player.sendTextMessage(c.okay + tr(player, "TC_MARKET_CHAT_LATEST_SALES"));
             for (MarketplaceSale sale : sales) {
-                player.sendTextMessage(c.info + "#" + sale.id() + c.text + " listing " + sale.listingId() + ": "
-                        + sale.amount() + "x " + sale.itemName() + ":" + sale.itemVariant()
-                        + " payout " + sale.sellerPayout() + currencyLabel(sale.currencyIdentifier())
-                        + " fee " + sale.fee());
+                player.sendTextMessage(c.info + tr(player, "TC_MARKET_CHAT_SALE_ROW",
+                        "PH_SALE", String.valueOf(sale.id()),
+                        "PH_LISTING", String.valueOf(sale.listingId()),
+                        "PH_AMOUNT", String.valueOf(sale.amount()),
+                        "PH_ITEM", sale.itemName() + ":" + sale.itemVariant(),
+                        "PH_PAYOUT", String.valueOf(sale.sellerPayout()),
+                        "PH_CURRENCY", currencyLabel(sale.currencyIdentifier()),
+                        "PH_FEE", String.valueOf(sale.fee())));
             }
         } catch (SQLException ex) {
             logger().error("Failed to list sales: " + ex.getMessage());
-            player.sendTextMessage(c.error + "Could not list sales.");
+            player.sendTextMessage(c.error + tr(player, "TC_MARKET_CHAT_SALES_FAILED"));
         }
     }
 
     private void zone(Player player, String[] parts) {
         if (!player.isAdmin()) {
-            player.sendTextMessage(c.error + "Only admins can manage market zones.");
+            player.sendTextMessage(c.error + tr(player, "TC_MARKET_CHAT_ADMIN_ONLY"));
             return;
         }
         if (parts.length >= 3 && parts[2].equalsIgnoreCase("list")) {
@@ -199,7 +230,7 @@ class MarketplaceRuntime extends Plugin {
         }
         if (parts.length >= 3 && parts[2].equalsIgnoreCase("delete")) {
             MarketplaceResult result = deleteCurrentMarketZone(player, parts.length >= 4 ? parts[3] : null);
-            player.sendTextMessage((result.success() ? c.okay : c.error) + result.message());
+            sendResult(player, result);
             return;
         }
         if (parts.length < 7 || !parts[2].equalsIgnoreCase("set")) {
@@ -212,84 +243,98 @@ class MarketplaceRuntime extends Plugin {
         int globalMode = parseGlobalMode(parts[6]);
         String label = parts.length >= 8 ? parts[7] : id;
         MarketplaceResult result = service.createZone(id, label, 0L, player.getChunkPosition(), radius, fee, globalMode);
-        player.sendTextMessage((result.success() ? c.okay : c.error) + result.message());
+        sendResult(player, result);
     }
 
     public MarketplaceResult createOrUpdateCurrentMarketZone(Player player) {
-        if (!player.isAdmin()) {
-            return MarketplaceResult.fail("Only admins can manage market zones.");
-        }
         Area area = player.getCurrentArea();
         if (area == null || area.getID() <= 0L) {
-            return MarketplaceResult.fail("Stand inside an existing Rising World area before creating a market zone.");
+            return MarketplaceResult.failKey("TC_MARKET_RESULT_AREA_REQUIRED",
+                    "Stand inside an existing area to create a market.");
         }
         Optional<MarketZone> existing = safeCurrentMarketZone(player);
+        if (existing.isPresent() && !service.canManageZone(player, existing.get())) {
+            return MarketplaceResult.failKey("TC_MARKET_RESULT_MANAGE_OWN_ONLY",
+                    "You can only manage your own market.");
+        }
+        if (existing.isEmpty() && !player.isAdmin()) {
+            return service.createPlayerMarket(player);
+        }
         int globalMode = existing.map(MarketZone::globalTradeMode).orElse(MarketZone.GLOBAL_DEFAULT);
         return service.createAreaZone(currentZoneId(player), currentZoneName(player), area.getID(),
                 existing.map(MarketZone::feePercent).orElse(s.defaultLocalFeePercent), globalMode);
     }
 
     public MarketplaceResult syncCurrentMarketZoneName(Player player) {
-        if (!player.isAdmin()) {
-            return MarketplaceResult.fail("Only admins can manage market zones.");
-        }
         try {
             Optional<MarketZone> zone = service.currentZone(player);
             if (zone.isEmpty()) {
-                return MarketplaceResult.fail("You are not standing in a market zone.");
+                return MarketplaceResult.failKey("TC_MARKET_RESULT_NOT_IN_MARKET",
+                        "You are not standing in a market zone.");
             }
             MarketZone current = zone.get();
+            if (!service.canManageZone(player, current)) {
+                return MarketplaceResult.failKey("TC_MARKET_RESULT_MANAGE_OWN_ONLY",
+                        "You can only manage your own market.");
+            }
             return service.updateZone(new MarketZone(current.id(), currentZoneName(player),
                     current.areaId(),
                     current.minChunkX(), current.maxChunkX(), current.minChunkY(), current.maxChunkY(),
                     current.minChunkZ(), current.maxChunkZ(), current.feePercent(), current.globalTradeMode(),
-                    current.createdAt()));
+                    current.createdAt(), current.ownerDbId(), current.ownerName(), current.ownerAreaPermission()));
         } catch (SQLException ex) {
             logger().error("Failed to sync market zone name: " + ex.getMessage());
-            return MarketplaceResult.fail("Could not sync market zone name.");
+            return MarketplaceResult.failKey("TC_MARKET_RESULT_ZONE_SYNC_FAILED",
+                    "Could not synchronize the market zone name.");
         }
     }
 
     public MarketplaceResult toggleCurrentMarketZoneGlobal(Player player) {
-        if (!player.isAdmin()) {
-            return MarketplaceResult.fail("Only admins can manage market zones.");
-        }
         try {
             Optional<MarketZone> zone = service.currentZone(player);
             if (zone.isEmpty()) {
-                return MarketplaceResult.fail("You are not standing in a market zone.");
+                return MarketplaceResult.failKey("TC_MARKET_RESULT_NOT_IN_MARKET",
+                        "You are not standing in a market zone.");
             }
             MarketZone current = zone.get();
+            if (!service.canManageZone(player, current)) {
+                return MarketplaceResult.failKey("TC_MARKET_RESULT_MANAGE_OWN_ONLY",
+                        "You can only manage your own market.");
+            }
             int nextMode = nextGlobalTradeMode(current.globalTradeMode());
             return service.updateZone(new MarketZone(current.id(), current.name(),
                     current.areaId(),
                     current.minChunkX(), current.maxChunkX(), current.minChunkY(), current.maxChunkY(),
                     current.minChunkZ(), current.maxChunkZ(), current.feePercent(), nextMode,
-                    current.createdAt()));
+                    current.createdAt(), current.ownerDbId(), current.ownerName(), current.ownerAreaPermission()));
         } catch (SQLException ex) {
             logger().error("Failed to update market zone global override: " + ex.getMessage());
-            return MarketplaceResult.fail("Could not update market zone global override.");
+            return MarketplaceResult.failKey("TC_MARKET_RESULT_ZONE_GLOBAL_FAILED",
+                    "Could not update the market zone global mode.");
         }
     }
 
     public MarketplaceResult setCurrentMarketZoneFee(Player player, int feePercent) {
-        if (!player.isAdmin()) {
-            return MarketplaceResult.fail("Only admins can manage market zones.");
-        }
         try {
             Optional<MarketZone> zone = service.currentZone(player);
             if (zone.isEmpty()) {
-                return MarketplaceResult.fail("You are not standing in a market zone.");
+                return MarketplaceResult.failKey("TC_MARKET_RESULT_NOT_IN_MARKET",
+                        "You are not standing in a market zone.");
             }
             MarketZone current = zone.get();
+            if (!service.canManageZone(player, current)) {
+                return MarketplaceResult.failKey("TC_MARKET_RESULT_MANAGE_OWN_ONLY",
+                        "You can only manage your own market.");
+            }
             return service.updateZone(new MarketZone(current.id(), current.name(),
                     current.areaId(),
                     current.minChunkX(), current.maxChunkX(), current.minChunkY(), current.maxChunkY(),
                     current.minChunkZ(), current.maxChunkZ(), feePercent, current.globalTradeMode(),
-                    current.createdAt()));
+                    current.createdAt(), current.ownerDbId(), current.ownerName(), current.ownerAreaPermission()));
         } catch (SQLException ex) {
             logger().error("Failed to update market zone fee: " + ex.getMessage());
-            return MarketplaceResult.fail("Could not update market zone fee.");
+            return MarketplaceResult.failKey("TC_MARKET_RESULT_ZONE_FEE_FAILED",
+                    "Could not update the market zone fee.");
         }
     }
 
@@ -298,21 +343,25 @@ class MarketplaceRuntime extends Plugin {
     }
 
     private MarketplaceResult deleteCurrentMarketZone(Player player, String expectedZoneId) {
-        if (!player.isAdmin()) {
-            return MarketplaceResult.fail("Only admins can manage market zones.");
-        }
         try {
             Optional<MarketZone> zone = service.currentZone(player);
             if (zone.isEmpty()) {
-                return MarketplaceResult.fail("You are not standing in a market zone.");
+                return MarketplaceResult.failKey("TC_MARKET_RESULT_NOT_IN_MARKET",
+                        "You are not standing in a market zone.");
+            }
+            if (!service.canManageZone(player, zone.get())) {
+                return MarketplaceResult.failKey("TC_MARKET_RESULT_MANAGE_OWN_ONLY",
+                        "You can only manage your own market.");
             }
             if (expectedZoneId != null && !expectedZoneId.isBlank() && !zone.get().id().equals(expectedZoneId)) {
-                return MarketplaceResult.fail("You can only delete the market zone you are currently standing in.");
+                return MarketplaceResult.failKey("TC_MARKET_RESULT_DELETE_CURRENT_ONLY",
+                        "You can only delete the market zone you are currently standing in.");
             }
             return service.deleteZone(zone.get().id());
         } catch (SQLException ex) {
             logger().error("Failed to delete current market zone: " + ex.getMessage());
-            return MarketplaceResult.fail("Could not delete market zone.");
+            return MarketplaceResult.failKey("TC_MARKET_RESULT_ZONE_DELETE_FAILED",
+                    "Could not delete market zone.");
         }
     }
 
@@ -380,28 +429,46 @@ class MarketplaceRuntime extends Plugin {
     public MarketplaceResult createMarketplaceListing(Player player, String itemName, int variant, int amount,
             long price, String currency, boolean global, MarketplaceItemState itemState) {
         if (service == null) {
-            return MarketplaceResult.fail("Marketplace database is not available.");
+            return databaseUnavailable();
         }
         return service.createListing(player, itemName, variant, amount, price, currency, global, itemState);
     }
 
     public MarketplaceResult buyMarketplaceListing(Player player, long listingId) {
+        return buyMarketplaceListing(player, listingId, Integer.MAX_VALUE);
+    }
+
+    public MarketplaceResult buyMarketplaceListing(Player player, long listingId, int amount) {
         if (service == null) {
-            return MarketplaceResult.fail("Marketplace database is not available.");
+            return databaseUnavailable();
         }
-        return service.buy(player, listingId);
+        return service.buy(player, listingId, amount);
     }
 
     public MarketplaceResult cancelMarketplaceListing(Player player, long listingId) {
         if (service == null) {
-            return MarketplaceResult.fail("Marketplace database is not available.");
+            return databaseUnavailable();
         }
         return service.cancel(player, listingId);
     }
 
+    public MarketplaceResult createWantedMarketplaceListing(Player player, String itemName, int variant, int amount,
+            long price, String currency, boolean global) {
+        if (service == null) return databaseUnavailable();
+        return service.createWantedListing(player, itemName, variant, amount, price, currency, global);
+    }
+
+    public boolean marketplaceManagementAvailable(Player player) {
+        if (player == null || service == null) return false;
+        if (player.isAdmin()) return true;
+        Optional<MarketZone> zone = safeCurrentMarketZone(player);
+        return (s.maxPlayerMarketplaces != 0 && player.getCurrentArea() != null)
+                || zone.filter(current -> current.ownedBy(player.getDbID())).isPresent();
+    }
+
     public MarketplaceResult hideMarketplaceSale(Player player, long saleId) {
         if (service == null) {
-            return MarketplaceResult.fail("Marketplace database is not available.");
+            return databaseUnavailable();
         }
         return service.hideSale(player, saleId);
     }
@@ -475,14 +542,17 @@ class MarketplaceRuntime extends Plugin {
         try {
             Optional<MarketZone> zone = service.currentZone(player);
             if (zone.isEmpty()) {
-                return "No market zone at this chunk.";
+                return tr(player, "TC_MARKET_CHAT_NO_CURRENT_ZONE");
             }
             MarketZone current = zone.get();
-            return current.name() + " (" + current.id() + ") fee " + current.feePercent()
-                    + "% global=" + globalTradeModeLabel(current.globalTradeMode());
+            return tr(player, "TC_MARKET_CHAT_CURRENT_ZONE",
+                    "PH_NAME", current.name(),
+                    "PH_ZONE", current.id(),
+                    "PH_FEE", String.valueOf(current.feePercent()),
+                    "PH_GLOBAL", globalTradeModeLabel(player, current.globalTradeMode()));
         } catch (SQLException ex) {
             logger().error("Failed to read current market zone: " + ex.getMessage());
-            return "Could not read current market zone.";
+            return tr(player, "TC_MARKET_CHAT_CURRENT_ZONE_FAILED");
         }
     }
 
@@ -490,22 +560,29 @@ class MarketplaceRuntime extends Plugin {
         try {
             List<MarketplaceListing> listings = service.listVisibleListings(player);
             if (listings.isEmpty()) {
-                player.sendTextMessage(c.info + "No marketplace listings visible here.");
-                player.sendTextMessage(c.text + "Use /" + s.marketCommand + " to open the Marketplace radial menu.");
+                player.sendTextMessage(c.info + tr(player, "TC_MARKET_CHAT_NO_LISTINGS"));
+                player.sendTextMessage(c.text + tr(player, "TC_MARKET_CHAT_OPEN_HINT",
+                        "PH_COMMAND", s.marketCommand));
                 return;
             }
-            player.sendTextMessage(c.okay + "Marketplace listings:");
+            player.sendTextMessage(c.okay + tr(player, "TC_MARKET_CHAT_LISTINGS"));
             for (MarketplaceListing listing : listings) {
-                player.sendTextMessage(c.info + "#" + listing.id() + c.text + " "
-                        + listing.amount() + "x " + listing.itemName() + ":" + listing.itemVariant()
-                        + " by " + listing.sellerName() + " for " + listing.price()
-                        + currencyLabel(listing.currencyIdentifier())
-                        + (listing.globalListing() ? " global" : " local:" + listing.marketZoneId()));
+                player.sendTextMessage(c.info + tr(player, "TC_MARKET_CHAT_LISTING_ROW",
+                        "PH_LISTING", String.valueOf(listing.id()),
+                        "PH_AMOUNT", String.valueOf(listing.amount()),
+                        "PH_ITEM", listing.itemName() + ":" + listing.itemVariant(),
+                        "PH_SELLER", listing.sellerName(),
+                        "PH_PRICE", String.valueOf(listing.price()),
+                        "PH_CURRENCY", currencyLabel(listing.currencyIdentifier()),
+                        "PH_MODE", listing.globalListing()
+                                ? tr(player, "TC_MARKET_UI_MODE_GLOBAL")
+                                : tr(player, "TC_MARKET_UI_MODE_LOCAL") + ":" + listing.marketZoneId()));
             }
-            player.sendTextMessage(c.text + "Use /" + s.marketCommand + " buy <listing-id>.");
+            player.sendTextMessage(c.text + tr(player, "TC_MARKET_CHAT_BUY_HINT",
+                    "PH_COMMAND", s.marketCommand));
         } catch (SQLException ex) {
             logger().error("Failed to list marketplace listings: " + ex.getMessage());
-            player.sendTextMessage(c.error + "Could not list marketplace listings.");
+            player.sendTextMessage(c.error + tr(player, "TC_MARKET_CHAT_LISTINGS_FAILED"));
         }
     }
 
@@ -513,33 +590,55 @@ class MarketplaceRuntime extends Plugin {
         try {
             List<MarketZone> zones = service.listZones();
             if (zones.isEmpty()) {
-                player.sendTextMessage(c.info + "No market zones defined.");
+                player.sendTextMessage(c.info + tr(player, "TC_MARKET_CHAT_NO_ZONES"));
                 return;
             }
-            player.sendTextMessage(c.okay + "Market zones:");
+            player.sendTextMessage(c.okay + tr(player, "TC_MARKET_CHAT_ZONES"));
             for (MarketZone zone : zones) {
-                player.sendTextMessage(c.info + zone.id() + c.text + " " + zone.name()
-                        + " fee " + zone.feePercent() + "% global=" + globalTradeModeLabel(zone.globalTradeMode())
-                        + " area=" + zone.areaId());
+                player.sendTextMessage(c.info + tr(player, "TC_MARKET_CHAT_ZONE_ROW",
+                        "PH_ZONE", zone.id(),
+                        "PH_NAME", zone.name(),
+                        "PH_FEE", String.valueOf(zone.feePercent()),
+                        "PH_GLOBAL", globalTradeModeLabel(player, zone.globalTradeMode()),
+                        "PH_AREA", String.valueOf(zone.areaId())));
             }
         } catch (SQLException ex) {
             logger().error("Failed to list market zones: " + ex.getMessage());
-            player.sendTextMessage(c.error + "Could not list market zones.");
+            player.sendTextMessage(c.error + tr(player, "TC_MARKET_CHAT_ZONES_FAILED"));
         }
     }
 
     private void usage(Player player) {
-        player.sendTextMessage(c.warning + "Usage: /" + s.marketCommand + " | list | buy <id> | cancel <id> | sales");
+        player.sendTextMessage(c.warning + tr(player, "TC_MARKET_CHAT_USAGE",
+                "PH_COMMAND", s.marketCommand));
         if (player.isAdmin()) {
-            player.sendTextMessage(c.warning + "Admin: /" + s.marketCommand + " zone set <id> <radiusChunks> <feePercent> <globalMode> [label] | zone list | zone delete [current-id]");
+            player.sendTextMessage(c.warning + tr(player, "TC_MARKET_CHAT_USAGE_ADMIN",
+                    "PH_COMMAND", s.marketCommand));
         }
     }
 
-    public String globalTradeModeLabel(int mode) {
+    private void sendResult(Player player, MarketplaceResult result) {
+        player.sendTextMessage((result.success() ? c.okay : c.error) + result.localized(t, player));
+    }
+
+    private String tr(Player player, String key, String... replacements) {
+        String text = t.get(key, player);
+        for (int i = 0; i + 1 < replacements.length; i += 2) {
+            text = text.replace(replacements[i], replacements[i + 1]);
+        }
+        return text;
+    }
+
+    private MarketplaceResult databaseUnavailable() {
+        return MarketplaceResult.failKey("TC_MARKET_RESULT_DATABASE_UNAVAILABLE",
+                "Marketplace database is not available.");
+    }
+
+    public String globalTradeModeLabel(Player player, int mode) {
         return switch (MarketZone.normalizeGlobalTradeMode(mode)) {
-            case MarketZone.GLOBAL_DENY -> "deny";
-            case MarketZone.GLOBAL_ALLOW -> "allow";
-            default -> "default";
+            case MarketZone.GLOBAL_DENY -> tr(player, "TC_MARKET_CHAT_GLOBAL_DENY");
+            case MarketZone.GLOBAL_ALLOW -> tr(player, "TC_MARKET_CHAT_GLOBAL_ALLOW");
+            default -> tr(player, "TC_MARKET_CHAT_GLOBAL_DEFAULT");
         };
     }
 
