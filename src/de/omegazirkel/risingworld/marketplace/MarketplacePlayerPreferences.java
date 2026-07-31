@@ -8,6 +8,7 @@ public final class MarketplacePlayerPreferences {
     public static final String LISTING_LAYOUT_KEY = "oz.marketplace.listingLayout";
     public static final String LAYOUT_CARD = "CARD";
     public static final String LAYOUT_TABLE = "TABLE";
+    public static final String CAPACITY_FACTOR_KEY = "oz.marketplace.capacityFactor";
 
     private MarketplacePlayerPreferences() {
     }
@@ -19,6 +20,11 @@ public final class MarketplacePlayerPreferences {
         if (!player.hasAttribute(LISTING_LAYOUT_KEY)) {
             player.setAttribute(LISTING_LAYOUT_KEY,
                     Marketplace.playerSettings().getString(player.getDbID(), LISTING_LAYOUT_KEY).orElse(LAYOUT_CARD));
+        }
+        if (!player.hasAttribute(CAPACITY_FACTOR_KEY)) {
+            String stored = Marketplace.playerSettings().getString(player.getDbID(), CAPACITY_FACTOR_KEY).orElse("1.0");
+            try { player.setAttribute(CAPACITY_FACTOR_KEY, Math.max(1.0d, Double.parseDouble(stored))); }
+            catch (NumberFormatException ex) { player.setAttribute(CAPACITY_FACTOR_KEY, 1.0d); }
         }
         String shortcutKey = shortcutKey();
         if (!player.hasAttribute(shortcutKey)) {
@@ -47,6 +53,21 @@ public final class MarketplacePlayerPreferences {
         if (Marketplace.playerSettings() != null) {
             Marketplace.playerSettings().setString(player.getDbID(), LISTING_LAYOUT_KEY, normalizedValue);
         }
+    }
+
+    public static double capacityFactor(Player player) {
+        if (player == null) return 1.0d;
+        if (!player.hasAttribute(CAPACITY_FACTOR_KEY)) load(player);
+        Object value = player.getAttribute(CAPACITY_FACTOR_KEY);
+        return value instanceof Number number && Double.isFinite(number.doubleValue()) && number.doubleValue() >= 1.0d
+                ? number.doubleValue() : 1.0d;
+    }
+
+    public static double increaseCapacityFactor(Player player) {
+        double factor = Math.min(1_000_000d, capacityFactor(player) + 1.0d);
+        player.setAttribute(CAPACITY_FACTOR_KEY, factor);
+        if (Marketplace.playerSettings() != null) Marketplace.playerSettings().setString(player.getDbID(), CAPACITY_FACTOR_KEY, String.valueOf(factor));
+        return factor;
     }
 
     public static boolean shortcutVisible(Player player) {

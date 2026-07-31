@@ -24,6 +24,7 @@ public class PluginGUI {
     public static PluginGUI getInstance(Marketplace plugin) {
         AssetManager.loadIconFromPlugin(plugin, "oz-marketplace");
         AssetManager.loadIconFromPlugin(plugin, "zone-marketplace-indicator");
+        AssetManager.loadIconFromPlugin(plugin, "marketplace-capacity");
         PluginGUI gui = getInstance();
         gui.plugin = plugin;
         PluginMenuManager.registerPluginMenu(new MenuItem(Marketplace.name, "oz-marketplace",

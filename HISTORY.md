@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## [0.3.1] - 2026-07-31 | Marketplace capacity and private-market controls
+
+- feat: offer Marketplace listing-capacity increases through OZ Shop; each purchase adds one base listing limit
+- feat: configure the capacity base price and per-purchase price increase
+- fix: disable unavailable private-market and global-mode controls with a distinct visual state
+- fix: prevent player-owned markets from changing their global-trade mode in the UI and service layer
+- fix: localize capacity offer, purchase, and result messages in German and English
+
 ## [0.3.0] - 2026-07-27 | Player markets, partial trades, and wanted listings
 
 - feat: let administrators enable limited or unlimited player-owned market Areas

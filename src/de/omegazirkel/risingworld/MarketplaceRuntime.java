@@ -11,6 +11,7 @@ import de.omegazirkel.risingworld.marketplace.MarketplacePlayerPreferences;
 import de.omegazirkel.risingworld.marketplace.MarketplaceDatabase;
 import de.omegazirkel.risingworld.marketplace.MarketplaceListing;
 import de.omegazirkel.risingworld.marketplace.MarketplaceItemState;
+import de.omegazirkel.risingworld.marketplace.MarketplaceCapacityShopIntegration;
 import de.omegazirkel.risingworld.marketplace.MarketplaceResult;
 import de.omegazirkel.risingworld.marketplace.MarketplaceSale;
 import de.omegazirkel.risingworld.marketplace.MarketplaceService;
@@ -46,6 +47,7 @@ class MarketplaceRuntime extends Plugin {
     private static Connection sqliteCon;
     private static PlayerSettings playerSettings;
     private static I18n t;
+    private MarketplaceCapacityShopIntegration capacityShop;
     public static String name;
 
     public static OZLogger logger() {
@@ -72,6 +74,8 @@ class MarketplaceRuntime extends Plugin {
         }
 
         PluginGUI.getInstance((Marketplace) this);
+        capacityShop = new MarketplaceCapacityShopIntegration(this);
+        capacityShop.register(s);
         PluginShortcutVisibility.register(name, MarketplacePlayerPreferences::shortcutVisible);
         SharedIndicators.registerProvider(name, new MarketplaceZoneIndicatorProvider((Marketplace) this));
         PlayerPluginSettingsOverlay
@@ -108,6 +112,7 @@ class MarketplaceRuntime extends Plugin {
         if (service != null) {
             service.updateSettings(s);
         }
+        if (capacityShop != null) capacityShop.register(s);
     }
 
     public void onPlayerSpawnEvent(PlayerSpawnEvent event) {
@@ -247,6 +252,11 @@ class MarketplaceRuntime extends Plugin {
     }
 
     public MarketplaceResult createOrUpdateCurrentMarketZone(Player player) {
+        return createOrUpdateCurrentMarketZone(player, false);
+    }
+
+    /** Administrators explicitly choose whether an area market is system-owned or player-owned. */
+    public MarketplaceResult createOrUpdateCurrentMarketZone(Player player, boolean privateMarket) {
         Area area = player.getCurrentArea();
         if (area == null || area.getID() <= 0L) {
             return MarketplaceResult.failKey("TC_MARKET_RESULT_AREA_REQUIRED",
@@ -257,7 +267,7 @@ class MarketplaceRuntime extends Plugin {
             return MarketplaceResult.failKey("TC_MARKET_RESULT_MANAGE_OWN_ONLY",
                     "You can only manage your own market.");
         }
-        if (existing.isEmpty() && !player.isAdmin()) {
+        if (existing.isEmpty() && (!player.isAdmin() || privateMarket)) {
             return service.createPlayerMarket(player);
         }
         int globalMode = existing.map(MarketZone::globalTradeMode).orElse(MarketZone.GLOBAL_DEFAULT);
@@ -300,6 +310,10 @@ class MarketplaceRuntime extends Plugin {
             if (!service.canManageZone(player, current)) {
                 return MarketplaceResult.failKey("TC_MARKET_RESULT_MANAGE_OWN_ONLY",
                         "You can only manage your own market.");
+            }
+            if (current.playerOwned()) {
+                return MarketplaceResult.failKey("TC_MARKET_RESULT_PLAYER_MARKET_GLOBAL_LOCKED",
+                        "Private markets cannot change global trading.");
             }
             int nextMode = nextGlobalTradeMode(current.globalTradeMode());
             return service.updateZone(new MarketZone(current.id(), current.name(),
@@ -464,6 +478,10 @@ class MarketplaceRuntime extends Plugin {
         Optional<MarketZone> zone = safeCurrentMarketZone(player);
         return (s.maxPlayerMarketplaces != 0 && player.getCurrentArea() != null)
                 || zone.filter(current -> current.ownedBy(player.getDbID())).isPresent();
+    }
+
+    public boolean canCreatePrivateMarket(Player player) {
+        return service != null && service.canCreatePlayerMarket(player);
     }
 
     public MarketplaceResult hideMarketplaceSale(Player player, long saleId) {

@@ -34,6 +34,8 @@ public class PluginSettings {
     public long minimumGlobalFee = 0L;
     public int maxListingsPerPlayer = 20;
     public int maxPlayerMarketplaces = 0;
+    public long marketCapacityBasePrice = 2500L;
+    public double marketCapacityPriceIncreaseFactor = 1.0d;
     public boolean showMarketplaceZoneIndicator = true;
     public boolean exposeMarketplaceZones = true;
     public boolean exposeMarketplaceOffers = true;
@@ -87,6 +89,8 @@ public class PluginSettings {
             minimumGlobalFee = decimal(settings, defaults, "minimumGlobalFee", 0L, 0L, Long.MAX_VALUE);
             maxListingsPerPlayer = integer(settings, defaults, "maxListingsPerPlayer", 20, 1, 1000);
             maxPlayerMarketplaces = signedInteger(settings, defaults, "maxPlayerMarketplaces", 0);
+            marketCapacityBasePrice = decimal(settings, defaults, "marketCapacityBasePrice", 2500L, 0L, Long.MAX_VALUE);
+            marketCapacityPriceIncreaseFactor = decimalFactor(settings, defaults, "marketCapacityPriceIncreaseFactor", 1.0d);
             showMarketplaceZoneIndicator = bool(settings, defaults, "showMarketplaceZoneIndicator", true);
             exposeMarketplaceZones = bool(settings, defaults, "exposeMarketplaceZones", true);
             exposeMarketplaceOffers = bool(settings, defaults, "exposeMarketplaceOffers", true);
@@ -140,6 +144,12 @@ public class PluginSettings {
                 entry("maxPlayerMarketplaces", "Max player marketplaces",
                         "0 disables player markets, negative is unlimited, positive limits markets per player.",
                         maxPlayerMarketplaces, "0", AdminSettingsType.INTEGER),
+                entry("marketCapacityBasePrice", "Market capacity base price",
+                        "Base price for one marketplace-capacity upgrade.", marketCapacityBasePrice, "2500",
+                        AdminSettingsType.INTEGER),
+                entry("marketCapacityPriceIncreaseFactor", "Market capacity price increase factor",
+                        "Price multiplier for every previously purchased capacity upgrade.", marketCapacityPriceIncreaseFactor,
+                        "1.0", AdminSettingsType.DECIMAL),
                 entry("showMarketplaceZoneIndicator", "Marketplace-zone indicator",
                         "Shows the Marketplace icon in the shared Tools indicator bar while players are in an active market zone.",
                         showMarketplaceZoneIndicator, "true", AdminSettingsType.BOOLEAN),
@@ -185,5 +195,12 @@ public class PluginSettings {
 
     private int signedInteger(Properties settings, Properties defaults, String key, int fallback) {
         return Integer.parseInt(settings.getProperty(key, defaults.getProperty(key, String.valueOf(fallback))));
+    }
+
+    private double decimalFactor(Properties settings, Properties defaults, String key, double fallback) {
+        try {
+            double value = Double.parseDouble(settings.getProperty(key, defaults.getProperty(key, String.valueOf(fallback))));
+            return Double.isFinite(value) && value >= 1.0d ? value : fallback;
+        } catch (NumberFormatException ex) { return fallback; }
     }
 }

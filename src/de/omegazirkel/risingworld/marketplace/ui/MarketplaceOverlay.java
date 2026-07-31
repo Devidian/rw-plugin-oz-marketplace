@@ -971,6 +971,11 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     private void setupWantedTab() {
         AdvancedButton create = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_WANTED_CREATE", uiPlayer),
                 event -> selectWantedItem());
+        boolean canCreate = plugin.localListingAllowed(uiPlayer) || plugin.globalListingAllowed(uiPlayer);
+        create.setClickable(canCreate);
+        if (!canCreate) {
+            styleDisabledButton(create);
+        }
         create.setPivot(Pivot.UpperLeft);
         create.setPosition(12, 4, false);
         create.setSize(190, 30, false);
@@ -1206,15 +1211,23 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         Optional<MarketZone> currentZone = plugin.safeCurrentMarketZone(uiPlayer);
         int y = 96;
         if (currentZone.isEmpty()) {
-            addManagementButton(panel, t().get("TC_MARKET_UI_MANAGEMENT_CREATE", uiPlayer), 0, y,
-                    () -> runManagementAction(plugin.createOrUpdateCurrentMarketZone(uiPlayer)));
+            if (uiPlayer.isAdmin()) {
+                addManagementButton(panel, t().get("TC_MARKET_UI_MANAGEMENT_CREATE_SYSTEM", uiPlayer), 0, y,
+                        () -> runManagementAction(plugin.createOrUpdateCurrentMarketZone(uiPlayer, false)));
+                addManagementButton(panel, t().get("TC_MARKET_UI_MANAGEMENT_CREATE_PRIVATE", uiPlayer), 188, y,
+                        plugin.canCreatePrivateMarket(uiPlayer),
+                        () -> runManagementAction(plugin.createOrUpdateCurrentMarketZone(uiPlayer, true)));
+            } else {
+                addManagementButton(panel, t().get("TC_MARKET_UI_MANAGEMENT_CREATE", uiPlayer), 0, y,
+                        () -> runManagementAction(plugin.createOrUpdateCurrentMarketZone(uiPlayer)));
+            }
             return;
         }
 
         addManagementButton(panel, t().get("TC_MARKET_UI_MANAGEMENT_SYNC_NAME", uiPlayer), 0, y,
                 () -> runManagementAction(plugin.syncCurrentMarketZoneName(uiPlayer)));
         addManagementButton(panel, t().get("TC_MARKET_UI_MANAGEMENT_NEXT_GLOBAL", uiPlayer), 188, y,
-                () -> runManagementAction(plugin.toggleCurrentMarketZoneGlobal(uiPlayer)));
+                !currentZone.get().playerOwned(), () -> runManagementAction(plugin.toggleCurrentMarketZoneGlobal(uiPlayer)));
 
         y += 54;
         managementFeeField = textField(String.valueOf(currentZone.get().feePercent()));
@@ -1234,12 +1247,28 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private void addManagementButton(OZUIElement parent, String text, int x, int y, Runnable action) {
+        addManagementButton(parent, text, x, y, true, action);
+    }
+
+    private void addManagementButton(OZUIElement parent, String text, int x, int y, boolean enabled, Runnable action) {
         AdvancedButton button = AdvancedButtonFactory.defaultButton(text, event -> action.run());
+        button.setClickable(enabled);
+        if (!enabled) {
+            styleDisabledButton(button);
+        }
         button.setPivot(Pivot.UpperLeft);
         button.setPosition(x, y, false);
         button.setSize(178, 32, false);
         button.setBorderEdgeRadius(3, false);
         parent.addChild(button);
+    }
+
+    private void styleDisabledButton(AdvancedButton button) {
+        button.setBackgroundColor(0.10f, 0.10f, 0.10f, 0.45f);
+        button.setBorderColor(0.45f, 0.45f, 0.45f, 0.35f);
+        button.setHoverBackgroundColor(0x1A1A1A73);
+        button.setHoverBorderColor(0x73737359);
+        button.setHoverBorderWidth(1);
     }
 
     private void runManagementAction(MarketplaceResult result) {

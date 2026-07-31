@@ -220,6 +220,16 @@ public class MarketplaceService {
         }
     }
 
+    public boolean canCreatePlayerMarket(Player player) {
+        if (player == null || player.getDbID() <= 0 || settings.maxPlayerMarketplaces == 0) return false;
+        Area area = player.getCurrentArea();
+        if (area == null || area.getID() <= 0L || !hasAddPlayerPermission(player)) return false;
+        try {
+            return !database.areaHasMarket(area.getID(), "") && (settings.maxPlayerMarketplaces < 0
+                    || database.playerMarketCount(player.getDbID()) < settings.maxPlayerMarketplaces);
+        } catch (SQLException ex) { return false; }
+    }
+
     public boolean canManageZone(Player player, MarketZone zone) {
         return player != null && zone != null && (player.isAdmin() || zone.ownedBy(player.getDbID()));
     }
@@ -288,7 +298,7 @@ public class MarketplaceService {
         MarketplaceResult currencyValidation = validateCurrency(currency);
         if (!currencyValidation.success()) return currencyValidation;
         try {
-            if (database.activeListingCount(requester.getDbID()) >= settings.maxListingsPerPlayer) {
+            if (database.activeListingCount(requester.getDbID()) >= listingCapacity(requester)) {
                 return MarketplaceResult.failKey("TC_MARKET_RESULT_LISTING_LIMIT",
                         "You reached the active listing limit.");
             }
@@ -337,7 +347,7 @@ public class MarketplaceService {
         boolean inventoryRemoved = false;
         MarketplaceItemState itemState = null;
         try {
-            if (database.activeListingCount(seller.getDbID()) >= settings.maxListingsPerPlayer) {
+            if (database.activeListingCount(seller.getDbID()) >= listingCapacity(seller)) {
                 return MarketplaceResult.failKey("TC_MARKET_RESULT_LISTING_LIMIT",
                         "You reached the active listing limit.");
             }
@@ -1015,6 +1025,11 @@ public class MarketplaceService {
 
     private boolean hasAddPlayerPermission(Player player) {
         return Boolean.TRUE.equals(player.getPermissionValue("area_addplayer", true));
+    }
+
+    private int listingCapacity(Player player) {
+        double capacity = settings.maxListingsPerPlayer * MarketplacePlayerPreferences.capacityFactor(player);
+        return (int) Math.min(Integer.MAX_VALUE, Math.max(1, Math.floor(capacity)));
     }
 
     private String permissionToken(Area area, int ownerDbId) {
