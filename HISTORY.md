@@ -1,6 +1,8 @@
 # History
 
-## Unreleased
+## [0.3.2] - 2026-08-05 | World-account fee settlement
+
+- feat: route global and other non-player-market fees into the Wallet world account with idempotent refunds
 
 ## [0.3.1] - 2026-07-31 | Marketplace capacity and private-market controls
 

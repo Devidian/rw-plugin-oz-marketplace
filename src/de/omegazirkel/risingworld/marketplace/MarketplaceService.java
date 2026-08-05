@@ -7,6 +7,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.UUID;
 
 import de.omegazirkel.risingworld.Marketplace;
 import de.omegazirkel.risingworld.tools.I18n;
@@ -489,12 +490,11 @@ public class MarketplaceService {
             }
 
             long fee = fee(listing, zone.orElse(null), purchasePrice);
-            long buyerCharge = purchasePrice + fee;
             long sellerPayout = purchasePrice;
-            WalletBridge.WalletCallResult feeWithdraw = fee > 0
-                    ? wallet.withdraw(buyer.getDbID(), fee, "Marketplace fee #" + listing.id(),
-                            listing.currencyIdentifier(), "OZ - Marketplace")
-                    : new WalletBridge.WalletCallResult(true, "No fee.");
+            int feeRecipientDbId = zone.filter(MarketZone::playerOwned).map(MarketZone::ownerDbId).orElse(0);
+            FeePayment feePayment = chargeFee(buyer.getDbID(), fee, "Marketplace fee #" + listing.id(),
+                    listing.currencyIdentifier(), feeRecipientDbId, "sale:" + listing.id());
+            WalletBridge.WalletCallResult feeWithdraw = feePayment.result();
             if (!feeWithdraw.success()) {
                 WalletBridge.WalletCallResult purchaseRefund = wallet.deposit(buyer.getDbID(), purchasePrice,
                         "Marketplace purchase refund #" + listing.id(), listing.currencyIdentifier(), "OZ - Marketplace");
@@ -506,14 +506,15 @@ public class MarketplaceService {
                 WalletBridge.WalletCallResult deposit = wallet.deposit(listing.sellerDbId(), sellerPayout,
                         "Marketplace sale #" + listing.id(), listing.currencyIdentifier(), "OZ - Marketplace");
                 if (!deposit.success()) {
-                    WalletBridge.WalletCallResult refund = wallet.deposit(buyer.getDbID(), buyerCharge,
+                    refundRoutedFee(feePayment, "Marketplace fee refund #" + listing.id());
+                    WalletBridge.WalletCallResult refund = wallet.deposit(buyer.getDbID(),
+                            purchasePrice + (feePayment.routedToWorld() ? 0 : fee),
                             "Marketplace refund #" + listing.id(), listing.currencyIdentifier(), "OZ - Marketplace");
                     logWalletRollbackFailure("buyer refund", listing.id(), refund);
                     releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
                     return walletFailure(deposit.message());
                 }
             }
-            int feeRecipientDbId = zone.filter(MarketZone::playerOwned).map(MarketZone::ownerDbId).orElse(0);
             if (fee > 0 && feeRecipientDbId > 0) {
                 WalletBridge.WalletCallResult feeDeposit = wallet.deposit(feeRecipientDbId, fee,
                         "Marketplace market tax #" + listing.id(), listing.currencyIdentifier(), "OZ - Marketplace");
@@ -524,7 +525,8 @@ public class MarketplaceService {
                                         "Marketplace payout rollback #" + listing.id(),
                                         listing.currencyIdentifier(), "OZ - Marketplace"));
                     }
-                    logWalletRollbackFailure("buyer refund", listing.id(), wallet.deposit(buyer.getDbID(), buyerCharge,
+                    logWalletRollbackFailure("buyer refund", listing.id(), wallet.deposit(buyer.getDbID(),
+                            purchasePrice + fee,
                             "Marketplace refund #" + listing.id(), listing.currencyIdentifier(), "OZ - Marketplace"));
                     releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
                     return walletFailure(feeDeposit.message());
@@ -533,6 +535,7 @@ public class MarketplaceService {
             MarketplaceResult addItem = InventoryTransfer.addToBuyer(buyer, listing.itemName(), listing.itemVariant(),
                     purchaseAmount, listing.itemState());
             if (!addItem.success()) {
+                refundRoutedFee(feePayment, "Marketplace fee refund #" + listing.id());
                 if (fee > 0 && feeRecipientDbId > 0) {
                     logWalletRollbackFailure("market tax rollback", listing.id(),
                             wallet.withdraw(feeRecipientDbId, fee, "Marketplace tax rollback #" + listing.id(),
@@ -544,7 +547,8 @@ public class MarketplaceService {
                             listing.currencyIdentifier(), "OZ - Marketplace");
                     logWalletRollbackFailure("seller payout rollback", listing.id(), payoutRollback);
                 }
-                WalletBridge.WalletCallResult refund = wallet.deposit(buyer.getDbID(), buyerCharge,
+                WalletBridge.WalletCallResult refund = wallet.deposit(buyer.getDbID(),
+                        purchasePrice + (feePayment.routedToWorld() ? 0 : fee),
                         "Marketplace refund #" + listing.id(), listing.currencyIdentifier(), "OZ - Marketplace");
                 logWalletRollbackFailure("buyer refund", listing.id(), refund);
                 releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
@@ -870,9 +874,13 @@ public class MarketplaceService {
                 return walletFailure(priceWithdraw.message());
             }
             WalletBridge.WalletCallResult feeWithdraw = fee > 0
-                    ? wallet.withdraw(listing.sellerDbId(), fee, "Marketplace wanted tax #" + listing.id(),
-                            listing.currencyIdentifier(), "OZ - Marketplace")
-                    : new WalletBridge.WalletCallResult(true, "No fee.");
+                    ? null : new WalletBridge.WalletCallResult(true, "No fee.");
+            int feeRecipientDbId = zone.filter(MarketZone::playerOwned).map(MarketZone::ownerDbId).orElse(0);
+            FeePayment feePayment = fee > 0
+                    ? chargeFee(listing.sellerDbId(), fee, "Marketplace wanted tax #" + listing.id(),
+                            listing.currencyIdentifier(), feeRecipientDbId, "wanted:" + listing.id())
+                    : FeePayment.none();
+            feeWithdraw = feePayment.result();
             if (!feeWithdraw.success()) {
                 logWalletRollbackFailure("wanted price refund", listing.id(), wallet.deposit(listing.sellerDbId(),
                         payout, "Marketplace wanted refund #" + listing.id(), listing.currencyIdentifier(),
@@ -886,20 +894,20 @@ public class MarketplaceService {
                             listing.currencyIdentifier(), "OZ - Marketplace")
                     : new WalletBridge.WalletCallResult(true, "No payout.");
             if (!sellerDeposit.success()) {
+                refundRoutedFee(feePayment, "Marketplace wanted tax refund #" + listing.id());
                 logWalletRollbackFailure("wanted requester refund", listing.id(), wallet.deposit(listing.sellerDbId(),
-                        payout + fee, "Marketplace wanted refund #" + listing.id(), listing.currencyIdentifier(),
+                        payout + (feePayment.routedToWorld() ? 0 : fee), "Marketplace wanted refund #" + listing.id(), listing.currencyIdentifier(),
                         "OZ - Marketplace"));
                 restoreWantedSeller(seller, listing, amount, itemState);
                 releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
                 return walletFailure(sellerDeposit.message());
             }
-            int feeRecipientDbId = zone.filter(MarketZone::playerOwned).map(MarketZone::ownerDbId).orElse(0);
             if (fee > 0 && feeRecipientDbId > 0) {
                 WalletBridge.WalletCallResult taxDeposit = wallet.deposit(feeRecipientDbId, fee,
                         "Marketplace wanted market tax #" + listing.id(), listing.currencyIdentifier(),
                         "OZ - Marketplace");
                 if (!taxDeposit.success()) {
-                    rollbackWantedMoney(listing, seller, payout, fee, 0);
+                    rollbackWantedMoney(listing, seller, payout, fee);
                     restoreWantedSeller(seller, listing, amount, itemState);
                     releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
                     return walletFailure(taxDeposit.message());
@@ -922,12 +930,13 @@ public class MarketplaceService {
                     Marketplace.name, listing.sellerDbId(), listing.sellerName(), subject, body,
                     "wanted-" + listing.id() + '-' + (listing.fulfilledAmount() + amount), List.of(attachment)));
             if (!mailResult.success()) {
+                refundRoutedFee(feePayment, "Marketplace wanted tax refund #" + listing.id());
                 if (fee > 0 && feeRecipientDbId > 0) {
                     logWalletRollbackFailure("wanted tax rollback", listing.id(), wallet.withdraw(feeRecipientDbId, fee,
                             "Marketplace wanted tax rollback #" + listing.id(), listing.currencyIdentifier(),
                             "OZ - Marketplace"));
                 }
-                rollbackWantedMoney(listing, seller, payout, fee, feeRecipientDbId);
+                rollbackWantedMoney(listing, seller, payout, feePayment.routedToWorld() ? 0 : fee);
                 restoreWantedSeller(seller, listing, amount, itemState);
                 releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
                 return MarketplaceResult.failKey("TC_MARKET_RESULT_MAIL_DELIVERY_FAILED",
@@ -957,16 +966,44 @@ public class MarketplaceService {
         }
     }
 
-    private void rollbackWantedMoney(MarketplaceListing listing, Player seller, long payout, long fee,
-            int ignoredFeeRecipient) {
+    private void rollbackWantedMoney(MarketplaceListing listing, Player seller, long payout, long refundableFee) {
         if (payout > 0) {
             logWalletRollbackFailure("wanted seller payout rollback", listing.id(), wallet.withdraw(seller.getDbID(),
                     payout, "Marketplace wanted payout rollback #" + listing.id(), listing.currencyIdentifier(),
                     "OZ - Marketplace"));
         }
         logWalletRollbackFailure("wanted requester refund", listing.id(), wallet.deposit(listing.sellerDbId(),
-                payout + fee, "Marketplace wanted refund #" + listing.id(), listing.currencyIdentifier(),
+                payout + refundableFee, "Marketplace wanted refund #" + listing.id(), listing.currencyIdentifier(),
                 "OZ - Marketplace"));
+    }
+
+    private FeePayment chargeFee(int payerDbId, long fee, String reason, String currencyIdentifier,
+            int playerFeeRecipientDbId, String operationId) {
+        if (fee <= 0) return FeePayment.none();
+        if (playerFeeRecipientDbId <= 0 && wallet.hasSystemAccountApi()) {
+            String correlation = "marketplace:fee:" + operationId + ":" + UUID.randomUUID();
+            WalletBridge.WalletTransferCallResult transfer = wallet.transferPlayerToWorldIdempotent(payerDbId, fee,
+                    reason, currencyIdentifier, "OZ - Marketplace", correlation);
+            return new FeePayment(new WalletBridge.WalletCallResult(transfer.success(), transfer.message()),
+                    correlation, true);
+        }
+        return new FeePayment(wallet.withdraw(payerDbId, fee, reason, currencyIdentifier, "OZ - Marketplace"),
+                "", false);
+    }
+
+    private void refundRoutedFee(FeePayment payment, String reason) {
+        if (!payment.routedToWorld()) return;
+        WalletBridge.WalletTransferCallResult reversal = wallet.reverseAccountTransferIdempotent(
+                payment.correlationId(), payment.correlationId() + ":refund", reason, "OZ - Marketplace");
+        if (!reversal.success()) {
+            Marketplace.logger().error("Marketplace world-fee refund failed: " + reversal.message());
+        }
+    }
+
+    private record FeePayment(WalletBridge.WalletCallResult result, String correlationId, boolean routedToWorld) {
+        private static FeePayment none() {
+            return new FeePayment(new WalletBridge.WalletCallResult(true, "No fee."), "", false);
+        }
     }
 
     private void restoreWantedSeller(Player seller, MarketplaceListing listing, int amount,

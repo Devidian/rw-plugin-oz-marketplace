@@ -39,7 +39,11 @@ exposeMarketplaceOffers=true
 Marketplace fees are charged on top of the listing price. Positive percentage
 fees are rounded up to a whole unit; a zero-percent fee remains zero. Tax from
 player-owned markets is paid to that market's owner, while tax from admin zones
-leaves the economy. Sellers receive the traded price.
+and global/non-player markets is transferred into Wallet's current world
+account when the system-account API is available. Older Wallet versions retain
+the compatible sink behavior. Failed purchases reverse routed fees
+idempotently before refunding the remaining buyer charge. Sellers receive the
+traded price.
 `maxPlayerMarketplaces=0` disables player-created markets, a negative value is
 unlimited, and a positive value limits each player's owned markets.
 `marketZoneOnlyMode=true` requires players to stand in a market zone for both local and global trading. When it is `false`, global trading works outside market zones while local trading still requires a market zone.
