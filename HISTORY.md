@@ -1,5 +1,9 @@
 # History
 
+## [0.3.3] - 2026-08-06 | System-account audit language
+
+- fix: use the Wallet-selected audit language for Marketplace fees routed to the world account and their refunds
+
 ## [0.3.2] - 2026-08-05 | World-account fee settlement
 
 - feat: route global and other non-player-market fees into the Wallet world account with idempotent refunds
