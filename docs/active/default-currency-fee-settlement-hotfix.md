@@ -16,7 +16,7 @@ Restore Marketplace purchases for default-currency listings when fees are routed
 - [x] Resolve the implicit listing currency before the world-account fee transfer.
 - [x] Cover default and explicit currency resolution with a focused unit test.
 - [x] Run API, test, package, and portfolio validation.
-- [ ] Publish patch release `v0.3.4` and deploy it to production.
+- [x] Publish patch release `v0.3.4` and deploy it to production.
 
 ## Risk and rollback
 
