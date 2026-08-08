@@ -493,7 +493,7 @@ public class MarketplaceService {
             long sellerPayout = purchasePrice;
             int feeRecipientDbId = zone.filter(MarketZone::playerOwned).map(MarketZone::ownerDbId).orElse(0);
             FeePayment feePayment = chargeFee(buyer.getDbID(), fee, systemAuditText("TC_WALLET_MARKET_FEE", listing.id()),
-                    listing.currencyIdentifier(), feeRecipientDbId, "sale:" + listing.id());
+                    paymentCurrencyIdentifier(listing.currencyIdentifier()), feeRecipientDbId, "sale:" + listing.id());
             WalletBridge.WalletCallResult feeWithdraw = feePayment.result();
             if (!feeWithdraw.success()) {
                 WalletBridge.WalletCallResult purchaseRefund = wallet.deposit(buyer.getDbID(), purchasePrice,
@@ -780,6 +780,17 @@ public class MarketplaceService {
         String normalized = currencyIdentifier == null ? "" : currencyIdentifier.trim().toUpperCase(Locale.ROOT);
         String defaultCurrency = defaultCurrencyIdentifier();
         return normalized.equalsIgnoreCase(defaultCurrency) ? "" : normalized;
+    }
+
+    static String paymentCurrencyIdentifier(String listingCurrencyIdentifier, String defaultCurrencyIdentifier) {
+        if (listingCurrencyIdentifier != null && !listingCurrencyIdentifier.isBlank()) {
+            return listingCurrencyIdentifier.trim().toUpperCase(Locale.ROOT);
+        }
+        return defaultCurrencyIdentifier == null ? "" : defaultCurrencyIdentifier.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String paymentCurrencyIdentifier(String listingCurrencyIdentifier) {
+        return paymentCurrencyIdentifier(listingCurrencyIdentifier, defaultCurrencyIdentifier());
     }
 
     private void releaseListing(long listingId, String expectedStatus) {

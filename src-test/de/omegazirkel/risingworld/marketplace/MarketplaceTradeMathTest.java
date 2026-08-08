@@ -19,4 +19,11 @@ public class MarketplaceTradeMathTest {
         assertEquals(2L, MarketplaceService.ceilPercent(101L, 1));
         assertEquals(0L, MarketplaceService.ceilPercent(999L, 0));
     }
+
+    @Test
+    public void feePaymentResolvesTheDefaultListingCurrency() {
+        assertEquals("OZC", MarketplaceService.paymentCurrencyIdentifier("", "ozc"));
+        assertEquals("OZC", MarketplaceService.paymentCurrencyIdentifier(null, "OZC"));
+        assertEquals("GEM", MarketplaceService.paymentCurrencyIdentifier(" gem ", "OZC"));
+    }
 }

@@ -1,5 +1,9 @@
 # History
 
+## [0.3.4] - 2026-08-09 | Default-currency fee settlement
+
+- fix: resolve default-currency listings to Wallet's concrete currency identifier before transferring buyer fees to the world account
+
 ## [0.3.3] - 2026-08-06 | System-account audit language
 
 - fix: use the Wallet-selected audit language for Marketplace fees routed to the world account and their refunds
