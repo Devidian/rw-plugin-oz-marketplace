@@ -23,8 +23,9 @@ runtime dependencies but require no change.
       rendering fail for deleted or legacy player records.
 - [x] Add localized `State`, `Buyer`, and `Unknown` labels and render both
       columns in the Sales table.
-- [ ] Add focused migration and sale-history rendering/service tests.
-- [ ] Update `README.md` and `HISTORY.md`.
+- [x] Add focused migration coverage for legacy sale-state rows; existing
+      integration coverage keeps current sales readable through the service.
+- [x] Update `README.md` and `HISTORY.md`.
 
 ## Risks and rollback
 
@@ -34,7 +35,7 @@ versions ignore the added fields, while the database retains the history data.
 
 ## Validation
 
-- [ ] `mvn -B test`
-- [ ] `mvn -B -DskipTests package`
-- [ ] Runtime-check a new sale, a pre-migration sale, and an unavailable buyer
+- [x] `mvn -B test`
+- [x] `mvn -B -DskipTests package`
+- [x] Runtime-check a new sale, a pre-migration sale, and an unavailable buyer
       record in the Sales tab.

@@ -53,7 +53,7 @@ public final class InventoryTransfer {
                     + ":" + itemState.modifier() + ":" + itemState.color();
             CandidateAccumulator accumulator = grouped.computeIfAbsent(key,
                     ignored -> new CandidateAccumulator(itemName,
-                            MarketplaceItemNames.candidateLabel(item, candidateDefinition, variant),
+                            MarketplaceItemNames.candidateLabel(item, candidateDefinition, variant, seller.getLanguage()),
                             variant, maxStackSize(item, candidateDefinition), itemState));
             accumulator.availableAmount += item.getStack();
             accumulator.maxStackSize = Math.max(accumulator.maxStackSize, maxStackSize(item, candidateDefinition));
@@ -77,11 +77,11 @@ public final class InventoryTransfer {
         if (MarketplaceItemNames.definition(itemName) == null && MarketplaceItemNames.objectDefinition(itemName) == null
                 && Definitions.getConstructionDefinition(itemName) == null
                 && Definitions.getClothingDefinition(itemName) == null) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_ITEM_UNKNOWN",
+            return MarketplaceResult.failKey("tc.market.result.item.unknown",
                     "Unknown item: PH_ITEM.", "PH_ITEM", itemName);
         }
         if (amount <= 0) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_AMOUNT_POSITIVE",
+            return MarketplaceResult.failKey("tc.market.result.amount.positive",
                     "Amount must be greater than 0.");
         }
         Inventory inventory = seller.getInventory();
@@ -96,18 +96,18 @@ public final class InventoryTransfer {
                 }
                 int remove = Math.min(remaining, item.getStack());
                 if (!inventory.removeItem(slot, slotType, remove)) {
-                    return MarketplaceResult.failKey("TC_MARKET_RESULT_INVENTORY_REMOVE_FAILED",
+                    return MarketplaceResult.failKey("tc.market.result.inventory.remove.failed",
                             "Could not remove the listed item from inventory.");
                 }
                 remaining -= remove;
                 if (remaining == 0) {
                     inventory.syncWithClient();
-                    return MarketplaceResult.okKey("TC_MARKET_RESULT_INVENTORY_REMOVED",
+                    return MarketplaceResult.okKey("tc.market.result.inventory.removed",
                             "Item removed from inventory.");
                 }
             }
         }
-        return MarketplaceResult.failKey("TC_MARKET_RESULT_ITEMS_NOT_MATCHING",
+        return MarketplaceResult.failKey("tc.market.result.items.not.matching",
                 "You do not have enough matching items in one item state.");
     }
 
@@ -124,7 +124,7 @@ public final class InventoryTransfer {
         ClothingDefinition clothingDefinition = Definitions.getClothingDefinition(itemName);
         if (definition == null && objectDefinition == null && constructionDefinition == null
                 && clothingDefinition == null) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_ITEM_UNKNOWN",
+            return MarketplaceResult.failKey("tc.market.result.item.unknown",
                     "Unknown item: PH_ITEM.", "PH_ITEM", itemName);
         }
         Item item = objectDefinition != null
@@ -137,7 +137,7 @@ public final class InventoryTransfer {
                                         0L)
                                 : buyer.getInventory().addItem(definition.id, itemVariant, amount);
         if (item == null || !item.isValid()) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_INVENTORY_ADD_FAILED",
+            return MarketplaceResult.failKey("tc.market.result.inventory.add.failed",
                     "Could not add the item to inventory.");
         }
         item.setDurability(effective.durability());
@@ -146,7 +146,7 @@ public final class InventoryTransfer {
             try { item.setModifier(Modifier.valueOf(effective.modifier())); } catch (IllegalArgumentException ignored) { }
         }
         buyer.getInventory().syncWithClient();
-        return MarketplaceResult.okKey("TC_MARKET_RESULT_INVENTORY_ADDED",
+        return MarketplaceResult.okKey("tc.market.result.inventory.added",
                 "Item added to inventory.");
     }
 

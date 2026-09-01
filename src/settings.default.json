@@ -1,0 +1,22 @@
+{
+  "defaultGlobalFeePercent": 5,
+  "defaultLocalFeePercent": 5,
+  "exposeMarketplaceOffers": true,
+  "exposeMarketplaceZones": true,
+  "globalMarketplaceEnabled": true,
+  "localMarketplaceEnabled": true,
+  "marketCapacityBasePrice": 2500,
+  "marketCapacityPriceIncreaseFactor": 1.0,
+  "marketCrierBaseSlots": 10,
+  "marketCrierUpgradeBasePrice": 2500,
+  "marketCrierUpgradePriceIncreaseFactor": 1.0,
+  "marketCommand": "mp",
+  "marketZoneOnlyMode": false,
+  "onlyMarketCriers": true,
+  "maxListingsPerPlayer": 20,
+  "maxPlayerMarketplaces": 0,
+  "minimumGlobalFee": 0,
+  "minimumLocalFee": 0,
+  "sendPluginWelcome": false,
+  "showMarketplaceZoneIndicator": true
+}

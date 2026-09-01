@@ -66,8 +66,46 @@ public class MarketplaceDatabaseItemColorTest {
 
             assertEquals(0, migrated.itemState().color());
             try (var result = statement.executeQuery("PRAGMA user_version")) {
-                assertEquals(6, result.getInt(1));
+                assertEquals(8, result.getInt(1));
             }
+        }
+    }
+
+    @Test
+    public void legacySaleRowsMigrateToNeutralItemState() throws Exception {
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+                Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE marketplace_sales (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        listing_id INTEGER NOT NULL,
+                        seller_db_id INTEGER NOT NULL,
+                        buyer_db_id INTEGER NOT NULL,
+                        item_name TEXT NOT NULL,
+                        item_variant INTEGER NOT NULL,
+                        amount INTEGER NOT NULL,
+                        price BIGINT NOT NULL,
+                        currency_identifier TEXT NOT NULL,
+                        fee BIGINT NOT NULL,
+                        seller_payout BIGINT NOT NULL,
+                        market_zone_id TEXT,
+                        sold_at BIGINT NOT NULL
+                    )
+                    """);
+            statement.execute("""
+                    INSERT INTO marketplace_sales(
+                        listing_id, seller_db_id, buyer_db_id, item_name, item_variant, amount, price,
+                        currency_identifier, fee, seller_payout, market_zone_id, sold_at)
+                    VALUES (4, 11, 22, 'block', 7, 3, 25, 'OZC', 1, 24, 'global', 200)
+                    """);
+
+            MarketplaceDatabase database = new MarketplaceDatabase(connection);
+            MarketplaceSale migrated = database.listSalesForSeller(11, 10).get(0);
+
+            assertEquals(0, migrated.itemState().durability());
+            assertEquals(0, migrated.itemState().status());
+            assertEquals("", migrated.itemState().modifier());
+            assertEquals(0, migrated.itemState().color());
         }
     }
 }

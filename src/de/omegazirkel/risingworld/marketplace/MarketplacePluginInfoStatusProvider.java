@@ -24,7 +24,7 @@ public class MarketplacePluginInfoStatusProvider implements PluginInfoStatusProv
     @Override
     public String getInfo(Player player) {
         PluginSettings settings = PluginSettings.getInstance();
-        return t().get("TC_MARKET_INFO_PANEL_INFO", player)
+        return t().get("tc.market.info.panel.info", player)
                 .replace("PH_PLUGIN_NAME", pluginName)
                 .replace("PH_VERSION", version)
                 .replace("PH_PLUGIN_CMD", settings.marketCommand);
@@ -34,7 +34,7 @@ public class MarketplacePluginInfoStatusProvider implements PluginInfoStatusProv
     public String getStatus(Player player) {
         PluginSettings settings = PluginSettings.getInstance();
         MarketZone zone = plugin.safeCurrentMarketZone(player).orElse(null);
-        return t().get("TC_MARKET_INFO_PANEL_STATUS", player)
+        return t().get("tc.market.info.panel.status", player)
                 .replace("PH_WALLET_STATUS", available(plugin.walletAvailable()))
                 .replace("PH_LOCAL_ENABLED", String.valueOf(settings.localMarketplaceEnabled))
                 .replace("PH_GLOBAL_ENABLED", String.valueOf(settings.globalMarketplaceEnabled))

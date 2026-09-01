@@ -1,0 +1,777 @@
+{
+  "tc": {
+    "cmd": {
+      "help": "Hilfe:\nVerfügbare Chat-Kommandos:\n\u003ccolor\u003dred\u003e/PH_PLUGIN_CMD status\u003c/color\u003e zeigt plugin infos an\n\u003ccolor\u003dred\u003e/PH_PLUGIN_CMD open\u003c/color\u003e öffnet das Pluginmenü\n\u003ccolor\u003dred\u003e/PH_PLUGIN_CMD help\u003c/color\u003e zeigt diese Hilfe an\n\n\u003ccolor\u003dyellow\u003eTipp:\u003c/color\u003e Binde den Befehl \u003ccolor\u003dred\u003e/PH_PLUGIN_CMD open\u003c/color\u003e an eine Taste der Maus oder Tastatur.",
+      "status": "🔎 Plugin Status\n➡️ Plugin version: PH_VERSION\n➡️ Installierte Sprachen: PH_LANG_AVAILABLE\n➡️ Deine Sprache: PH_LANGUAGE\n➡️ Verwendete Sprache: PH_USEDLANG"
+    },
+    "data": {
+      "desc": "Hier kannst du gespeicherte Spielerdaten für PH_PLUGIN_NAME ansehen.",
+      "empty": "Für dieses Plugin sind noch keine gespeicherten Spielerdaten verfügbar.",
+      "title": "Gespeicherte Daten für PH_PLUGIN_NAME"
+    },
+    "err": {
+      "cmd": {
+        "unknown": "Unbekanntes Kommando tippe \u003ccolor\u003dred\u003e/PH_PLUGIN_CMD help\u003c/color\u003e für Hilfe."
+      }
+    },
+    "label": {
+      "marketplace": {
+        "shortcut": "Marketplace-Shortcut in /ozt und Inventar anzeigen"
+      }
+    },
+    "market": {
+      "chat": {
+        "admin": {
+          "only": "Nur Administratoren können Marktzonen verwalten."
+        },
+        "buy": {
+          "hint": "Verwende /PH_COMMAND buy \u003cAngebots-ID\u003e."
+        },
+        "current": {
+          "zone": {
+            "$value": "PH_NAME (PH_ZONE), Gebühr PH_FEE%, Globalmodus PH_GLOBAL",
+            "failed": "Die aktuelle Marktzone konnte nicht gelesen werden."
+          }
+        },
+        "global": {
+          "allow": "erlaubt",
+          "default": "Standard",
+          "deny": "gesperrt"
+        },
+        "latest": {
+          "sales": "Neueste Verkäufe:"
+        },
+        "listings": {
+          "$value": "Marketplace-Angebote:",
+          "failed": "Die Marketplace-Angebote konnten nicht geladen werden."
+        },
+        "listing": {
+          "row": "#PH_LISTING PH_AMOUNT x PH_ITEM von PH_SELLER für PH_PRICE PH_CURRENCY, PH_MODE"
+        },
+        "no": {
+          "current": {
+            "zone": "An dieser Position befindet sich keine Marktzone."
+          },
+          "listings": "Hier sind keine Marketplace-Angebote sichtbar.",
+          "sales": "Noch keine Verkäufe vorhanden.",
+          "zones": "Es sind keine Marktzonen definiert."
+        },
+        "open": {
+          "hint": "Verwende /PH_COMMAND, um das Marketplace-Menü zu öffnen."
+        },
+        "sales": {
+          "failed": "Die Verkäufe konnten nicht geladen werden."
+        },
+        "sale": {
+          "row": "#PH_SALE Angebot PH_LISTING: PH_AMOUNT x PH_ITEM, Auszahlung PH_PAYOUT PH_CURRENCY, Gebühr PH_FEE"
+        },
+        "usage": {
+          "$value": "Verwendung: /PH_COMMAND | list | buy \u003cID\u003e [Menge] | wanted \u003cItem\u003e \u003cVariante\u003e \u003cMenge\u003e \u003cPreis\u003e \u003clocal|global\u003e [Währung] | cancel \u003cID\u003e | sales | crier create \u003cpersonal\u003e \u003cmale|female\u003e | crier convert \u003cpersonal|global\u003e \u003cmale|female\u003e confirm | crier configure \u003cshare|global\u003e \u003con|off\u003e | crier account \u003cdeposit|withdraw\u003e \u003cBetrag\u003e [Währung]",
+          "admin": "Admin: /PH_COMMAND zone set \u003cID\u003e \u003cRadiusChunks\u003e \u003cGebührProzent\u003e \u003cGlobalmodus\u003e [Name] | zone list | zone delete [aktuelle-ID] | crier create \u003cpersonal|global\u003e \u003cmale|female\u003e | crier convert \u003cpersonal|global\u003e \u003cmale|female\u003e confirm"
+        },
+        "welcome": "PH_PLUGIN PH_VERSION aktiviert. Verwende /PH_COMMAND.",
+        "zones": {
+          "$value": "Marktzonen:",
+          "failed": "Die Marktzonen konnten nicht geladen werden."
+        },
+        "zone": {
+          "row": "PH_ZONE PH_NAME, Gebühr PH_FEE%, Globalmodus PH_GLOBAL, Area PH_AREA"
+        }
+      },
+      "crier": {
+        "account": {
+          "failed": "Die Übertragung auf das Marktschreier-Konto konnte nicht abgeschlossen werden.",
+          "invalid": "Öffne deinen persönlichen Marktschreier und gib einen positiven Betrag an.",
+          "success": "Übertragung auf das Marktschreier-Konto abgeschlossen."
+        },
+        "configure": {
+          "denied": "Du darfst diese Marktschreier-Einstellung nicht ändern.",
+          "failed": "Die Marktschreier-Einstellung konnte nicht gespeichert werden.",
+          "interact": "Öffne diesen Marktschreier, bevor du seine Einstellungen änderst.",
+          "invalid": "Verwende für diese Marktschreier-Einstellung on oder off.",
+          "success": "Marktschreier-Einstellung gespeichert."
+        },
+        "convert": {
+          "confirm": "Um die Marktzone hier zu ersetzen: /PH_COMMAND crier convert \u003cpersonal|global\u003e \u003cmale|female\u003e confirm",
+          "failed": "Die Marktzone konnte nicht umgewandelt werden. Der ursprüngliche Markt bleibt erhalten.",
+          "ownership": "Der gewählte Marktschreier-Typ passt nicht zum Eigentum dieses Markts.",
+          "success": "Marktzone in PH_NAME umgewandelt; PH_COUNT aktive Einträge verschoben.",
+          "ui": {
+            "text": "Die aktuelle Marktzone durch diesen Marktschreier ersetzen? Aktive Einträge bleiben erhalten und werden zum neuen Endpunkt verschoben.\n\nPH_KIND",
+            "title": "Marktzone umwandeln"
+          },
+          "zone": {
+            "required": "Stelle dich in eine Flächenmarktzone, die noch nicht umgewandelt wurde."
+          }
+        },
+        "create": {
+          "confirm": {
+            "text": "Diesen Marktschreier hier erstellen? Die aktuelle Position wird sein Marktplatz-Endpunkt.\n\nPH_KIND",
+            "title": "Marktschreier erstellen"
+          },
+          "denied": "Du kannst diesen Marktschreier nicht erstellen.",
+          "failed": "Der Marktschreier konnte nicht erstellt werden.",
+          "limit": "Dein gemeinsames Limit für Marktzonen und Marktschreier ist erreicht.",
+          "success": "Marktschreier PH_NAME wurde erstellt.",
+          "wallet": {
+            "failed": "Das Konto des Marktschreiers konnte nicht erstellt werden."
+          },
+          "zone": {
+            "exists": "An diesem Ort gibt es bereits eine Marktzone. Wandle sie um, statt einen zweiten Endpunkt zu erstellen."
+          }
+        },
+        "delete": {
+          "active": "Dieser Marktschreier hat noch PH_COUNT aktive Angebote.",
+          "failed": "Der Marktschreier konnte nicht aufgelöst werden.",
+          "success": "Marktschreier wurde aufgelöst."
+        },
+        "edit": {
+          "appearance": {
+            "failed": "Erscheinungsbild des Marktschreiers konnte nicht aktualisiert werden.",
+            "success": "Erscheinungsbild des Marktschreiers aktualisiert."
+          },
+          "denied": "Du darfst diesen Marktschreier nicht bearbeiten.",
+          "missing": "Dieser Marktschreier ist nicht mehr verfügbar.",
+          "position": {
+            "success": "Position des Marktschreiers aktualisiert."
+          }
+        },
+        "menu": {
+          "global": {
+            "female": "Globale Marktschreierin erstellen",
+            "male": "Globalen Marktschreier erstellen"
+          },
+          "personal": {
+            "female": "Persönliche Marktschreierin erstellen",
+            "male": "Persönlichen Marktschreier erstellen"
+          }
+        },
+        "name": {
+          "female": "Marktschreierin",
+          "male": "Marktschreier"
+        },
+        "upgrade": {
+          "confirm": "Um diesen persönlichen Marktschreier aufzuwerten: /PH_COMMAND crier upgrade confirm",
+          "failed": "Die Aufwertung des Marktschreiers konnte nicht abgeschlossen werden.",
+          "success": "Marktschreier auf Stufe PH_LEVEL aufgewertet."
+        }
+      },
+      "info": {
+        "panel": {
+          "info": "\u003cb\u003ePH_PLUGIN_NAME\u003c/b\u003e\nVersion: PH_VERSION\nBefehl: /PH_PLUGIN_CMD\n\nMarketplace verwaltet Spielerhandel, Marktzonen, Wallet-Käufe und Verkaufshistorie.",
+          "status": "\u003cb\u003eMarketplace Status\u003c/b\u003e\nWallet: PH_WALLET_STATUS\nLokal aktiv: PH_LOCAL_ENABLED\nGlobal aktiv: PH_GLOBAL_ENABLED\nNur Marktzonen: PH_ZONE_ONLY\nAktuelle Zone: PH_CURRENT_ZONE\nZonen-Globalmodus: PH_ZONE_GLOBAL_MODE\nStandardgebühr lokal: PH_LOCAL_FEE%\nStandardgebühr global: PH_GLOBAL_FEE%\nMax. Listings pro Spieler: PH_MAX_LISTINGS\nSpielermarkt-Limit: PH_MAX_PLAYER_MARKETS"
+        }
+      },
+      "result": {
+        "admin": {
+          "review": "Die Transaktion muss von einem Administrator geprüft werden."
+        },
+        "amount": {
+          "positive": "Die Menge muss größer als 0 sein.",
+          "price": {
+            "invalid": "Menge und Gebot müssen größer als 0 sein."
+          },
+          "range": "Die Menge muss zwischen 1 und PH_AVAILABLE liegen."
+        },
+        "area": {
+          "already": {
+            "market": "Diese Area ist bereits mit einem Markt verknüpft."
+          },
+          "permission": {
+            "required": "Du benötigst in dieser Area die Berechtigung addplayer, um einen Markt zu erstellen."
+          },
+          "required": "Stelle dich in eine bestehende Area, um einen Markt zu erstellen."
+        },
+        "crier": {
+          "only": "Neue Märkte sind nur als Marktschreier verfügbar.",
+          "funds": {
+            "insufficient": "Dieser Marktschreier hat nicht genug Guthaben für dieses Gesuch."
+          },
+          "owner": {
+            "only": "Nur der Besitzer darf bei diesem Marktschreier Angebote oder Gesuche erstellen."
+          },
+          "slot": {
+            "limit": "Dieser Marktschreier hat keine freien Angebotsplätze mehr."
+          }
+        },
+        "currency": {
+          "accepted": "Währung akzeptiert.",
+          "unknown": "Unbekannte Wallet-Währung: PH_CURRENCY."
+        },
+        "database": {
+          "unavailable": "Die Marketplace-Datenbank ist nicht verfügbar."
+        },
+        "delete": {
+          "current": {
+            "only": "Du kannst nur die Marktzone löschen, in der du dich gerade befindest."
+          }
+        },
+        "global": {
+          "disabled": "Globale Marketplace-Angebote sind deaktiviert.",
+          "not": {
+            "allowed": "Diese Marktzone erlaubt keinen globalen Handel."
+          },
+          "trade": {
+            "zone": {
+              "required": "Stelle dich für globalen Handel in eine Marktzone."
+            }
+          },
+          "zone": {
+            "required": "Stelle dich in eine Marktzone, um ein globales Angebot zu erstellen."
+          }
+        },
+        "inventory": {
+          "added": "Item dem Inventar hinzugefügt.",
+          "add": {
+            "failed": "Das Item konnte nicht dem Inventar hinzugefügt werden."
+          },
+          "removed": "Item aus dem Inventar entfernt.",
+          "remove": {
+            "failed": "Das gelistete Item konnte nicht aus dem Inventar entfernt werden."
+          }
+        },
+        "items": {
+          "not": {
+            "matching": "Du hast nicht genügend passende Items mit demselben Zustand."
+          }
+        },
+        "item": {
+          "unknown": "Unbekanntes Item: PH_ITEM."
+        },
+        "listing": {
+          "cancelled": "Angebot #PH_LISTING zurückgezogen.",
+          "cancel": {
+            "failed": "Das Angebot konnte nicht zurückgezogen werden."
+          },
+          "created": "Angebot #PH_LISTING erstellt.",
+          "create": {
+            "failed": "Das Angebot konnte nicht erstellt werden."
+          },
+          "limit": "Du hast das Limit aktiver Angebote erreicht.",
+          "not": {
+            "found": "Angebot nicht gefunden."
+          },
+          "unavailable": "Das Angebot ist nicht mehr verfügbar."
+        },
+        "local": {
+          "disabled": "Lokale Marketplace-Angebote sind deaktiviert.",
+          "trade": {
+            "zone": {
+              "required": "Stelle dich für diesen lokalen Handel in die zugehörige Marktzone."
+            }
+          },
+          "zone": {
+            "required": "Stelle dich in eine Marktzone, um ein lokales Angebot zu erstellen."
+          }
+        },
+        "location": {
+          "accepted": "Marktposition akzeptiert."
+        },
+        "mailbox": {
+          "full": "Im OZ-Mail-Postfach des Suchenden ist kein Platz."
+        },
+        "mail": {
+          "delivery": {
+            "failed": "OZ Mail konnte die Items aus dem Gesuch nicht zustellen (PH_CODE)."
+          }
+        },
+        "manage": {
+          "own": {
+            "only": "Du kannst nur deinen eigenen Markt verwalten."
+          }
+        },
+        "not": {
+          "in": {
+            "market": "Du befindest dich in keiner Marktzone."
+          }
+        },
+        "only": {
+          "owner": {
+            "cancel": "Nur der Besitzer kann dieses Angebot zurückziehen."
+          }
+        },
+        "own": {
+          "listing": "Du kannst nicht mit deinem eigenen Angebot handeln."
+        },
+        "player": {
+          "id": {
+            "missing": "Für den Spieler ist keine Datenbank-ID verfügbar."
+          },
+          "markets": {
+            "disabled": "Spielermärkte sind deaktiviert."
+          },
+          "market": {
+            "created": "Spielermarkt erstellt: PH_ZONE.",
+            "create": {
+              "failed": "Der Spielermarkt konnte nicht erstellt werden."
+            },
+            "global": {
+              "locked": "Privatmärkte können den Globalmodus nicht ändern."
+            },
+            "limit": "Du hast das Limit für Spielermärkte erreicht."
+          }
+        },
+        "purchased": "PH_AMOUNT Item(s) aus Angebot #PH_LISTING gekauft.",
+        "purchase": {
+          "failed": "Der Kauf konnte nicht abgeschlossen werden."
+        },
+        "requester": {
+          "item": {
+            "required": "Suchender und Item sind erforderlich."
+          }
+        },
+        "sale": {
+          "not": {
+            "found": "Verkauf nicht gefunden."
+          },
+          "owner": {
+            "only": "Nur der Verkäufer kann diesen Verkauf entfernen."
+          },
+          "removed": "Der Verkauf wurde aus deinem Verlauf entfernt.",
+          "remove": {
+            "failed": "Der Verkauf konnte nicht entfernt werden."
+          }
+        },
+        "wallet": {
+          "currencies": {
+            "failed": "Die Wallet-Währungen konnten nicht geladen werden."
+          },
+          "currency": {
+            "missing": "Die Wallet-Standardwährung ist nicht verfügbar."
+          },
+          "failed": "Die Wallet-Transaktion ist fehlgeschlagen.",
+          "required": "Für diese Marketplace-Aktion wird OZ Wallet benötigt."
+        },
+        "wanted": {
+          "created": "Gesuch #PH_LISTING erstellt.",
+          "create": {
+            "failed": "Das Gesuch konnte nicht erstellt werden."
+          },
+          "sold": "PH_AMOUNT Item(s) an Gesuch #PH_LISTING verkauft.",
+          "withdraw": {
+            "locked": "Ein Gesuch kann nach der ersten Teilerfüllung nicht mehr zurückgezogen werden."
+          }
+        },
+        "wrong": {
+          "market": {
+            "zone": "Dieses lokale Angebot gehört zu einer anderen Marktzone."
+          }
+        },
+        "zone": {
+          "deleted": "Marktzone gelöscht: PH_ZONE.",
+          "delete": {
+            "failed": "Die Marktzone konnte nicht gelöscht werden."
+          },
+          "fee": {
+            "failed": "Die Gebühr der Marktzone konnte nicht geändert werden."
+          },
+          "global": {
+            "failed": "Der Globalmodus der Marktzone konnte nicht geändert werden."
+          },
+          "id": {
+            "required": "Eine Zonen-ID ist erforderlich."
+          },
+          "not": {
+            "empty": "Ein Markt kann erst aufgelöst werden, wenn keine Angebote mehr vorhanden sind.",
+            "found": "Marktzone nicht gefunden: PH_ZONE."
+          },
+          "radius": {
+            "invalid": "Der Zonenradius muss mindestens 0 Chunks betragen."
+          },
+          "saved": "Marktzone gespeichert: PH_ZONE.",
+          "save": {
+            "failed": "Die Marktzone konnte nicht gespeichert werden."
+          },
+          "sync": {
+            "failed": "Der Name der Marktzone konnte nicht synchronisiert werden."
+          }
+        }
+      },
+      "seller": {
+        "sale": {
+          "notification": "Du hast PH_AMOUNT PH_ITEM für PH_PRICE PH_CURRENCY an PH_BUYER verkauft!"
+        }
+      },
+      "shop": {
+        "capacity": {
+          "desc": "Erhöht die aktive Angebotskapazität je Kauf um das Grundlimit.",
+          "purchased": "Deine Angebotskapazität beträgt jetzt PH_FACTOR× des Grundlimits.",
+          "title": "Marktplatzkapazität"
+        }
+      },
+      "ui": {
+        "buy": {
+          "$value": "Kaufen",
+          "all": "Alles kaufen",
+          "amount": "Menge kaufen",
+          "confirm": {
+            "text": "Item: PH_ITEM\nMenge: PH_AMOUNT\nPreis: PH_PRICE PH_CURRENCY\nGebühr: PH_FEE PH_CURRENCY (PH_FEE_PERCENT%)\nGesamt: PH_TOTAL PH_CURRENCY\nModus: PH_MODE\nVerkäufer: PH_SELLER",
+            "title": "Kauf bestätigen"
+          }
+        },
+        "cancel": {
+          "$value": "Abbrechen",
+          "listing": {
+            "$value": "Zurückziehen",
+            "confirm": {
+              "text": "Dieses Angebot zurückziehen und das Item in dein Inventar zurückgeben?\nItem: PH_ITEM\nMenge: PH_AMOUNT\nPreis: PH_PRICE PH_CURRENCY",
+              "title": "Angebot zurückziehen"
+            }
+          }
+        },
+        "card": {
+          "amount": "Menge: PH_AMOUNT",
+          "seller": "Verkäufer: PH_SELLER",
+          "variant": "Variante: PH_VARIANT"
+        },
+        "col": {
+          "action": "Aktion",
+          "amount": "Menge",
+          "available": "Verfügbar",
+          "buyer": "Käufer",
+          "condition": "Zustand",
+          "fee": "Gebühr",
+          "item": "Item",
+          "payout": "Auszahlung",
+          "price": "Preis",
+          "seller": "Verkäufer",
+          "variant": "Variante",
+          "zone": "Zone"
+        },
+        "condition": {
+          "$value": "Zustand: PH_PERCENT%",
+          "not": {
+            "applicable": "Zustand: nicht zutreffend"
+          }
+        },
+        "confirm": {
+          "$value": "Bestätigen",
+          "text": "Item: PH_ITEM\nMenge: PH_AMOUNT\nPreis: PH_PRICE PH_CURRENCY\nModus: PH_MODE\nZone: PH_ZONE",
+          "title": "Angebot bestätigen"
+        },
+        "create": {
+          "$value": "Erstellen",
+          "global": "Global erstellen",
+          "local": "Lokal erstellen"
+        },
+        "default": {
+          "balance": "Guthaben: PH_BALANCE PH_CURRENCY"
+        },
+        "durability": {
+          "warning": "Warnung: Dieses Item ist beschädigt (PH_PERCENT% Zustand)."
+        },
+        "empty": {
+          "filter": "Keine Angebote entsprechen deiner Suche.",
+          "global": "Hier sind keine globalen Angebote sichtbar.",
+          "inventory": "Keine verkaufbaren Inventar-Items gefunden.",
+          "local": {
+            "$value": "In dieser Marktzone sind keine lokalen Angebote sichtbar.",
+            "no": {
+              "zone": "Stelle dich in eine Marktzone, um lokale Angebote zu sehen."
+            }
+          },
+          "sales": "In deinem Verlauf sind keine abgeschlossenen Verkäufe sichtbar.",
+          "wanted": "Hier sind keine Gesuche sichtbar."
+        },
+        "err": {
+          "amount": {
+            "available": "Die Menge darf PH_AVAILABLE nicht überschreiten.",
+            "positive": "Die Menge muss größer als 0 sein.",
+            "range": "Gib eine Menge zwischen 1 und PH_AVAILABLE ein.",
+            "title": "Ungültige Menge"
+          },
+          "market": {
+            "zone": "Du musst in einer Marktzone stehen, um ein Angebot zu erstellen."
+          },
+          "price": {
+            "positive": "Der Preis muss größer als 0 sein."
+          },
+          "select": {
+            "item": "Wähle zuerst ein Item aus."
+          },
+          "wanted": {
+            "values": "Menge und Gebot müssen größer als 0 sein."
+          },
+          "zone": {
+            "read": "Die aktuelle Marktzone konnte nicht gelesen werden."
+          }
+        },
+        "field": {
+          "amount": "Menge",
+          "currency": "Währung",
+          "price": "Preis"
+        },
+        "form": {
+          "title": "Angebot"
+        },
+        "layout": {
+          "cards": "Karten",
+          "table": "Tabelle"
+        },
+        "legend": "",
+        "mailbox": {
+          "full": {
+            "text": "Im OZ-Mail-Postfach des Suchenden ist kein Platz. Es wurden keine Items entfernt.",
+            "title": "Postfach voll"
+          }
+        },
+        "management": {
+          "create": {
+            "$value": "Marktzone erstellen",
+            "private": "Privatmarkt erstellen",
+            "system": "Systemmarkt erstellen"
+          },
+          "crier": {
+            "appearance": "Aussehen übernehmen",
+            "delete": {
+              "$value": "Marktschreier auflösen",
+              "confirm": {
+                "text": "Die Marktverknüpfung wird erst entfernt, wenn alle Angebote abgeschlossen oder zurückgezogen wurden. Soll der NPC bestehen bleiben oder ebenfalls gelöscht werden?",
+                "title": "Marktschreier auflösen?"
+              },
+              "npc": "NPC ebenfalls löschen",
+              "unlink": "Nur Verknüpfung lösen"
+            },
+            "position": "Hierher bewegen",
+            "transform": "Position verschieben",
+            "move": {
+              "step": "Schritt (m)"
+            },
+            "rotation": {
+              "$value": "Drehen",
+              "step": "Schritt (Grad)"
+            },
+            "sharing": {
+              "disable": "Fremde Angebote und Gesuche sperren",
+              "enable": "Fremde Angebote und Gesuche erlauben",
+              "label": "Fremde Angebote und Gesuche",
+              "off": "AUS",
+              "on": "AN"
+            }
+          },
+          "delete": {
+            "$value": "Marktzone auflösen",
+            "confirm": {
+              "text": "Den Markt der aktuellen Area auflösen? Das ist erst möglich, wenn alle Angebote abgeschlossen oder zurückgezogen wurden.",
+              "title": "Marktzone löschen"
+            }
+          },
+          "fee": {
+            "field": "Gebühr %"
+          },
+          "next": {
+            "global": "Globalmodus wechseln"
+          },
+          "set": {
+            "fee": "Neue Gebühr setzen"
+          },
+          "sync": {
+            "name": "Name synchronisieren"
+          },
+          "title": "Aktueller Markt"
+        },
+        "mode": {
+          "global": "Global",
+          "local": "Lokal"
+        },
+        "no": {
+          "selection": "Wähle eine Inventar-Zeile aus."
+        },
+        "own": {
+          "listing": "Eigenes"
+        },
+        "refresh": "Aktualisieren",
+        "remove": {
+          "$value": "Entfernen",
+          "confirm": {
+            "text": "Diesen abgeschlossenen Verkauf aus deinem Verlauf ausblenden?\nItem: PH_ITEM\nMenge: PH_AMOUNT\nAuszahlung: PH_PAYOUT PH_CURRENCY",
+            "title": "Verkauf entfernen"
+          }
+        },
+        "search": {
+          "$value": "Suche",
+          "apply": "Suchen",
+          "clear": "Zurücksetzen"
+        },
+        "select": "Auswählen",
+        "sell": {
+          "all": "Alles verkaufen",
+          "amount": "Menge verkaufen",
+          "disabled": "Verkaufen ist nicht verfügbar, weil lokale und globale Marketplace-Angebote deaktiviert sind.",
+          "no": {
+            "mode": "An deiner aktuellen Position ist kein Angebotsmodus verfügbar."
+          },
+          "to": {
+            "request": "Verkaufen"
+          },
+          "zone": {
+            "required": "Stelle dich in eine Marktzone, um im Nur-Zonen-Modus zu verkaufen."
+          }
+        },
+        "status": {
+          "global": {
+            "disabled": "Globaler Marktplatz deaktiviert.",
+            "enabled": "Globaler Marktplatz aktiviert."
+          },
+          "zone": {
+            "only": "Marktplatz ist nur in dafür vorgesehenen Bereichen verfügbar."
+          }
+        },
+        "subtitle": "Erstelle ein Angebot aus deinem Inventar nach ausdrücklicher Bestätigung.",
+        "tab": {
+          "global": "Global",
+          "local": "Lokal",
+          "management": "Marktverwaltung",
+          "sales": "Verkäufe",
+          "sell": "Verkaufen",
+          "wanted": "Gesuche"
+        },
+        "title": "Marktplatz",
+        "unit": {
+          "price": {
+            "$value": "Berechneter Stückpreis: PH_UNIT PH_CURRENCY (PH_TOTAL PH_CURRENCY für PH_AMOUNT)",
+            "invalid": "Gib eine Menge zwischen 1 und PH_AVAILABLE ein, um den Stückpreis zu berechnen."
+          }
+        },
+        "unknown": "Unbekannt",
+        "wallet": {
+          "balances": "Wallet-Guthaben"
+        },
+        "wanted": {
+          "create": {
+            "$value": "Gesuch erstellen",
+            "text": "Gesuchtes Item: PH_ITEM\nWähle Menge, Gesamtgebot, Währung und Marktmodus.",
+            "title": "Gesuch erstellen"
+          },
+          "fulfill": {
+            "text": "Item: PH_ITEM\nRestmenge: PH_AMOUNT\nRestgebot: PH_PRICE PH_CURRENCY\nDie Steuer bezahlt der Suchende beim vollständigen Abschluss.\nSuchender: PH_SELLER",
+            "title": "An Gesuch verkaufen"
+          }
+        },
+        "withdraw": {
+          "listing": "Angebot zurückziehen"
+        },
+        "zone": {
+          "global": "Globaler Marktplatz"
+        }
+      },
+      "wanted": {
+        "mail": {
+          "body": "PH_SELLER hat PH_AMOUNT x PH_ITEM aus deinem Gesuch erfüllt.",
+          "subject": "Marketplace-Gesuch #PH_LISTING"
+        }
+      }
+    },
+    "menu": {
+      "marketplace": {
+        "open": "Marktplatz öffnen"
+      }
+    },
+    "msg": {
+      "plugin": {
+        "welcome": "ℹ️ \u003ccolor\u003d#F00000\u003ePH_PLUGIN_NAME\u003c/color\u003e | \u003ccolor\u003d#F0F000\u003evPH_PLUGIN_VERSION\u003c/color\u003e | \u003ccolor\u003d#C0C0C0\u003e/PH_PLUGIN_CMD\u003c/color\u003e | geladen!"
+      }
+    },
+    "settings": {
+      "desc": "Hier kannst du spielerbezogene Einstellungen für PH_PLUGIN_NAME anpassen.",
+      "empty": "Für PH_PLUGIN_NAME sind noch keine Spieler-Einstellungen verfügbar.",
+      "title": "Plugin Einstellungen für PH_PLUGIN_NAME"
+    },
+    "setting": {
+      "defaultglobalfeepercent": {
+        "desc": "Gebühr, die Käufern bei globalen Angeboten berechnet wird.",
+        "label": "Globale Standardgebühr in Prozent"
+      },
+      "defaultlocalfeepercent": {
+        "desc": "Gebühr, die Käufern bei lokalen Angeboten berechnet wird, wenn keine Zonen-Gebühr greift.",
+        "label": "Lokale Standardgebühr in Prozent"
+      },
+      "exposemarketplaceoffers": {
+        "desc": "Erlaubt Bridge-Layern Lesezugriff auf Marktplatz-Angebote.",
+        "label": "Marktplatz-Angebote bereitstellen"
+      },
+      "exposemarketplacezones": {
+        "desc": "Erlaubt Bridge-Layern Lesezugriff auf Marktplatz-Zonen.",
+        "label": "Marktplatz-Zonen bereitstellen"
+      },
+      "fees": {
+        "desc": "Standard-Käufergebühren und Angebotslimits.",
+        "label": "Gebühren und Limits"
+      },
+      "general": {
+        "desc": "Protokollierung, Reload, Befehl und Willkommensverhalten.",
+        "label": "Allgemein"
+      },
+      "globalmarketplaceenabled": {
+        "desc": "Aktiviert globale Angebote in Zonen, die globalen Handel erlauben.",
+        "label": "Globaler Marktplatz"
+      },
+      "localmarketplaceenabled": {
+        "desc": "Aktiviert lokale Angebote, die an eine Marktzone gebunden sind.",
+        "label": "Lokaler Marktplatz"
+      },
+      "loglevel": {
+        "desc": "Steuert die Marketplace-Logging-Ausgabe.",
+        "label": "Log-Level"
+      },
+      "marketcommand": {
+        "desc": "Chat-Befehl für Marketplace-Aktionen.",
+        "label": "Market-Befehl"
+      },
+      "marketzoneonlymode": {
+        "desc": "Erfordert eine Marktzone, um Angebote zu sehen.",
+        "label": "Nur-Zonen-Modus"
+      },
+      "onlymarketcriers": {
+        "desc": "Spieler erstellen nur Marktschreier; Administratoren können weiterhin Marktzonen anlegen. Bestehende Zonen bleiben unverändert.",
+        "label": "Nur Marktschreier"
+      },
+      "maxlistingsperplayer": {
+        "desc": "Maximale aktive Angebote, die ein Spieler gleichzeitig besitzen darf.",
+        "label": "Max. Angebote pro Spieler"
+      },
+      "maxplayermarketplaces": {
+        "desc": "0 deaktiviert Spielermärkte, negative Werte sind unbegrenzt, positive Werte begrenzen Märkte pro Spieler.",
+        "label": "Max. Spielermärkte"
+      },
+      "minimumglobalfee": {
+        "desc": "Minimale ganzzahlige Gebühr für globale Angebote.",
+        "label": "Globale Mindestgebühr"
+      },
+      "minimumlocalfee": {
+        "desc": "Minimale ganzzahlige Gebühr für lokale Angebote.",
+        "label": "Lokale Mindestgebühr"
+      },
+      "reloadonchange": {
+        "desc": "Lädt Marketplace-Einstellungen neu, wenn sich die Datei ändert.",
+        "label": "Bei Änderung neu laden"
+      },
+      "sendpluginwelcome": {
+        "desc": "Zeigt beim Betreten eine kurze Marketplace-Nachricht.",
+        "label": "Willkommensnachricht"
+      },
+      "showmarketplacezoneindicator": {
+        "desc": "Zeigt das Marketplace-Icon in der gemeinsamen Tools-Indikatorleiste, solange Spieler in einer aktiven Marktzone sind.",
+        "label": "Marktzonen-Indikator"
+      },
+      "trademodes": {
+        "desc": "Lokales, globales und zonengebundenes Handelsverhalten.",
+        "label": "Handelsmodi"
+      }
+    },
+    "wallet": {
+      "market": {
+        "fee": {
+          "$value": "Marktplatzgebühr #PH_LISTING",
+          "refund": "Erstattung der Marktplatzgebühr #PH_LISTING"
+        },
+        "wanted": {
+          "fee": {
+            "$value": "Gebühr für Kaufgesuch #PH_LISTING",
+            "refund": "Erstattung der Gebühr für Kaufgesuch #PH_LISTING"
+          }
+        }
+      }
+    }
+  }
+}

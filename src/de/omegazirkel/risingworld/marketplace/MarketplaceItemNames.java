@@ -47,7 +47,13 @@ public final class MarketplaceItemNames {
         return labelVariant == 0 ? derivedBaseName(baseName) : derivedBaseName(baseName) + "-" + labelVariant;
     }
 
-    public static String candidateLabel(Item item, ItemDefinition definition, int variant) {
+    public static String candidateLabel(Item item, ItemDefinition definition, int variant, String language) {
+        if (item != null) {
+            String localized = item.getLocalizedName(language);
+            if (localized != null && !localized.isBlank()) {
+                return localized.trim();
+            }
+        }
         String name = constructionItemName(item);
         if (name.isBlank()) {
             name = clothingItemName(item);

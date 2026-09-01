@@ -15,25 +15,28 @@ Player-to-player marketplace plugin for Rising World.
 
 ## Settings
 
-The plugin copies `settings.default.properties` to `settings.properties` on first run.
+The plugin creates `settings.<world>.json` from `settings.default.json` on first
+run. An existing `settings.properties` is migrated atomically and retained as a
+timestamped backup. `logLevel` and `reloadOnChange` are global OZ Tools
+controls and no longer Marketplace settings.
 
-```properties
-logLevel=ALL
-reloadOnChange=true
-marketCommand=mp
-sendPluginWelcome=false
-localMarketplaceEnabled=true
-globalMarketplaceEnabled=true
-marketZoneOnlyMode=false
-defaultLocalFeePercent=5
-defaultGlobalFeePercent=5
-minimumLocalFee=0
-minimumGlobalFee=0
-maxListingsPerPlayer=20
-maxPlayerMarketplaces=0
-showMarketplaceZoneIndicator=true
-exposeMarketplaceZones=true
-exposeMarketplaceOffers=true
+```json
+{
+  "marketCommand": "mp",
+  "sendPluginWelcome": false,
+  "localMarketplaceEnabled": true,
+  "globalMarketplaceEnabled": true,
+  "marketZoneOnlyMode": false,
+  "defaultLocalFeePercent": 5,
+  "defaultGlobalFeePercent": 5,
+  "minimumLocalFee": 0,
+  "minimumGlobalFee": 0,
+  "maxListingsPerPlayer": 20,
+  "maxPlayerMarketplaces": 0,
+  "showMarketplaceZoneIndicator": true,
+  "exposeMarketplaceZones": true,
+  "exposeMarketplaceOffers": true
+}
 ```
 
 Marketplace fees are charged on top of the listing price. Positive percentage
@@ -57,6 +60,10 @@ unlimited, and a positive value limits each player's owned markets.
 - `/mp wanted <item> <variant> <amount> <price> <local|global> [currency]`: command fallback for creating a wanted listing
 - `/mp cancel <listing-id>`: cancel your own listing and return the item
 - `/mp sales`: show your latest visible sale payouts
+- `/mp crier position`: move the currently interacted, authorized market crier
+  to your position
+- `/mp crier appearance`: copy your appearance to the currently interacted,
+  authorized market crier
 - `/mp status` or `/mp info`: open the shared Tools Info/Status panel
 
 An empty or omitted `currency` uses Wallet's configured default currency.
@@ -89,7 +96,9 @@ The `Sales` tab shows the seller's latest visible completed sales with item, amo
 Online sellers receive a localized notification after a sale is durably completed. Failed or rolled-back purchases do not send a sale notification.
 
 Admins and eligible player-market owners see a `Management` tab for the current
-Rising World Area. Players may create a market only where their effective Area
+Rising World Area. At a Marktschreier, its authorized owner (or an admin for a
+global crier) instead gets server-authorized controls to move it to their
+position or copy their visible appearance. Players may create a market only where their effective Area
 permission grants `area_addplayer`, and may manage only their own markets.
 Inside an owned market the UI syncs its Area name, cycles global-trade mode,
 sets its fee, and dissolves it after confirmation. A market cannot be dissolved

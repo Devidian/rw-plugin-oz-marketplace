@@ -12,6 +12,7 @@ import de.omegazirkel.risingworld.Marketplace;
 import de.omegazirkel.risingworld.marketplace.InventoryListingCandidate;
 import de.omegazirkel.risingworld.marketplace.InventoryTransfer;
 import de.omegazirkel.risingworld.marketplace.MarketZone;
+import de.omegazirkel.risingworld.marketplace.MarketCrier;
 import de.omegazirkel.risingworld.marketplace.MarketplaceItemNames;
 import de.omegazirkel.risingworld.marketplace.MarketplaceItemState;
 import de.omegazirkel.risingworld.marketplace.MarketplacePlayerPreferences;
@@ -82,6 +83,10 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     private UITextField amountField;
     private UITextField priceField;
     private UITextField managementFeeField;
+    private UITextField managementTransformStepField;
+    private UITextField managementRotationStepField;
+    private String managementTransformStepDraft = "1.00";
+    private String managementRotationStepDraft = "15";
     private UITextField listingTradeQuantityField;
     private UILabel listingTradeUnitPriceLabel;
     private MarketplaceListing listingTradePreviewListing;
@@ -93,12 +98,15 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     private String listingPriceDraft;
 
     public MarketplaceOverlay(Marketplace plugin, Player player) {
-        super(player, p -> p.deleteAttribute("oz.marketplace.ui.overlay"));
+        super(player, p -> {
+            p.deleteAttribute("oz.marketplace.ui.overlay");
+            p.deleteAttribute("oz.marketplace.crier.endpoint");
+        });
         this.plugin = plugin;
         this.t = plugin.i18n();
-        titleLabelKey = "TC_MARKET_UI_TITLE";
-        descLabelKey = "TC_MARKET_UI_SUBTITLE";
-        legendLabelKey = "TC_MARKET_UI_LEGEND";
+        titleLabelKey = "tc.market.ui.title";
+        descLabelKey = "tc.market.ui.subtitle";
+        legendLabelKey = "tc.market.ui.legend";
         rebuild();
     }
 
@@ -111,12 +119,12 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     protected String legendText() {
         PluginSettings settings = plugin.marketplaceSettings();
         if (!settings.globalMarketplaceEnabled) {
-            return t().get("TC_MARKET_UI_STATUS_GLOBAL_DISABLED", uiPlayer);
+            return t().get("tc.market.ui.status.global.disabled", uiPlayer);
         }
         if (settings.marketZoneOnlyMode) {
-            return t().get("TC_MARKET_UI_STATUS_ZONE_ONLY", uiPlayer);
+            return t().get("tc.market.ui.status.zone.only", uiPlayer);
         }
-        return t().get("TC_MARKET_UI_STATUS_GLOBAL_ENABLED", uiPlayer);
+        return t().get("tc.market.ui.status.global.enabled", uiPlayer);
     }
 
     @Override
@@ -130,23 +138,23 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         setupTabContainer();
         setupWalletBalanceBar();
         if (tabAvailable(MarketTab.SELL)) {
-            addTab(t().get("TC_MARKET_UI_TAB_SELL", uiPlayer), 132, marketTab == MarketTab.SELL,
+            addTab(t().get("tc.market.ui.tab.sell", uiPlayer), 132, marketTab == MarketTab.SELL,
                     () -> switchTab(MarketTab.SELL));
         }
         if (tabAvailable(MarketTab.LOCAL)) {
-            addTab(t().get("TC_MARKET_UI_TAB_LOCAL", uiPlayer), 132, marketTab == MarketTab.LOCAL,
+            addTab(t().get("tc.market.ui.tab.local", uiPlayer), 132, marketTab == MarketTab.LOCAL,
                     () -> switchTab(MarketTab.LOCAL));
         }
         if (tabAvailable(MarketTab.GLOBAL)) {
-            addTab(t().get("TC_MARKET_UI_TAB_GLOBAL", uiPlayer), 132, marketTab == MarketTab.GLOBAL,
+            addTab(t().get("tc.market.ui.tab.global", uiPlayer), 132, marketTab == MarketTab.GLOBAL,
                     () -> switchTab(MarketTab.GLOBAL));
         }
-        addTab(t().get("TC_MARKET_UI_TAB_WANTED", uiPlayer), 132, marketTab == MarketTab.WANTED,
+        addTab(t().get("tc.market.ui.tab.wanted", uiPlayer), 132, marketTab == MarketTab.WANTED,
                 () -> switchTab(MarketTab.WANTED));
-        addTab(t().get("TC_MARKET_UI_TAB_SALES", uiPlayer), 132, marketTab == MarketTab.SALES,
+        addTab(t().get("tc.market.ui.tab.sales", uiPlayer), 132, marketTab == MarketTab.SALES,
                 () -> switchTab(MarketTab.SALES));
         if (tabAvailable(MarketTab.MANAGEMENT)) {
-            addTab(t().get("TC_MARKET_UI_TAB_MANAGEMENT", uiPlayer), 170, marketTab == MarketTab.MANAGEMENT, true,
+            addTab(t().get("tc.market.ui.tab.management", uiPlayer), 170, marketTab == MarketTab.MANAGEMENT, true,
                     () -> switchTab(MarketTab.MANAGEMENT));
         }
         setupActiveTabContent();
@@ -274,7 +282,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
 
         List<InventoryListingCandidate> candidates = InventoryTransfer.listingCandidates(uiPlayer);
         if (candidates.isEmpty()) {
-            UILabel empty = label(t().get("TC_MARKET_UI_EMPTY_INVENTORY", uiPlayer), 15, Font.Default);
+            UILabel empty = label(t().get("tc.market.ui.empty.inventory", uiPlayer), 15, Font.Default);
             empty.setPivot(Pivot.UpperLeft);
             empty.setPosition(12, 12, false);
             empty.setSize(90, 40, true);
@@ -300,7 +308,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private AdvancedButton selectButton(InventoryListingCandidate candidate) {
-        AdvancedButton button = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_SELECT", uiPlayer), event -> {
+        AdvancedButton button = AdvancedButtonFactory.defaultButton(t().get("tc.market.ui.select", uiPlayer), event -> {
             selected = candidate;
             listingAmountDraft = null;
             listingPriceDraft = null;
@@ -370,7 +378,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         name.setTextAlign(TextAnchor.UpperLeft);
         card.addChild(name);
 
-        UILabel amount = label(t().get("TC_MARKET_UI_CARD_AMOUNT", uiPlayer)
+        UILabel amount = label(t().get("tc.market.ui.card.amount", uiPlayer)
                 .replace("PH_AMOUNT", String.valueOf(candidate.availableAmount()))
                 + conditionSuffix(candidate.itemName(), candidate.itemState()), 12, Font.Default);
         amount.setPivot(Pivot.UpperLeft);
@@ -404,14 +412,14 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         form.style.height.set(430, Unit.Pixel);
         body.addChild(form);
 
-        UILabel formTitle = label(t().get("TC_MARKET_UI_FORM_TITLE", uiPlayer), 17, Font.DefaultBold);
+        UILabel formTitle = label(t().get("tc.market.ui.form.title", uiPlayer), 17, Font.DefaultBold);
         formTitle.setPivot(Pivot.UpperLeft);
         formTitle.setPosition(0, 0, false);
         formTitle.setSize(100, 26, true);
         form.addChild(formTitle);
 
         String selectedText = selected == null
-                ? t().get("TC_MARKET_UI_NO_SELECTION", uiPlayer)
+                ? t().get("tc.market.ui.no.selection", uiPlayer)
                 : selected.displayName() + " (" + selected.itemName() + ":" + selected.variant() + ")";
         UILabel selectedLabel = label(selectedText, 13, Font.Default);
         selectedLabel.setPivot(Pivot.UpperLeft);
@@ -428,7 +436,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         form.addChild(condition);
 
         if (selected != null && isDamaged(selected.itemName(), selected.itemState())) {
-            UILabel warning = label(t().get("TC_MARKET_UI_DURABILITY_WARNING", uiPlayer)
+            UILabel warning = label(t().get("tc.market.ui.durability.warning", uiPlayer)
                     .replace("PH_PERCENT", String.valueOf(durabilityPercent(selected.itemName(), selected.itemState()))),
                     12, Font.DefaultBold);
             warning.setPivot(Pivot.UpperLeft);
@@ -442,13 +450,13 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         String defaultAmount = selected == null ? "" : String.valueOf(Math.min(selected.availableAmount(),
                 Math.max(1, selected.maxStackSize())));
         amountField = textField(listingAmountDraft == null ? defaultAmount : listingAmountDraft);
-        addField(form, t().get("TC_MARKET_UI_FIELD_AMOUNT", uiPlayer), amountField, 106);
+        addField(form, t().get("tc.market.ui.field.amount", uiPlayer), amountField, 106);
 
         priceField = textField(listingPriceDraft == null ? "" : listingPriceDraft);
-        addField(form, t().get("TC_MARKET_UI_FIELD_PRICE", uiPlayer), priceField, 160);
+        addField(form, t().get("tc.market.ui.field.price", uiPlayer), priceField, 160);
 
         Dropdown currencyDropdown = currencyDropdown();
-        addField(form, t().get("TC_MARKET_UI_FIELD_CURRENCY", uiPlayer), currencyDropdown, 214);
+        addField(form, t().get("tc.market.ui.field.currency", uiPlayer), currencyDropdown, 214);
 
         int modeX = 0;
         if (plugin.localListingAllowed(uiPlayer)) {
@@ -459,7 +467,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             form.addChild(modeButton(true, modeX, 268));
         }
 
-        AdvancedButton confirm = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_CONFIRM", uiPlayer),
+        AdvancedButton confirm = AdvancedButtonFactory.defaultButton(t().get("tc.market.ui.confirm", uiPlayer),
                 event -> validateAndConfirmListing());
         confirm.setPivot(Pivot.UpperLeft);
         confirm.setPosition(0, 316, false);
@@ -467,7 +475,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         confirm.setBorderEdgeRadius(3, false);
         form.addChild(confirm);
 
-        AdvancedButton refresh = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_REFRESH", uiPlayer), event -> {
+        AdvancedButton refresh = AdvancedButtonFactory.defaultButton(t().get("tc.market.ui.refresh", uiPlayer), event -> {
             selected = null;
             rebuild();
         });
@@ -513,7 +521,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             }));
         });
         styleTab(button, globalListing == global);
-        UILabel label = label(t().get(global ? "TC_MARKET_UI_MODE_GLOBAL" : "TC_MARKET_UI_MODE_LOCAL", uiPlayer),
+        UILabel label = label(t().get(global ? "tc.market.ui.mode.global" : "tc.market.ui.mode.local", uiPlayer),
                 13, Font.DefaultBold);
         label.setPivot(Pivot.MiddleCenter);
         label.setPosition(50, 50, true);
@@ -532,13 +540,13 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         }
         TableScrollView table = new TableScrollView(
                 Arrays.asList(
-                        t().get("TC_MARKET_UI_COL_ITEM", uiPlayer),
-                        t().get("TC_MARKET_UI_COL_AMOUNT", uiPlayer),
-                        t().get("TC_MARKET_UI_COL_CONDITION", uiPlayer),
-                        t().get("TC_MARKET_UI_COL_PRICE", uiPlayer),
-                        t().get("TC_MARKET_UI_COL_SELLER", uiPlayer),
-                        t().get("TC_MARKET_UI_COL_ZONE", uiPlayer),
-                        t().get("TC_MARKET_UI_COL_ACTION", uiPlayer)),
+                        t().get("tc.market.ui.col.item", uiPlayer),
+                        t().get("tc.market.ui.col.amount", uiPlayer),
+                        t().get("tc.market.ui.col.condition", uiPlayer),
+                        t().get("tc.market.ui.col.price", uiPlayer),
+                        t().get("tc.market.ui.col.seller", uiPlayer),
+                        t().get("tc.market.ui.col.zone", uiPlayer),
+                        t().get("tc.market.ui.col.action", uiPlayer)),
                 Arrays.asList(21f, 9f, 12f, 16f, 15f, 12f, 15f));
         table.setPosition(0, 42, false);
         table.setScrollBodyHeight(TABLE_BODY_HEIGHT - 42);
@@ -577,13 +585,13 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
 
     private void addListingsLayoutToggle() {
         boolean table = MarketplacePlayerPreferences.LAYOUT_TABLE.equals(MarketplacePlayerPreferences.listingLayout(uiPlayer));
-        OZUIElement cards = layoutButton(t().get("TC_MARKET_UI_LAYOUT_CARDS", uiPlayer), 14, table ? false : true,
+        OZUIElement cards = layoutButton(t().get("tc.market.ui.layout.cards", uiPlayer), 14, table ? false : true,
                 () -> {
                     MarketplacePlayerPreferences.setListingLayout(uiPlayer, MarketplacePlayerPreferences.LAYOUT_CARD);
                     rebuild();
                 });
         body.addChild(cards);
-        OZUIElement tableButton = layoutButton(t().get("TC_MARKET_UI_LAYOUT_TABLE", uiPlayer), 140, table,
+        OZUIElement tableButton = layoutButton(t().get("tc.market.ui.layout.table", uiPlayer), 140, table,
                 () -> {
                     MarketplacePlayerPreferences.setListingLayout(uiPlayer, MarketplacePlayerPreferences.LAYOUT_TABLE);
                     rebuild();
@@ -592,7 +600,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private void setupListingSearch() {
-        UILabel label = label(t().get("TC_MARKET_UI_SEARCH", uiPlayer), 13, Font.Default);
+        UILabel label = label(t().get("tc.market.ui.search", uiPlayer), 13, Font.Default);
         label.setPivot(Pivot.UpperLeft);
         label.setPosition(274, 9, false);
         label.setSize(56, 26, false);
@@ -605,7 +613,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         searchField.setMaxCharacters(80);
         body.addChild(searchField);
 
-        AdvancedButton apply = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_SEARCH_APPLY", uiPlayer), event -> {
+        AdvancedButton apply = AdvancedButtonFactory.defaultButton(t().get("tc.market.ui.search.apply", uiPlayer), event -> {
             searchField.getCurrentText(uiPlayer, text -> {
                 listingFilter = text == null ? "" : text.trim();
                 rebuild();
@@ -616,7 +624,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         apply.setSize(86, 28, false);
         body.addChild(apply);
 
-        AdvancedButton clear = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_SEARCH_CLEAR", uiPlayer), event -> {
+        AdvancedButton clear = AdvancedButtonFactory.defaultButton(t().get("tc.market.ui.search.clear", uiPlayer), event -> {
             listingFilter = "";
             rebuild();
         });
@@ -676,22 +684,22 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         if (!normalizedListingFilter().isBlank()) {
             try {
                 if (!unfilteredVisibleListings(global).isEmpty()) {
-                    return t().get("TC_MARKET_UI_EMPTY_FILTER", uiPlayer);
+                    return t().get("tc.market.ui.empty.filter", uiPlayer);
                 }
             } catch (SQLException ex) {
-                return t().get("TC_MARKET_UI_ERR_ZONE_READ", uiPlayer);
+                return t().get("tc.market.ui.err.zone.read", uiPlayer);
             }
         }
         if (!global) {
             try {
                 if (plugin.currentMarketZone(uiPlayer).isEmpty()) {
-                    return t().get("TC_MARKET_UI_EMPTY_LOCAL_NO_ZONE", uiPlayer);
+                    return t().get("tc.market.ui.empty.local.no.zone", uiPlayer);
                 }
             } catch (SQLException ex) {
-                return t().get("TC_MARKET_UI_ERR_ZONE_READ", uiPlayer);
+                return t().get("tc.market.ui.err.zone.read", uiPlayer);
             }
         }
-        return t().get(global ? "TC_MARKET_UI_EMPTY_GLOBAL" : "TC_MARKET_UI_EMPTY_LOCAL", uiPlayer);
+        return t().get(global ? "tc.market.ui.empty.global" : "tc.market.ui.empty.local", uiPlayer);
     }
 
     private TableRow listingRow(MarketplaceListing listing) {
@@ -721,7 +729,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         title.setTextAlign(TextAnchor.UpperLeft);
         card.addChild(title);
 
-        UILabel amount = label(t().get("TC_MARKET_UI_CARD_AMOUNT", uiPlayer)
+        UILabel amount = label(t().get("tc.market.ui.card.amount", uiPlayer)
                 .replace("PH_AMOUNT", String.valueOf(listing.amount())), 12, Font.Default);
         amount.setPivot(Pivot.UpperLeft);
         amount.setPosition(12, 56, false);
@@ -732,7 +740,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         seller.setPivot(Pivot.UpperLeft);
         seller.setPosition(12, 76, false);
         seller.setSize(226, 20, false);
-        seller.setText(t().get("TC_MARKET_UI_CARD_SELLER", uiPlayer).replace("PH_SELLER", listing.sellerName()));
+        seller.setText(t().get("tc.market.ui.card.seller", uiPlayer).replace("PH_SELLER", listing.sellerName()));
         card.addChild(seller);
 
         String conditionLabel = conditionLabel(listing.itemName(), listing.itemState());
@@ -763,20 +771,20 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     private void setupSalesTab() {
         TableScrollView table = new TableScrollView(
                 Arrays.asList(
-                        t().get("TC_MARKET_UI_COL_ITEM", uiPlayer),
-                        t().get("TC_MARKET_UI_COL_AMOUNT", uiPlayer),
-                        t().get("TC_MARKET_UI_COL_CONDITION", uiPlayer),
-                        t().get("TC_MARKET_UI_COL_BUYER", uiPlayer),
-                        t().get("TC_MARKET_UI_COL_PAYOUT", uiPlayer),
-                        t().get("TC_MARKET_UI_COL_FEE", uiPlayer),
-                        t().get("TC_MARKET_UI_COL_ZONE", uiPlayer),
-                        t().get("TC_MARKET_UI_COL_ACTION", uiPlayer)),
+                        t().get("tc.market.ui.col.item", uiPlayer),
+                        t().get("tc.market.ui.col.amount", uiPlayer),
+                        t().get("tc.market.ui.col.condition", uiPlayer),
+                        t().get("tc.market.ui.col.buyer", uiPlayer),
+                        t().get("tc.market.ui.col.payout", uiPlayer),
+                        t().get("tc.market.ui.col.fee", uiPlayer),
+                        t().get("tc.market.ui.col.zone", uiPlayer),
+                        t().get("tc.market.ui.col.action", uiPlayer)),
                 Arrays.asList(22f, 8f, 14f, 14f, 14f, 10f, 10f, 8f));
         table.setScrollBodyHeight(TABLE_BODY_HEIGHT);
 
         List<MarketplaceSale> sales = visibleSales();
         if (sales.isEmpty()) {
-            table.addRow(new TableRow(Arrays.asList(labelCell(t().get("TC_MARKET_UI_EMPTY_SALES", uiPlayer), 100f))));
+            table.addRow(new TableRow(Arrays.asList(labelCell(t().get("tc.market.ui.empty.sales", uiPlayer), 100f))));
         } else {
             for (MarketplaceSale sale : sales) {
                 table.addRow(saleRow(sale));
@@ -810,12 +818,12 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         PlayerDatabaseHelper.PlayerRecord buyer = PlayerDatabaseHelper.findPlayersByDbIds(plugin,
                 java.util.Set.of(sale.buyerDbId())).get(sale.buyerDbId());
         return buyer == null
-                        ? t().get("TC_MARKET_UI_UNKNOWN", uiPlayer)
+                        ? t().get("tc.market.ui.unknown", uiPlayer)
                         : buyer.name;
     }
 
     private UIElement removeSaleButton(MarketplaceSale sale) {
-        AdvancedButton button = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_REMOVE", uiPlayer),
+        AdvancedButton button = AdvancedButtonFactory.defaultButton(t().get("tc.market.ui.remove", uiPlayer),
                 event -> showRemoveSaleConfirmation(sale));
         button.setPivot(Pivot.UpperLeft);
         button.setPosition(4, 5, false);
@@ -826,7 +834,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
 
     private UIElement buyButton(MarketplaceListing listing) {
         if (listing.sellerDbId() == uiPlayer.getDbID()) {
-            AdvancedButton button = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_CANCEL_LISTING", uiPlayer),
+            AdvancedButton button = AdvancedButtonFactory.defaultButton(t().get("tc.market.ui.cancel.listing", uiPlayer),
                     event -> showCancelListingConfirmation(listing));
             button.setPivot(Pivot.UpperLeft);
             button.setPosition(4, 5, false);
@@ -835,7 +843,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             return button;
         }
         AdvancedButton button = AdvancedButtonFactory.defaultButton(
-                t().get(listing.wanted() ? "TC_MARKET_UI_SELL_TO_REQUEST" : "TC_MARKET_UI_BUY", uiPlayer),
+                t().get(listing.wanted() ? "tc.market.ui.sell.to.request" : "tc.market.ui.buy", uiPlayer),
                 event -> showBuyConfirmation(listing));
         button.setPivot(Pivot.UpperLeft);
         button.setPosition(4, 5, false);
@@ -847,12 +855,12 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     private void showBuyConfirmation(MarketplaceListing listing) {
         clearListingTradePreview();
         OZUIElement dialog = confirmationDialog(t().get(
-                listing.wanted() ? "TC_MARKET_UI_WANTED_FULFILL_TITLE" : "TC_MARKET_UI_BUY_CONFIRM_TITLE", uiPlayer));
+                listing.wanted() ? "tc.market.ui.wanted.fulfill.title" : "tc.market.ui.buy.confirm.title", uiPlayer));
         dialog.setSize(430, 350, false);
         long fee = plugin.marketplaceBuyerFee(uiPlayer, listing);
         int feePercent = plugin.marketplaceBuyerFeePercent(uiPlayer, listing);
-        String details = t().get(listing.wanted() ? "TC_MARKET_UI_WANTED_FULFILL_TEXT"
-                : "TC_MARKET_UI_BUY_CONFIRM_TEXT", uiPlayer)
+        String details = t().get(listing.wanted() ? "tc.market.ui.wanted.fulfill.text"
+                : "tc.market.ui.buy.confirm.text", uiPlayer)
                 .replace("PH_ITEM", listingLabel(listing))
                 .replace("PH_AMOUNT", String.valueOf(listing.amount()))
                 .replace("PH_PRICE", String.valueOf(listing.price()))
@@ -860,13 +868,13 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
                 .replace("PH_FEE", String.valueOf(fee))
                 .replace("PH_TOTAL", String.valueOf(listing.price() + fee))
                 .replace("PH_CURRENCY", currencyLabel(listing.currencyIdentifier()).trim())
-                .replace("PH_MODE", t().get(listing.globalListing() ? "TC_MARKET_UI_MODE_GLOBAL" : "TC_MARKET_UI_MODE_LOCAL",
+                .replace("PH_MODE", t().get(listing.globalListing() ? "tc.market.ui.mode.global" : "tc.market.ui.mode.local",
                         uiPlayer))
                 .replace("PH_SELLER", listing.sellerName())
                 + conditionDetails(listing.itemName(), listing.itemState());
         addDialogMessage(dialog, details);
         UITextField quantity = textField(String.valueOf(Math.min(1, listing.amount())));
-        addDialogField(dialog, t().get("TC_MARKET_UI_FIELD_AMOUNT", uiPlayer), quantity, 195);
+        addDialogField(dialog, t().get("tc.market.ui.field.amount", uiPlayer), quantity, 195);
         listingTradeQuantityField = quantity;
         listingTradePreviewListing = listing;
         listingTradeUnitPriceLabel = label("", 12, Font.DefaultBold);
@@ -876,21 +884,21 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         listingTradeUnitPriceLabel.setTextWrap(true);
         dialog.addChild(listingTradeUnitPriceLabel);
         refreshListingTradePreview(quantity, String.valueOf(Math.min(1, listing.amount())));
-        OZUIElement cancel = AdvancedButtonFactory.cancel(t().get("TC_MARKET_UI_CANCEL", uiPlayer),
+        OZUIElement cancel = AdvancedButtonFactory.cancel(t().get("tc.market.ui.cancel", uiPlayer),
                 event -> closeListingTradeDialog(dialog));
         cancel.setPivot(Pivot.UpperLeft);
         cancel.setPosition(18, 298, false);
         cancel.setSize(112, 32, false);
         dialog.addChild(cancel);
         AdvancedButton partial = AdvancedButtonFactory.ok(t().get(
-                listing.wanted() ? "TC_MARKET_UI_SELL_AMOUNT" : "TC_MARKET_UI_BUY_AMOUNT", uiPlayer), event ->
+                listing.wanted() ? "tc.market.ui.sell.amount" : "tc.market.ui.buy.amount", uiPlayer), event ->
                 quantity.getCurrentText(uiPlayer, value -> executeListingTrade(dialog, listing, parseInt(value))));
         partial.setPivot(Pivot.UpperLeft);
         partial.setPosition(142, 298, false);
         partial.setSize(132, 32, false);
         dialog.addChild(partial);
         AdvancedButton all = AdvancedButtonFactory.ok(t().get(
-                listing.wanted() ? "TC_MARKET_UI_SELL_ALL" : "TC_MARKET_UI_BUY_ALL", uiPlayer),
+                listing.wanted() ? "tc.market.ui.sell.all" : "tc.market.ui.buy.all", uiPlayer),
                 event -> executeListingTrade(dialog, listing, listing.amount()));
         all.setPivot(Pivot.UpperLeft);
         all.setPosition(286, 298, false);
@@ -900,16 +908,16 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
 
     private void executeListingTrade(OZUIElement dialog, MarketplaceListing listing, int amount) {
         if (amount <= 0 || amount > listing.amount()) {
-            uiPlayer.showInfoMessageBox(t().get("TC_MARKET_UI_ERR_AMOUNT_TITLE", uiPlayer),
-                    t().get("TC_MARKET_UI_ERR_AMOUNT_RANGE", uiPlayer)
+            uiPlayer.showInfoMessageBox(t().get("tc.market.ui.err.amount.title", uiPlayer),
+                    t().get("tc.market.ui.err.amount.range", uiPlayer)
                             .replace("PH_AVAILABLE", String.valueOf(listing.amount())));
             return;
         }
         closeListingTradeDialog(dialog);
         MarketplaceResult result = plugin.buyMarketplaceListing(uiPlayer, listing.id(), amount);
-        if (!result.success() && result.hasKey("TC_MARKET_RESULT_MAILBOX_FULL")) {
-            uiPlayer.showInfoMessageBox(t().get("TC_MARKET_UI_MAILBOX_FULL_TITLE", uiPlayer),
-                    t().get("TC_MARKET_UI_MAILBOX_FULL_TEXT", uiPlayer));
+        if (!result.success() && result.hasKey("tc.market.result.mailbox.full")) {
+            uiPlayer.showInfoMessageBox(t().get("tc.market.ui.mailbox.full.title", uiPlayer),
+                    t().get("tc.market.ui.mailbox.full.text", uiPlayer));
         } else {
             sendResult(result);
         }
@@ -928,14 +936,14 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         }
         int amount = parseInt(amountText);
         if (amount <= 0 || amount > listingTradePreviewListing.amount()) {
-            listingTradeUnitPriceLabel.setText(t().get("TC_MARKET_UI_UNIT_PRICE_INVALID", uiPlayer)
+            listingTradeUnitPriceLabel.setText(t().get("tc.market.ui.unit.price.invalid", uiPlayer)
                     .replace("PH_AVAILABLE", String.valueOf(listingTradePreviewListing.amount())));
             return;
         }
         long total = MarketplaceService.partialPrice(listingTradePreviewListing.price(),
                 listingTradePreviewListing.amount(), amount);
         String unitPrice = formatUnitPrice(total / (double) amount);
-        listingTradeUnitPriceLabel.setText(t().get("TC_MARKET_UI_UNIT_PRICE", uiPlayer)
+        listingTradeUnitPriceLabel.setText(t().get("tc.market.ui.unit.price", uiPlayer)
                 .replace("PH_UNIT", unitPrice)
                 .replace("PH_TOTAL", String.valueOf(total))
                 .replace("PH_AMOUNT", String.valueOf(amount))
@@ -969,7 +977,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private void setupWantedTab() {
-        AdvancedButton create = AdvancedButtonFactory.defaultButton(t().get("TC_MARKET_UI_WANTED_CREATE", uiPlayer),
+        AdvancedButton create = AdvancedButtonFactory.defaultButton(t().get("tc.market.ui.wanted.create", uiPlayer),
                 event -> selectWantedItem());
         boolean canCreate = plugin.localListingAllowed(uiPlayer) || plugin.globalListingAllowed(uiPlayer);
         create.setClickable(canCreate);
@@ -982,12 +990,12 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         body.addChild(create);
 
         TableScrollView table = new TableScrollView(Arrays.asList(
-                t().get("TC_MARKET_UI_COL_ITEM", uiPlayer),
-                t().get("TC_MARKET_UI_COL_AMOUNT", uiPlayer),
-                t().get("TC_MARKET_UI_COL_PRICE", uiPlayer),
-                t().get("TC_MARKET_UI_COL_BUYER", uiPlayer),
-                t().get("TC_MARKET_UI_COL_ZONE", uiPlayer),
-                t().get("TC_MARKET_UI_COL_ACTION", uiPlayer)),
+                t().get("tc.market.ui.col.item", uiPlayer),
+                t().get("tc.market.ui.col.amount", uiPlayer),
+                t().get("tc.market.ui.col.price", uiPlayer),
+                t().get("tc.market.ui.col.buyer", uiPlayer),
+                t().get("tc.market.ui.col.zone", uiPlayer),
+                t().get("tc.market.ui.col.action", uiPlayer)),
                 Arrays.asList(25f, 10f, 18f, 18f, 14f, 15f));
         table.setPosition(0, 42, false);
         table.setScrollBodyHeight(TABLE_BODY_HEIGHT - 42);
@@ -998,7 +1006,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             wanted = List.of();
         }
         if (wanted.isEmpty()) {
-            table.addRow(new TableRow(List.of(labelCell(t().get("TC_MARKET_UI_EMPTY_WANTED", uiPlayer), 100f))));
+            table.addRow(new TableRow(List.of(labelCell(t().get("tc.market.ui.empty.wanted", uiPlayer), 100f))));
         } else {
             for (MarketplaceListing listing : wanted) {
                 table.addRow(new TableRow(Arrays.asList(
@@ -1014,32 +1022,36 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private void selectWantedItem() {
-        uiPlayer.showItemSelectionMenu(true, true, true, true, item -> {
-            if (item != null && item.getName() != null && !item.getName().isBlank()) {
-                showWantedCreateDialog(item.getName(), item.getVariant());
-            }
+        uiPlayer.showItemSelectionMenu(true, true, true, false, item -> {
+            String itemName = item == null ? null : item.getName();
+            int variant = item == null ? 0 : item.getVariant();
+            // Item selection closes a modal client-side. Recreate it before
+            // adding the wanted dialog, after removing the stale root.
+            uiPlayer.removeUIElement(this);
+            de.omegazirkel.risingworld.marketplace.PluginGUI.getInstance()
+                    .openMarketplaceWantedDialog(uiPlayer, itemName, variant);
         });
     }
 
-    private void showWantedCreateDialog(String itemName, int variant) {
-        OZUIElement dialog = confirmationDialog(t().get("TC_MARKET_UI_WANTED_CREATE_TITLE", uiPlayer));
+    public void showWantedCreateDialog(String itemName, int variant) {
+        OZUIElement dialog = confirmationDialog(t().get("tc.market.ui.wanted.create.title", uiPlayer));
         dialog.setSize(470, 360, false);
-        addDialogMessage(dialog, t().get("TC_MARKET_UI_WANTED_CREATE_TEXT", uiPlayer)
+        addDialogMessage(dialog, t().get("tc.market.ui.wanted.create.text", uiPlayer)
                 .replace("PH_ITEM", listingLabel(itemName, variant)));
         UITextField wantedAmount = textField("1");
-        addDialogField(dialog, t().get("TC_MARKET_UI_FIELD_AMOUNT", uiPlayer), wantedAmount, 120);
+        addDialogField(dialog, t().get("tc.market.ui.field.amount", uiPlayer), wantedAmount, 120);
         UITextField wantedPrice = textField("");
-        addDialogField(dialog, t().get("TC_MARKET_UI_FIELD_PRICE", uiPlayer), wantedPrice, 166);
+        addDialogField(dialog, t().get("tc.market.ui.field.price", uiPlayer), wantedPrice, 166);
         Dropdown wantedCurrency = currencyDropdown();
-        addDialogField(dialog, t().get("TC_MARKET_UI_FIELD_CURRENCY", uiPlayer), wantedCurrency, 212);
-        OZUIElement cancel = AdvancedButtonFactory.cancel(t().get("TC_MARKET_UI_CANCEL", uiPlayer),
+        addDialogField(dialog, t().get("tc.market.ui.field.currency", uiPlayer), wantedCurrency, 212);
+        OZUIElement cancel = AdvancedButtonFactory.cancel(t().get("tc.market.ui.cancel", uiPlayer),
                 event -> removeChild(dialog));
         cancel.setPivot(Pivot.UpperLeft);
         cancel.setPosition(18, 300, false);
         cancel.setSize(112, 32, false);
         dialog.addChild(cancel);
         if (plugin.localListingAllowed(uiPlayer)) {
-            AdvancedButton local = AdvancedButtonFactory.ok(t().get("TC_MARKET_UI_CREATE_LOCAL", uiPlayer), event ->
+            AdvancedButton local = AdvancedButtonFactory.ok(t().get("tc.market.ui.create.local", uiPlayer), event ->
                     readWantedFields(dialog, wantedAmount, wantedPrice, itemName, variant, false));
             local.setPivot(Pivot.UpperLeft);
             local.setPosition(142, 300, false);
@@ -1047,7 +1059,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             dialog.addChild(local);
         }
         if (plugin.globalListingAllowed(uiPlayer)) {
-            AdvancedButton global = AdvancedButtonFactory.ok(t().get("TC_MARKET_UI_CREATE_GLOBAL", uiPlayer), event ->
+            AdvancedButton global = AdvancedButtonFactory.ok(t().get("tc.market.ui.create.global", uiPlayer), event ->
                     readWantedFields(dialog, wantedAmount, wantedPrice, itemName, variant, true));
             global.setPivot(Pivot.UpperLeft);
             global.setPosition(296, 300, false);
@@ -1062,8 +1074,8 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             int amount = parseInt(amountText);
             long price = parseLong(priceText);
             if (amount <= 0 || price <= 0) {
-                uiPlayer.showInfoMessageBox(t().get("TC_MARKET_UI_ERR_AMOUNT_TITLE", uiPlayer),
-                        t().get("TC_MARKET_UI_ERR_WANTED_VALUES", uiPlayer));
+                uiPlayer.showInfoMessageBox(t().get("tc.market.ui.err.amount.title", uiPlayer),
+                        t().get("tc.market.ui.err.wanted.values", uiPlayer));
                 return;
             }
             removeChild(dialog);
@@ -1075,16 +1087,16 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private void showCancelListingConfirmation(MarketplaceListing listing) {
-        OZUIElement dialog = confirmationDialog(t().get("TC_MARKET_UI_CANCEL_LISTING_CONFIRM_TITLE", uiPlayer));
-        String details = t().get("TC_MARKET_UI_CANCEL_LISTING_CONFIRM_TEXT", uiPlayer)
+        OZUIElement dialog = confirmationDialog(t().get("tc.market.ui.cancel.listing.confirm.title", uiPlayer));
+        String details = t().get("tc.market.ui.cancel.listing.confirm.text", uiPlayer)
                 .replace("PH_ITEM", listingLabel(listing))
                 .replace("PH_AMOUNT", String.valueOf(listing.amount()))
                 .replace("PH_PRICE", String.valueOf(listing.price()))
                 .replace("PH_CURRENCY", currencyLabel(listing.currencyIdentifier()).trim())
                 + conditionDetails(listing.itemName(), listing.itemState());
         addDialogMessage(dialog, details);
-        addDialogButtons(dialog, t().get("TC_MARKET_UI_CANCEL", uiPlayer),
-                t().get("TC_MARKET_UI_WITHDRAW_LISTING", uiPlayer),
+        addDialogButtons(dialog, t().get("tc.market.ui.cancel", uiPlayer),
+                t().get("tc.market.ui.withdraw.listing", uiPlayer),
                 () -> {
                     MarketplaceResult result = plugin.cancelMarketplaceListing(uiPlayer, listing.id());
                     sendResult(result);
@@ -1093,14 +1105,14 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private void showRemoveSaleConfirmation(MarketplaceSale sale) {
-        OZUIElement dialog = confirmationDialog(t().get("TC_MARKET_UI_REMOVE_CONFIRM_TITLE", uiPlayer));
-        String details = t().get("TC_MARKET_UI_REMOVE_CONFIRM_TEXT", uiPlayer)
+        OZUIElement dialog = confirmationDialog(t().get("tc.market.ui.remove.confirm.title", uiPlayer));
+        String details = t().get("tc.market.ui.remove.confirm.text", uiPlayer)
                 .replace("PH_ITEM", listingLabel(sale.itemName(), sale.itemVariant()))
                 .replace("PH_AMOUNT", String.valueOf(sale.amount()))
                 .replace("PH_PAYOUT", String.valueOf(sale.sellerPayout()))
                 .replace("PH_CURRENCY", currencyLabel(sale.currencyIdentifier()).trim());
         addDialogMessage(dialog, details);
-        addDialogButtons(dialog, t().get("TC_MARKET_UI_CANCEL", uiPlayer), t().get("TC_MARKET_UI_REMOVE", uiPlayer),
+        addDialogButtons(dialog, t().get("tc.market.ui.cancel", uiPlayer), t().get("tc.market.ui.remove", uiPlayer),
                 () -> {
                     MarketplaceResult result = plugin.hideMarketplaceSale(uiPlayer, sale.id());
                     sendResult(result);
@@ -1110,7 +1122,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
 
     private void validateAndConfirmListing() {
         if (selected == null) {
-            setStatus(t().get("TC_MARKET_UI_ERR_SELECT_ITEM", uiPlayer));
+            setStatus(t().get("tc.market.ui.err.select.item", uiPlayer));
             return;
         }
         amountField.getCurrentText(uiPlayer, amountText -> priceField.getCurrentText(uiPlayer,
@@ -1120,17 +1132,17 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     private void validateAndConfirmListing(String amountText, String priceText, String currencyText) {
         int amount = parseInt(amountText);
         if (amount <= 0) {
-            setStatus(t().get("TC_MARKET_UI_ERR_AMOUNT_POSITIVE", uiPlayer));
+            setStatus(t().get("tc.market.ui.err.amount.positive", uiPlayer));
             return;
         }
         if (amount > selected.availableAmount()) {
-            setStatus(t().get("TC_MARKET_UI_ERR_AMOUNT_AVAILABLE", uiPlayer)
+            setStatus(t().get("tc.market.ui.err.amount.available", uiPlayer)
                     .replace("PH_AVAILABLE", String.valueOf(selected.availableAmount())));
             return;
         }
         long price = parseLong(priceText);
         if (price <= 0) {
-            setStatus(t().get("TC_MARKET_UI_ERR_PRICE_POSITIVE", uiPlayer));
+            setStatus(t().get("tc.market.ui.err.price.positive", uiPlayer));
             return;
         }
         Optional<MarketZone> zone;
@@ -1138,43 +1150,43 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             zone = plugin.currentMarketZone(uiPlayer);
         } catch (SQLException ex) {
             Marketplace.logger().error("Failed to validate market zone for listing UI: " + ex.getMessage());
-            setStatus(t().get("TC_MARKET_UI_ERR_ZONE_READ", uiPlayer));
+            setStatus(t().get("tc.market.ui.err.zone.read", uiPlayer));
             return;
         }
         if (zone.isEmpty()) {
             boolean needsZone = !globalListing || plugin.marketplaceSettings().marketZoneOnlyMode;
             if (needsZone) {
-                setStatus(t().get("TC_MARKET_UI_ERR_MARKET_ZONE", uiPlayer));
+                setStatus(t().get("tc.market.ui.err.market.zone", uiPlayer));
                 return;
             }
         }
         if (globalListing && !plugin.globalListingAllowed(uiPlayer)) {
-            setStatus(t().get("TC_MARKET_UI_SELL_NO_MODE", uiPlayer));
+            setStatus(t().get("tc.market.ui.sell.no.mode", uiPlayer));
             return;
         }
         if (!globalListing && !plugin.localListingAllowed(uiPlayer)) {
-            setStatus(t().get("TC_MARKET_UI_SELL_NO_MODE", uiPlayer));
+            setStatus(t().get("tc.market.ui.sell.no.mode", uiPlayer));
             return;
         }
         showListingConfirmation(amount, price, normalizeCurrency(currencyText), zone);
     }
 
     private void showListingConfirmation(int amount, long price, String currency, Optional<MarketZone> zone) {
-        OZUIElement dialog = confirmationDialog(t().get("TC_MARKET_UI_CONFIRM_TITLE", uiPlayer));
+        OZUIElement dialog = confirmationDialog(t().get("tc.market.ui.confirm.title", uiPlayer));
         String currencyLabel = currency.isBlank() ? plugin.defaultCurrencyIdentifier() : currency;
         String zoneLabel = zone
                 .map(current -> current.name() + " (" + current.id() + ")")
-                .orElse(t().get("TC_MARKET_UI_ZONE_GLOBAL", uiPlayer));
-        String details = t().get("TC_MARKET_UI_CONFIRM_TEXT", uiPlayer)
+                .orElse(t().get("tc.market.ui.zone.global", uiPlayer));
+        String details = t().get("tc.market.ui.confirm.text", uiPlayer)
                 .replace("PH_ITEM", selected.displayName() + " (" + selected.itemName() + ":" + selected.variant() + ")")
                 .replace("PH_AMOUNT", String.valueOf(amount))
                 .replace("PH_PRICE", String.valueOf(price))
                 .replace("PH_CURRENCY", currencyLabel)
-                .replace("PH_MODE", t().get(globalListing ? "TC_MARKET_UI_MODE_GLOBAL" : "TC_MARKET_UI_MODE_LOCAL", uiPlayer))
+                .replace("PH_MODE", t().get(globalListing ? "tc.market.ui.mode.global" : "tc.market.ui.mode.local", uiPlayer))
                 .replace("PH_ZONE", zoneLabel)
                 + conditionDetails(selected.itemName(), selected.itemState());
         addDialogMessage(dialog, details);
-        addDialogButtons(dialog, t().get("TC_MARKET_UI_CANCEL", uiPlayer), t().get("TC_MARKET_UI_CREATE", uiPlayer),
+        addDialogButtons(dialog, t().get("tc.market.ui.cancel", uiPlayer), t().get("tc.market.ui.create", uiPlayer),
                 () -> {
                     MarketplaceResult result = plugin.createMarketplaceListing(uiPlayer, selected.itemName(), selected.variant(),
                             amount, price, currency, globalListing, selected.itemState());
@@ -1192,10 +1204,10 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         panel.setPivot(Pivot.UpperLeft);
         panel.setPosition(18, 18, false);
         panel.style.width.set(94, Unit.Percent);
-        panel.style.height.set(390, Unit.Pixel);
+        panel.style.height.set(450, Unit.Pixel);
         body.addChild(panel);
 
-        UILabel title = label(t().get("TC_MARKET_UI_MANAGEMENT_TITLE", uiPlayer), 18, Font.DefaultBold);
+        UILabel title = label(t().get("tc.market.ui.management.title", uiPlayer), 18, Font.DefaultBold);
         title.setPivot(Pivot.UpperLeft);
         title.setPosition(0, 0, false);
         title.setSize(100, 30, true);
@@ -1210,34 +1222,98 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
 
         Optional<MarketZone> currentZone = plugin.safeCurrentMarketZone(uiPlayer);
         int y = 96;
+        Object endpoint = uiPlayer.getAttribute("oz.marketplace.crier.endpoint");
+        if (endpoint instanceof MarketCrier crier) {
+            boolean editable = crier.ownedBy(uiPlayer.getDbID()) || (crier.global() && uiPlayer.isAdmin());
+            OZUIElement divider = new OZUIElement();
+            divider.setPivot(Pivot.UpperLeft);
+            divider.setPosition(0, y, false);
+            divider.style.left.set(50, Unit.Percent);
+            divider.setSize(1, 250, false);
+            divider.setBackgroundColor(0.75f, 0.58f, 0.15f, 0.44f);
+            panel.addChild(divider);
+            OZUIElement transformPanel = new OZUIElement();
+            transformPanel.setPivot(Pivot.UpperLeft);
+            transformPanel.setPosition(0, y, false);
+            transformPanel.style.left.set(52, Unit.Percent);
+            transformPanel.setSize(380, 230, false);
+            panel.addChild(transformPanel);
+            int marketY = y;
+            addManagementButton(panel, t().get("tc.market.ui.management.crier.position", uiPlayer), 0, marketY, editable,
+                    () -> runManagementAction(plugin.moveCurrentMarketCrier(uiPlayer)));
+            addManagementButton(panel, t().get("tc.market.ui.management.crier.appearance", uiPlayer), 188, marketY, editable,
+                    () -> runManagementAction(plugin.copyCurrentMarketCrierAppearance(uiPlayer)));
+            marketY += 54;
+            UILabel transform = label(t().get("tc.market.ui.management.crier.transform", uiPlayer), 13, Font.DefaultBold);
+            transform.setPivot(Pivot.UpperLeft);
+            transform.setPosition(0, 0, false);
+            transform.setSize(160, 26, false);
+            transformPanel.addChild(transform);
+            managementTransformStepField = textField(managementTransformStepDraft);
+            addField(transformPanel, t().get("tc.market.ui.management.crier.move.step", uiPlayer), managementTransformStepField, 28);
+            addCrierNudgeButton(transformPanel, "X−", 0, 66, editable, -1, 0, 0);
+            addCrierNudgeButton(transformPanel, "X+", 58, 66, editable, 1, 0, 0);
+            addCrierNudgeButton(transformPanel, "Y−", 116, 66, editable, 0, -1, 0);
+            addCrierNudgeButton(transformPanel, "Y+", 174, 66, editable, 0, 1, 0);
+            addCrierNudgeButton(transformPanel, "Z−", 232, 66, editable, 0, 0, -1);
+            addCrierNudgeButton(transformPanel, "Z+", 290, 66, editable, 0, 0, 1);
+            UILabel rotation = label(t().get("tc.market.ui.management.crier.rotation", uiPlayer), 13, Font.DefaultBold);
+            rotation.setPivot(Pivot.UpperLeft);
+            rotation.setPosition(0, 112, false);
+            rotation.setSize(160, 26, false);
+            transformPanel.addChild(rotation);
+            managementRotationStepField = textField(managementRotationStepDraft);
+            addField(transformPanel, t().get("tc.market.ui.management.crier.rotation.step", uiPlayer), managementRotationStepField, 140);
+            addCrierRotationButton(transformPanel, "Y−", 0, 178, editable, -1);
+            addCrierRotationButton(transformPanel, "Y+", 58, 178, editable, 1);
+            managementFeeField = textField(String.valueOf(crier.feePercent()));
+            addField(panel, t().get("tc.market.ui.management.fee.field", uiPlayer), managementFeeField, marketY);
+            addManagementButton(panel, t().get("tc.market.ui.management.set.fee", uiPlayer), 288, marketY, editable,
+                    () -> managementFeeField.getCurrentText(uiPlayer,
+                            value -> runManagementAction(plugin.setCurrentMarketCrierFee(uiPlayer, parseInt(value)))));
+            marketY += 54;
+            if (crier.personal()) {
+                addCrierSharingSwitch(panel, crier, 0, marketY, editable);
+                marketY += 54;
+            }
+            OZUIElement dissolve = AdvancedButtonFactory.danger(t().get("tc.market.ui.management.crier.delete", uiPlayer),
+                    event -> showDissolveCrierConfirmation());
+            dissolve.setPivot(Pivot.UpperLeft);
+            dissolve.setPosition(0, marketY, false);
+            dissolve.setSize(220, 32, false);
+            dissolve.setBorderEdgeRadius(3, false);
+            dissolve.setClickable(editable);
+            panel.addChild(dissolve);
+            return;
+        }
         if (currentZone.isEmpty()) {
             if (uiPlayer.isAdmin()) {
-                addManagementButton(panel, t().get("TC_MARKET_UI_MANAGEMENT_CREATE_SYSTEM", uiPlayer), 0, y,
+                addManagementButton(panel, t().get("tc.market.ui.management.create.system", uiPlayer), 0, y,
                         () -> runManagementAction(plugin.createOrUpdateCurrentMarketZone(uiPlayer, false)));
-                addManagementButton(panel, t().get("TC_MARKET_UI_MANAGEMENT_CREATE_PRIVATE", uiPlayer), 188, y,
+                addManagementButton(panel, t().get("tc.market.ui.management.create.private", uiPlayer), 188, y,
                         plugin.canCreatePrivateMarket(uiPlayer),
                         () -> runManagementAction(plugin.createOrUpdateCurrentMarketZone(uiPlayer, true)));
             } else {
-                addManagementButton(panel, t().get("TC_MARKET_UI_MANAGEMENT_CREATE", uiPlayer), 0, y,
+                addManagementButton(panel, t().get("tc.market.ui.management.create", uiPlayer), 0, y,
                         () -> runManagementAction(plugin.createOrUpdateCurrentMarketZone(uiPlayer)));
             }
             return;
         }
 
-        addManagementButton(panel, t().get("TC_MARKET_UI_MANAGEMENT_SYNC_NAME", uiPlayer), 0, y,
+        addManagementButton(panel, t().get("tc.market.ui.management.sync.name", uiPlayer), 0, y,
                 () -> runManagementAction(plugin.syncCurrentMarketZoneName(uiPlayer)));
-        addManagementButton(panel, t().get("TC_MARKET_UI_MANAGEMENT_NEXT_GLOBAL", uiPlayer), 188, y,
+        addManagementButton(panel, t().get("tc.market.ui.management.next.global", uiPlayer), 188, y,
                 !currentZone.get().playerOwned(), () -> runManagementAction(plugin.toggleCurrentMarketZoneGlobal(uiPlayer)));
 
         y += 54;
         managementFeeField = textField(String.valueOf(currentZone.get().feePercent()));
-        addField(panel, t().get("TC_MARKET_UI_MANAGEMENT_FEE_FIELD", uiPlayer), managementFeeField, y);
-        addManagementButton(panel, t().get("TC_MARKET_UI_MANAGEMENT_SET_FEE", uiPlayer), 288, y,
+        addField(panel, t().get("tc.market.ui.management.fee.field", uiPlayer), managementFeeField, y);
+        addManagementButton(panel, t().get("tc.market.ui.management.set.fee", uiPlayer), 288, y,
                 () -> managementFeeField.getCurrentText(uiPlayer,
                         value -> runManagementAction(plugin.setCurrentMarketZoneFee(uiPlayer, parseInt(value)))));
 
         y += 70;
-        OZUIElement delete = AdvancedButtonFactory.cancel(t().get("TC_MARKET_UI_MANAGEMENT_DELETE", uiPlayer),
+        OZUIElement delete = AdvancedButtonFactory.cancel(t().get("tc.market.ui.management.delete", uiPlayer),
                 event -> showDeleteZoneConfirmation());
         delete.setPivot(Pivot.UpperLeft);
         delete.setPosition(0, y, false);
@@ -1248,6 +1324,32 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
 
     private void addManagementButton(OZUIElement parent, String text, int x, int y, Runnable action) {
         addManagementButton(parent, text, x, y, true, action);
+    }
+
+    private void addCrierSharingSwitch(OZUIElement parent, MarketCrier crier, int x, int y, boolean enabled) {
+        UILabel label = label(t().get("tc.market.ui.management.crier.sharing.label", uiPlayer), 12, Font.DefaultBold);
+        label.setPivot(Pivot.UpperLeft);
+        label.setPosition(x, y + 4, false);
+        label.setSize(280, 24, false);
+        parent.addChild(label);
+        boolean shared = crier.sharedListings();
+        AdvancedButton toggle = AdvancedButtonFactory.defaultButton(t().get(shared
+                ? "tc.market.ui.management.crier.sharing.on" : "tc.market.ui.management.crier.sharing.off", uiPlayer),
+                event -> runManagementAction(plugin.setCurrentMarketCrierSharing(uiPlayer, !shared)));
+        toggle.setClickable(enabled);
+        if (shared) {
+            toggle.setBackgroundColor(0.12f, 0.40f, 0.16f, 0.96f);
+            toggle.setBorderColor(0.50f, 0.88f, 0.50f, 0.58f);
+        } else {
+            toggle.setBackgroundColor(0.46f, 0.18f, 0.12f, 0.96f);
+            toggle.setBorderColor(0.95f, 0.42f, 0.32f, 0.58f);
+        }
+        if (!enabled) styleDisabledButton(toggle);
+        toggle.setPivot(Pivot.UpperLeft);
+        toggle.setPosition(x + 300, y, false);
+        toggle.setSize(112, 32, false);
+        toggle.setBorderEdgeRadius(16, false);
+        parent.addChild(toggle);
     }
 
     private void addManagementButton(OZUIElement parent, String text, int x, int y, boolean enabled, Runnable action) {
@@ -1263,6 +1365,41 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         parent.addChild(button);
     }
 
+    private void addCrierNudgeButton(OZUIElement parent, String text, int x, int y, boolean enabled,
+            float deltaX, float deltaY, float deltaZ) {
+        AdvancedButton button = AdvancedButtonFactory.defaultButton(text, event -> managementTransformStepField
+                .getCurrentText(uiPlayer, value -> {
+                    managementTransformStepDraft = retainedDecimal(value, "1.00");
+                    float step = positiveDecimal(value, 1.0f);
+                    runTransformAction(plugin.nudgeCurrentMarketCrier(uiPlayer,
+                            deltaX * step, deltaY * step, deltaZ * step));
+                }));
+        button.setClickable(enabled);
+        if (!enabled) styleDisabledButton(button);
+        button.setPivot(Pivot.UpperLeft);
+        button.setPosition(x, y, false);
+        button.setSize(52, 30, false);
+        button.setBorderEdgeRadius(3, false);
+        parent.addChild(button);
+    }
+
+    private void addCrierRotationButton(OZUIElement parent, String text, int x, int y, boolean enabled,
+            float direction) {
+        AdvancedButton button = AdvancedButtonFactory.defaultButton(text, event -> managementRotationStepField
+                .getCurrentText(uiPlayer, value -> {
+                    managementRotationStepDraft = retainedDecimal(value, "15");
+                    float step = positiveDecimal(value, 15.0f);
+                    runTransformAction(plugin.rotateCurrentMarketCrier(uiPlayer, direction * step));
+                }));
+        button.setClickable(enabled);
+        if (!enabled) styleDisabledButton(button);
+        button.setPivot(Pivot.UpperLeft);
+        button.setPosition(x, y, false);
+        button.setSize(52, 30, false);
+        button.setBorderEdgeRadius(3, false);
+        parent.addChild(button);
+    }
+
     private void styleDisabledButton(AdvancedButton button) {
         button.setBackgroundColor(0.10f, 0.10f, 0.10f, 0.45f);
         button.setBorderColor(0.45f, 0.45f, 0.45f, 0.35f);
@@ -1271,9 +1408,21 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         button.setHoverBorderWidth(1);
     }
 
+    private void styleWarningButton(AdvancedButton button) {
+        button.setBackgroundColor(0.54f, 0.30f, 0.06f, 0.96f);
+        button.setBorderColor(0.95f, 0.75f, 0.25f, 0.72f);
+        button.setHoverBackgroundColor(0xA85B10F5);
+        button.setHoverBorderColor(0xF2C766DD);
+        button.setHoverBorderWidth(1);
+    }
+
     private void runManagementAction(MarketplaceResult result) {
         sendResult(result);
         rebuild();
+    }
+
+    private void runTransformAction(MarketplaceResult result) {
+        sendResult(result);
     }
 
     private void sendResult(MarketplaceResult result) {
@@ -1281,11 +1430,33 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private void showDeleteZoneConfirmation() {
-        OZUIElement dialog = confirmationDialog(t().get("TC_MARKET_UI_MANAGEMENT_DELETE_CONFIRM_TITLE", uiPlayer));
-        addDialogMessage(dialog, t().get("TC_MARKET_UI_MANAGEMENT_DELETE_CONFIRM_TEXT", uiPlayer));
-        addDialogButtons(dialog, t().get("TC_MARKET_UI_CANCEL", uiPlayer),
-                t().get("TC_MARKET_UI_MANAGEMENT_DELETE", uiPlayer),
+        OZUIElement dialog = confirmationDialog(t().get("tc.market.ui.management.delete.confirm.title", uiPlayer));
+        addDialogMessage(dialog, t().get("tc.market.ui.management.delete.confirm.text", uiPlayer));
+        addDialogButtons(dialog, t().get("tc.market.ui.cancel", uiPlayer),
+                t().get("tc.market.ui.management.delete", uiPlayer),
                 () -> runManagementAction(plugin.deleteCurrentMarketZone(uiPlayer)));
+    }
+
+    private void showDissolveCrierConfirmation() {
+        OZUIElement dialog = confirmationDialog(t().get("tc.market.ui.management.crier.delete.confirm.title", uiPlayer));
+        dialog.setSize(560, 250, false);
+        addDialogMessage(dialog, t().get("tc.market.ui.management.crier.delete.confirm.text", uiPlayer), 520);
+        addDissolveCrierButtons(dialog);
+    }
+
+    private void addDissolveCrierButtons(OZUIElement dialog) {
+        OZUIElement cancel = AdvancedButtonFactory.cancel(t().get("tc.market.ui.cancel", uiPlayer), event -> removeChild(dialog));
+        cancel.setPivot(Pivot.UpperLeft); cancel.setPosition(20, 184, false); cancel.setSize(120, 32, false);
+        dialog.addChild(cancel);
+        AdvancedButton unlink = AdvancedButtonFactory.defaultButton(t().get("tc.market.ui.management.crier.delete.unlink", uiPlayer),
+                event -> { removeChild(dialog); runManagementAction(plugin.dissolveCurrentMarketCrier(uiPlayer, false)); });
+        styleWarningButton(unlink);
+        unlink.setPivot(Pivot.UpperLeft); unlink.setPosition(152, 184, false); unlink.setSize(190, 32, false);
+        dialog.addChild(unlink);
+        OZUIElement deleteNpc = AdvancedButtonFactory.danger(t().get("tc.market.ui.management.crier.delete.npc", uiPlayer),
+                event -> { removeChild(dialog); runManagementAction(plugin.dissolveCurrentMarketCrier(uiPlayer, true)); });
+        deleteNpc.setPivot(Pivot.UpperLeft); deleteNpc.setPosition(354, 184, false); deleteNpc.setSize(186, 32, false);
+        dialog.addChild(deleteNpc);
     }
 
     private OZUIElement confirmationDialog(String titleText) {
@@ -1308,10 +1479,14 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private void addDialogMessage(OZUIElement dialog, String details) {
+        addDialogMessage(dialog, details, 390);
+    }
+
+    private void addDialogMessage(OZUIElement dialog, String details, int width) {
         UILabel message = label(details, 13, Font.Default);
         message.setPivot(Pivot.UpperLeft);
         message.setPosition(20, 54, false);
-        message.setSize(390, 110, false);
+        message.setSize(width, 110, false);
         message.setTextWrap(true);
         dialog.addChild(message);
     }
@@ -1513,7 +1688,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         if (percent < 0) {
             return "";
         }
-        return t().get("TC_MARKET_UI_CONDITION", uiPlayer).replace("PH_PERCENT", String.valueOf(percent));
+        return t().get("tc.market.ui.condition", uiPlayer).replace("PH_PERCENT", String.valueOf(percent));
     }
 
     private String conditionValue(String itemName, MarketplaceItemState itemState) {
@@ -1537,12 +1712,12 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     private String sellUnavailableMessage() {
         PluginSettings settings = plugin.marketplaceSettings();
         if (!settings.localMarketplaceEnabled && !settings.globalMarketplaceEnabled) {
-            return t().get("TC_MARKET_UI_SELL_DISABLED", uiPlayer);
+            return t().get("tc.market.ui.sell.disabled", uiPlayer);
         }
         if (settings.marketZoneOnlyMode && plugin.safeCurrentMarketZone(uiPlayer).isEmpty()) {
-            return t().get("TC_MARKET_UI_SELL_ZONE_REQUIRED", uiPlayer);
+            return t().get("tc.market.ui.sell.zone.required", uiPlayer);
         }
-        return t().get("TC_MARKET_UI_SELL_NO_MODE", uiPlayer);
+        return t().get("tc.market.ui.sell.no.mode", uiPlayer);
     }
 
     private String normalizeCurrency(String currency) {
@@ -1569,6 +1744,20 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         } catch (NumberFormatException ex) {
             return 0;
         }
+    }
+
+    private float positiveDecimal(String value, float fallback) {
+        try {
+            float parsed = Float.parseFloat(value == null ? "" : value.trim().replace(',', '.'));
+            return Float.isFinite(parsed) && parsed > 0f && parsed <= 1000f ? parsed : fallback;
+        } catch (NumberFormatException ex) {
+            return fallback;
+        }
+    }
+
+    private String retainedDecimal(String value, String fallback) {
+        String trimmed = value == null ? "" : value.trim();
+        return trimmed.isEmpty() ? fallback : trimmed;
     }
 
     private long parseLong(String value) {

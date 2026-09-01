@@ -29,7 +29,7 @@ public class MarketplacePlayerPluginSettings extends PlayerPluginSettings {
             protected void redrawContent() {
                 flexWrapper.removeAllChilds();
                 OZUIElement element = defaultSettingsContainer();
-                element.addChild(defaultSettingsLabel(text(uiPlayer, "TC_LABEL_MARKETPLACE_SHORTCUT")));
+                element.addChild(defaultSettingsLabel(text(uiPlayer, "tc.label.marketplace.shortcut")));
                 boolean visible = MarketplacePlayerPreferences.shortcutVisible(uiPlayer);
                 element.addChild(switchButtons(uiPlayer, visible, event -> {
                     MarketplacePlayerPreferences.setShortcutVisible(uiPlayer, !visible);

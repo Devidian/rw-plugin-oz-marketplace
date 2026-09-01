@@ -64,11 +64,11 @@ public class MarketplaceService {
         if (area != null && area.isValid()) {
             try {
                 database.upsertZone(areaZone(id, name, area, feePercent, globalTradeMode, 0, "", "", now()));
-                return MarketplaceResult.okKey("TC_MARKET_RESULT_ZONE_SAVED", "Market zone saved: PH_ZONE.",
+                return MarketplaceResult.okKey("tc.market.result.zone.saved", "Market zone saved: PH_ZONE.",
                         "PH_ZONE", id);
             } catch (SQLException ex) {
                 Marketplace.logger().error("Failed to save market zone: " + ex.getMessage());
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_ZONE_SAVE_FAILED", "Could not save market zone.");
+                return MarketplaceResult.failKey("tc.market.result.zone.save.failed", "Could not save market zone.");
             }
         }
         return createZone(id, name, areaId, new Vector3i(0, 0, 0), 0, feePercent, globalTradeMode);
@@ -77,10 +77,10 @@ public class MarketplaceService {
     public MarketplaceResult createZone(String id, String name, long areaId, Vector3i center, int radius, int feePercent,
             int globalTradeMode) {
         if (id == null || id.isBlank()) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_ZONE_ID_REQUIRED", "Zone id is required.");
+            return MarketplaceResult.failKey("tc.market.result.zone.id.required", "Zone id is required.");
         }
         if (radius < 0) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_ZONE_RADIUS_INVALID",
+            return MarketplaceResult.failKey("tc.market.result.zone.radius.invalid",
                     "Zone radius must be at least 0 chunks.");
         }
         int fee = Math.max(0, Math.min(100, feePercent));
@@ -99,17 +99,17 @@ public class MarketplaceService {
                 now(), 0, "", "");
         try {
             database.upsertZone(zone);
-            return MarketplaceResult.okKey("TC_MARKET_RESULT_ZONE_SAVED", "Market zone saved: PH_ZONE.",
+            return MarketplaceResult.okKey("tc.market.result.zone.saved", "Market zone saved: PH_ZONE.",
                     "PH_ZONE", zone.id());
         } catch (SQLException ex) {
             Marketplace.logger().error("Failed to save market zone: " + ex.getMessage());
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_ZONE_SAVE_FAILED", "Could not save market zone.");
+            return MarketplaceResult.failKey("tc.market.result.zone.save.failed", "Could not save market zone.");
         }
     }
 
     public MarketplaceResult updateZone(MarketZone zone) {
         if (zone == null || zone.id() == null || zone.id().isBlank()) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_ZONE_ID_REQUIRED", "Zone id is required.");
+            return MarketplaceResult.failKey("tc.market.result.zone.id.required", "Zone id is required.");
         }
         int fee = Math.max(0, Math.min(100, zone.feePercent()));
         MarketZone updated = new MarketZone(
@@ -127,33 +127,33 @@ public class MarketplaceService {
                 zone.createdAt(), zone.ownerDbId(), zone.ownerName(), zone.ownerAreaPermission());
         try {
             database.upsertZone(updated);
-            return MarketplaceResult.okKey("TC_MARKET_RESULT_ZONE_SAVED", "Market zone saved: PH_ZONE.",
+            return MarketplaceResult.okKey("tc.market.result.zone.saved", "Market zone saved: PH_ZONE.",
                     "PH_ZONE", updated.id());
         } catch (SQLException ex) {
             Marketplace.logger().error("Failed to save market zone: " + ex.getMessage());
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_ZONE_SAVE_FAILED", "Could not save market zone.");
+            return MarketplaceResult.failKey("tc.market.result.zone.save.failed", "Could not save market zone.");
         }
     }
 
     public MarketplaceResult deleteZone(String id) {
         if (id == null || id.isBlank()) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_ZONE_ID_REQUIRED", "Zone id is required.");
+            return MarketplaceResult.failKey("tc.market.result.zone.id.required", "Zone id is required.");
         }
         try {
             MarketplaceDatabase.ZoneDeleteResult result = database.deleteZoneIfEmpty(id.trim().toLowerCase());
             if (!result.deleted()) {
                 if (result.activeListings() > 0) {
-                    return MarketplaceResult.failKey("TC_MARKET_RESULT_ZONE_NOT_EMPTY",
+                    return MarketplaceResult.failKey("tc.market.result.zone.not.empty",
                             "A market can only be dissolved after all listings are gone.");
                 }
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_ZONE_NOT_FOUND",
+                return MarketplaceResult.failKey("tc.market.result.zone.not.found",
                         "Market zone not found: PH_ZONE.", "PH_ZONE", id);
             }
-            return MarketplaceResult.okKey("TC_MARKET_RESULT_ZONE_DELETED",
+            return MarketplaceResult.okKey("tc.market.result.zone.deleted",
                     "Market zone deleted: PH_ZONE.", "PH_ZONE", id);
         } catch (SQLException ex) {
             Marketplace.logger().error("Failed to delete market zone: " + ex.getMessage());
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_ZONE_DELETE_FAILED",
+            return MarketplaceResult.failKey("tc.market.result.zone.delete.failed",
                     "Could not delete market zone.");
         }
     }
@@ -163,6 +163,8 @@ public class MarketplaceService {
     }
 
     public Optional<MarketZone> currentZone(Player player) throws SQLException {
+        Object endpoint = player.getAttribute("oz.marketplace.crier.endpoint");
+        if (endpoint instanceof MarketCrier crier) return Optional.of(asEndpointZone(crier));
         Area area = player.getCurrentArea();
         if (area != null && area.getID() > 0L) {
             Optional<MarketZone> areaZone = database.listZones().stream()
@@ -179,32 +181,41 @@ public class MarketplaceService {
                 .min(Comparator.comparing(MarketZone::id));
     }
 
+    private MarketZone asEndpointZone(MarketCrier crier) {
+        int globalMode = crier.global() && crier.globalTradeEnabled()
+                ? MarketZone.GLOBAL_ALLOW : MarketZone.GLOBAL_DENY;
+        return new MarketZone(crier.endpointId(), crier.name(), 0L, 0, 0, 0, 0, 0, 0,
+                crier.feePercent(), globalMode, crier.createdAt(), crier.ownerDbId(),
+                crier.ownerName(), "");
+    }
+
     public MarketplaceResult createPlayerMarket(Player player) {
         if (player == null || player.getDbID() <= 0) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_PLAYER_ID_MISSING",
+            return MarketplaceResult.failKey("tc.market.result.player.id.missing",
                     "Player has no database id.");
         }
         if (settings.maxPlayerMarketplaces == 0) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_PLAYER_MARKETS_DISABLED",
+            return MarketplaceResult.failKey("tc.market.result.player.markets.disabled",
                     "Player-created markets are disabled.");
         }
         Area area = player.getCurrentArea();
         if (area == null || area.getID() <= 0L) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_AREA_REQUIRED",
+            return MarketplaceResult.failKey("tc.market.result.area.required",
                     "Stand inside an existing area to create a market.");
         }
         if (!hasAddPlayerPermission(player)) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_AREA_PERMISSION_REQUIRED",
+            return MarketplaceResult.failKey("tc.market.result.area.permission.required",
                     "You need the area addplayer permission to create a market.");
         }
         try {
             if (database.areaHasMarket(area.getID(), "")) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_AREA_ALREADY_MARKET",
+                return MarketplaceResult.failKey("tc.market.result.area.already.market",
                         "This area is already linked to a market.");
             }
             if (settings.maxPlayerMarketplaces > 0
-                    && database.playerMarketCount(player.getDbID()) >= settings.maxPlayerMarketplaces) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_PLAYER_MARKET_LIMIT",
+                    && database.playerMarketCount(player.getDbID()) + database.playerCrierCount(player.getDbID())
+                            >= settings.maxPlayerMarketplaces) {
+                return MarketplaceResult.failKey("tc.market.result.player.market.limit",
                         "You reached the player market limit.");
             }
             String permission = permissionToken(area, player.getDbID());
@@ -212,11 +223,11 @@ public class MarketplaceService {
                     area, settings.defaultLocalFeePercent, MarketZone.GLOBAL_DEFAULT, player.getDbID(),
                     player.getName(), permission, now());
             database.upsertZone(zone);
-            return MarketplaceResult.okKey("TC_MARKET_RESULT_PLAYER_MARKET_CREATED",
+            return MarketplaceResult.okKey("tc.market.result.player.market.created",
                     "Player market created: PH_ZONE.", "PH_ZONE", zone.name());
         } catch (SQLException ex) {
             Marketplace.logger().error("Failed to create player market: " + ex.getMessage());
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_PLAYER_MARKET_CREATE_FAILED",
+            return MarketplaceResult.failKey("tc.market.result.player.market.create.failed",
                     "Could not create player market.");
         }
     }
@@ -227,7 +238,8 @@ public class MarketplaceService {
         if (area == null || area.getID() <= 0L || !hasAddPlayerPermission(player)) return false;
         try {
             return !database.areaHasMarket(area.getID(), "") && (settings.maxPlayerMarketplaces < 0
-                    || database.playerMarketCount(player.getDbID()) < settings.maxPlayerMarketplaces);
+                    || database.playerMarketCount(player.getDbID()) + database.playerCrierCount(player.getDbID())
+                            < settings.maxPlayerMarketplaces);
         } catch (SQLException ex) { return false; }
     }
 
@@ -284,15 +296,15 @@ public class MarketplaceService {
     public MarketplaceResult createWantedListing(Player requester, String itemName, int itemVariant, int amount,
             long offeredPrice, String currencyIdentifier, boolean globalListing) {
         if (!walletAvailable()) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_WALLET_REQUIRED",
+            return MarketplaceResult.failKey("tc.market.result.wallet.required",
                     "OZ - Wallet is required for this Marketplace action.");
         }
         if (requester == null || requester.getDbID() <= 0 || itemName == null || itemName.isBlank()) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_REQUESTER_ITEM_REQUIRED",
+            return MarketplaceResult.failKey("tc.market.result.requester.item.required",
                     "Requester and item are required.");
         }
         if (amount <= 0 || offeredPrice <= 0 || itemVariant < 0) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_AMOUNT_PRICE_INVALID",
+            return MarketplaceResult.failKey("tc.market.result.amount.price.invalid",
                     "Amount and offered price must be greater than 0.");
         }
         String currency = normalizeListingCurrency(currencyIdentifier);
@@ -300,24 +312,28 @@ public class MarketplaceService {
         if (!currencyValidation.success()) return currencyValidation;
         try {
             if (database.activeListingCount(requester.getDbID()) >= listingCapacity(requester)) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_LISTING_LIMIT",
+                return MarketplaceResult.failKey("tc.market.result.listing.limit",
                         "You reached the active listing limit.");
             }
             Optional<MarketZone> zone = currentZone(requester);
             MarketplaceResult access = validateListingLocation(globalListing, zone);
             if (!access.success()) return access;
+            MarketplaceResult crierAccess = validateCrierListing(requester, zone, MarketplaceListing.TYPE_WANTED);
+            if (!crierAccess.success()) return crierAccess;
+            MarketplaceResult crierFunding = validateCrierWantedFunding(zone, offeredPrice, currency);
+            if (!crierFunding.success()) return crierFunding;
             MarketplaceListing listing = new MarketplaceListing(0L, requester.getDbID(), requester.getName(),
                     itemName.trim(), itemVariant, amount, MarketplaceItemState.NEUTRAL, offeredPrice, currency,
                     zone.map(MarketZone::id).orElse("global"), globalListing, now(), STATUS_ACTIVE,
                     MarketplaceListing.TYPE_WANTED, amount, 0, offeredPrice);
             long id = database.createListing(listing);
-            return id > 0L ? MarketplaceResult.okKey("TC_MARKET_RESULT_WANTED_CREATED",
+            return id > 0L ? MarketplaceResult.okKey("tc.market.result.wanted.created",
                     "Wanted listing #PH_LISTING created.", "PH_LISTING", String.valueOf(id))
-                    : MarketplaceResult.failKey("TC_MARKET_RESULT_WANTED_CREATE_FAILED",
+                    : MarketplaceResult.failKey("tc.market.result.wanted.create.failed",
                             "Could not create wanted listing.");
         } catch (SQLException ex) {
             Marketplace.logger().error("Failed to create wanted listing: " + ex.getMessage());
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_WANTED_CREATE_FAILED",
+            return MarketplaceResult.failKey("tc.market.result.wanted.create.failed",
                     "Could not create wanted listing.");
         }
     }
@@ -325,15 +341,15 @@ public class MarketplaceService {
     public MarketplaceResult createListing(Player seller, String itemName, int itemVariant, int amount, long price,
             String currencyIdentifier, boolean globalListing, MarketplaceItemState requestedItemState) {
         if (!walletAvailable()) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_WALLET_REQUIRED",
+            return MarketplaceResult.failKey("tc.market.result.wallet.required",
                     "OZ - Wallet is required for this Marketplace action.");
         }
         if (seller == null || seller.getDbID() <= 0) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_PLAYER_ID_MISSING",
+            return MarketplaceResult.failKey("tc.market.result.player.id.missing",
                     "Player has no database id.");
         }
         if (price <= 0 || amount <= 0) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_AMOUNT_PRICE_INVALID",
+            return MarketplaceResult.failKey("tc.market.result.amount.price.invalid",
                     "Amount and offered price must be greater than 0.");
         }
         String listingCurrency = normalizeListingCurrency(currencyIdentifier);
@@ -342,37 +358,39 @@ public class MarketplaceService {
             return currencyValidation;
         }
         if (!globalListing && !settings.localMarketplaceEnabled) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_LOCAL_DISABLED",
+            return MarketplaceResult.failKey("tc.market.result.local.disabled",
                     "Local marketplace listings are disabled.");
         }
         boolean inventoryRemoved = false;
         MarketplaceItemState itemState = null;
         try {
             if (database.activeListingCount(seller.getDbID()) >= listingCapacity(seller)) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_LISTING_LIMIT",
+                return MarketplaceResult.failKey("tc.market.result.listing.limit",
                         "You reached the active listing limit.");
             }
             Optional<MarketZone> zone = currentZone(seller);
             if (!globalListing && zone.isEmpty()) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_LOCAL_ZONE_REQUIRED",
+                return MarketplaceResult.failKey("tc.market.result.local.zone.required",
                         "You must stand in a market zone to create a local listing.");
             }
             if (globalListing && settings.marketZoneOnlyMode && zone.isEmpty()) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_GLOBAL_ZONE_REQUIRED",
+                return MarketplaceResult.failKey("tc.market.result.global.zone.required",
                         "You must stand in a market zone to create a global listing.");
             }
             if (globalListing && zone.isEmpty() && !settings.globalMarketplaceEnabled) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_GLOBAL_DISABLED",
+                return MarketplaceResult.failKey("tc.market.result.global.disabled",
                         "Global marketplace listings are disabled.");
             }
             if (globalListing && zone.isPresent() && !zone.get().globalTradeAllowed(settings.globalMarketplaceEnabled)) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_GLOBAL_NOT_ALLOWED",
+                return MarketplaceResult.failKey("tc.market.result.global.not.allowed",
                         "This market zone does not allow global trade.");
             }
+            MarketplaceResult crierAccess = validateCrierListing(seller, zone, MarketplaceListing.TYPE_OFFER);
+            if (!crierAccess.success()) return crierAccess;
             itemState = requestedItemState == null
                     ? InventoryTransfer.snapshotForSeller(seller, itemName, itemVariant, amount)
                     : requestedItemState;
-            if (itemState == null) return MarketplaceResult.failKey("TC_MARKET_RESULT_ITEMS_NOT_MATCHING",
+            if (itemState == null) return MarketplaceResult.failKey("tc.market.result.items.not.matching",
                     "You do not have enough matching items in one item state.");
             MarketplaceResult inventory = InventoryTransfer.removeFromSeller(seller, itemName, itemVariant, amount, itemState);
             if (!inventory.success()) {
@@ -399,10 +417,10 @@ public class MarketplaceService {
                 if (!returned.success()) {
                     Marketplace.logger().error("Failed to return inventory after marketplace listing id generation failed.");
                 }
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_LISTING_CREATE_FAILED",
+                return MarketplaceResult.failKey("tc.market.result.listing.create.failed",
                         "Could not create listing.");
             }
-            return MarketplaceResult.okKey("TC_MARKET_RESULT_LISTING_CREATED",
+            return MarketplaceResult.okKey("tc.market.result.listing.created",
                     "Listing #PH_LISTING created.", "PH_LISTING", String.valueOf(id));
         } catch (SQLException ex) {
             Marketplace.logger().error("Failed to create listing: " + ex.getMessage());
@@ -412,7 +430,7 @@ public class MarketplaceService {
                     Marketplace.logger().error("Failed to return inventory after marketplace listing creation failed.");
                 }
             }
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_LISTING_CREATE_FAILED",
+            return MarketplaceResult.failKey("tc.market.result.listing.create.failed",
                     "Could not create listing.");
         }
     }
@@ -423,7 +441,7 @@ public class MarketplaceService {
 
     public MarketplaceResult buy(Player buyer, long listingId, int requestedAmount) {
         if (!walletAvailable()) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_WALLET_REQUIRED",
+            return MarketplaceResult.failKey("tc.market.result.wallet.required",
                     "OZ - Wallet is required for this Marketplace action.");
         }
         boolean listingReserved = false;
@@ -431,50 +449,50 @@ public class MarketplaceService {
         try {
             Optional<MarketplaceListing> found = database.findActiveListing(listingId);
             if (found.isEmpty()) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_LISTING_NOT_FOUND", "Listing not found.");
+                return MarketplaceResult.failKey("tc.market.result.listing.not.found", "Listing not found.");
             }
             MarketplaceListing listing = found.get();
             if (listing.wanted()) {
                 return fulfillWanted(buyer, listing, requestedAmount);
             }
             if (listing.sellerDbId() == buyer.getDbID()) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_OWN_LISTING",
+                return MarketplaceResult.failKey("tc.market.result.own.listing",
                         "You cannot trade with your own listing.");
             }
             int purchaseAmount = requestedAmount == Integer.MAX_VALUE ? listing.amount() : requestedAmount;
             if (purchaseAmount <= 0 || purchaseAmount > listing.amount()) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_AMOUNT_RANGE",
+                return MarketplaceResult.failKey("tc.market.result.amount.range",
                         "Amount must be between 1 and PH_AVAILABLE.",
                         "PH_AVAILABLE", String.valueOf(listing.amount()));
             }
             if (!listing.globalListing() && !settings.localMarketplaceEnabled) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_LOCAL_DISABLED",
+                return MarketplaceResult.failKey("tc.market.result.local.disabled",
                         "Local marketplace listings are disabled.");
             }
             Optional<MarketZone> zone = currentZone(buyer);
             if (!listing.globalListing() && zone.isEmpty()) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_LOCAL_TRADE_ZONE_REQUIRED",
+                return MarketplaceResult.failKey("tc.market.result.local.trade.zone.required",
                         "You must stand in the listing's market zone for this local trade.");
             }
             if (listing.globalListing() && settings.marketZoneOnlyMode && zone.isEmpty()) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_GLOBAL_TRADE_ZONE_REQUIRED",
+                return MarketplaceResult.failKey("tc.market.result.global.trade.zone.required",
                         "You must stand in a market zone for global trading.");
             }
             if (listing.globalListing() && zone.isEmpty() && !settings.globalMarketplaceEnabled) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_GLOBAL_DISABLED",
+                return MarketplaceResult.failKey("tc.market.result.global.disabled",
                         "Global marketplace listings are disabled.");
             }
             if (!listing.globalListing() && !zone.get().id().equals(listing.marketZoneId())) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_WRONG_MARKET_ZONE",
+                return MarketplaceResult.failKey("tc.market.result.wrong.market.zone",
                         "This local listing belongs to another market zone.");
             }
             if (listing.globalListing() && zone.isPresent()
                     && !zone.get().globalTradeAllowed(settings.globalMarketplaceEnabled)) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_GLOBAL_NOT_ALLOWED",
+                return MarketplaceResult.failKey("tc.market.result.global.not.allowed",
                         "This market zone does not allow global trade.");
             }
             if (!database.transitionListingStatus(listing.id(), STATUS_ACTIVE, STATUS_PENDING_PURCHASE)) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_LISTING_UNAVAILABLE",
+                return MarketplaceResult.failKey("tc.market.result.listing.unavailable",
                         "Listing is no longer available.");
             }
             listingReserved = true;
@@ -492,8 +510,10 @@ public class MarketplaceService {
             long fee = fee(listing, zone.orElse(null), purchasePrice);
             long sellerPayout = purchasePrice;
             int feeRecipientDbId = zone.filter(MarketZone::playerOwned).map(MarketZone::ownerDbId).orElse(0);
-            FeePayment feePayment = chargeFee(buyer.getDbID(), fee, systemAuditText("TC_WALLET_MARKET_FEE", listing.id()),
-                    paymentCurrencyIdentifier(listing.currencyIdentifier()), feeRecipientDbId, "sale:" + listing.id());
+            String feeRecipientAccountId = crierFeeAccount(zone);
+            FeePayment feePayment = chargeFee(buyer.getDbID(), fee, systemAuditText("tc.wallet.market.fee", listing.id()),
+                    paymentCurrencyIdentifier(listing.currencyIdentifier()), feeRecipientDbId, feeRecipientAccountId,
+                    "sale:" + listing.id());
             WalletBridge.WalletCallResult feeWithdraw = feePayment.result();
             if (!feeWithdraw.success()) {
                 WalletBridge.WalletCallResult purchaseRefund = wallet.deposit(buyer.getDbID(), purchasePrice,
@@ -506,7 +526,7 @@ public class MarketplaceService {
                 WalletBridge.WalletCallResult deposit = wallet.deposit(listing.sellerDbId(), sellerPayout,
                         "Marketplace sale #" + listing.id(), listing.currencyIdentifier(), "OZ - Marketplace");
                 if (!deposit.success()) {
-                    refundRoutedFee(feePayment, systemAuditText("TC_WALLET_MARKET_FEE_REFUND", listing.id()));
+                    refundRoutedFee(feePayment, systemAuditText("tc.wallet.market.fee.refund", listing.id()));
                     WalletBridge.WalletCallResult refund = wallet.deposit(buyer.getDbID(),
                             purchasePrice + (feePayment.routedToWorld() ? 0 : fee),
                             "Marketplace refund #" + listing.id(), listing.currencyIdentifier(), "OZ - Marketplace");
@@ -535,7 +555,7 @@ public class MarketplaceService {
             MarketplaceResult addItem = InventoryTransfer.addToBuyer(buyer, listing.itemName(), listing.itemVariant(),
                     purchaseAmount, listing.itemState());
             if (!addItem.success()) {
-                refundRoutedFee(feePayment, systemAuditText("TC_WALLET_MARKET_FEE_REFUND", listing.id()));
+                refundRoutedFee(feePayment, systemAuditText("tc.wallet.market.fee.refund", listing.id()));
                 if (fee > 0 && feeRecipientDbId > 0) {
                     logWalletRollbackFailure("market tax rollback", listing.id(),
                             wallet.withdraw(feeRecipientDbId, fee, "Marketplace tax rollback #" + listing.id(),
@@ -565,11 +585,11 @@ public class MarketplaceService {
             if (!completed) {
                 Marketplace.logger().error("Marketplace purchase completed externally but listing was already finalized: "
                         + listing.id());
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_ADMIN_REVIEW",
+                return MarketplaceResult.failKey("tc.market.result.admin.review",
                         "The transaction needs administrator review.");
             }
             notifyOnlineSeller(listing, buyer, purchaseAmount, purchasePrice);
-            return MarketplaceResult.okKey("TC_MARKET_RESULT_PURCHASED",
+            return MarketplaceResult.okKey("tc.market.result.purchased",
                     "Purchased PH_AMOUNT item(s) from listing #PH_LISTING.",
                     "PH_AMOUNT", String.valueOf(purchaseAmount),
                     "PH_LISTING", String.valueOf(listing.id()));
@@ -578,7 +598,7 @@ public class MarketplaceService {
             if (listingReserved && !externalTransferCompleted) {
                 releaseListing(listingId, STATUS_PENDING_PURCHASE);
             }
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_PURCHASE_FAILED",
+            return MarketplaceResult.failKey("tc.market.result.purchase.failed",
                     "Could not complete the purchase.");
         }
     }
@@ -588,7 +608,7 @@ public class MarketplaceService {
         if (seller == null) {
             return;
         }
-        String message = I18n.getInstance(Marketplace.name).get("TC_MARKET_SELLER_SALE_NOTIFICATION", seller)
+        String message = I18n.getInstance(Marketplace.name).get("tc.market.seller.sale.notification", seller)
                 .replace("PH_AMOUNT", String.valueOf(amount))
                 .replace("PH_ITEM", MarketplaceItemNames.listingLabel(listing.itemName(), listing.itemVariant()))
                 .replace("PH_PRICE", String.valueOf(price))
@@ -602,19 +622,19 @@ public class MarketplaceService {
         try {
             Optional<MarketplaceListing> found = database.findActiveListing(listingId);
             if (found.isEmpty()) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_LISTING_NOT_FOUND", "Listing not found.");
+                return MarketplaceResult.failKey("tc.market.result.listing.not.found", "Listing not found.");
             }
             MarketplaceListing listing = found.get();
             if (listing.sellerDbId() != seller.getDbID()) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_ONLY_OWNER_CANCEL",
+                return MarketplaceResult.failKey("tc.market.result.only.owner.cancel",
                         "Only the listing owner can withdraw it.");
             }
             if (listing.wanted() && listing.fulfilledAmount() > 0) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_WANTED_WITHDRAW_LOCKED",
+                return MarketplaceResult.failKey("tc.market.result.wanted.withdraw.locked",
                         "A wanted listing cannot be withdrawn after its first fulfillment.");
             }
             if (!database.transitionListingStatus(listing.id(), STATUS_ACTIVE, STATUS_PENDING_CANCEL)) {
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_LISTING_UNAVAILABLE",
+                return MarketplaceResult.failKey("tc.market.result.listing.unavailable",
                         "Listing is no longer available.");
             }
             listingReserved = true;
@@ -629,17 +649,17 @@ public class MarketplaceService {
             if (!database.transitionListingStatus(listing.id(), STATUS_PENDING_CANCEL, STATUS_CANCELLED)) {
                 Marketplace.logger().error("Marketplace cancellation returned inventory but failed to finalize listing: "
                         + listing.id());
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_ADMIN_REVIEW",
+                return MarketplaceResult.failKey("tc.market.result.admin.review",
                         "The transaction needs administrator review.");
             }
-            return MarketplaceResult.okKey("TC_MARKET_RESULT_LISTING_CANCELLED",
+            return MarketplaceResult.okKey("tc.market.result.listing.cancelled",
                     "Listing #PH_LISTING withdrawn.", "PH_LISTING", String.valueOf(listing.id()));
         } catch (SQLException ex) {
             Marketplace.logger().error("Failed to cancel listing: " + ex.getMessage());
             if (listingReserved) {
                 releaseListing(listingId, STATUS_PENDING_CANCEL);
             }
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_LISTING_CANCEL_FAILED",
+            return MarketplaceResult.failKey("tc.market.result.listing.cancel.failed",
                     "Could not withdraw the listing.");
         }
     }
@@ -706,29 +726,72 @@ public class MarketplaceService {
 
     public MarketplaceResult hideSale(Player seller, long saleId) {
         if (seller == null || seller.getDbID() <= 0) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_PLAYER_ID_MISSING",
+            return MarketplaceResult.failKey("tc.market.result.player.id.missing",
                     "Player has no database id.");
         }
         if (saleId <= 0L) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_SALE_NOT_FOUND", "Sale not found.");
+            return MarketplaceResult.failKey("tc.market.result.sale.not.found", "Sale not found.");
         }
         try {
             return switch (database.hideSaleForSeller(saleId, seller.getDbID(), now())) {
-                case SUCCESS -> MarketplaceResult.okKey("TC_MARKET_RESULT_SALE_REMOVED",
+                case SUCCESS -> MarketplaceResult.okKey("tc.market.result.sale.removed",
                         "Sale removed from your history.");
-                case NOT_FOUND -> MarketplaceResult.failKey("TC_MARKET_RESULT_SALE_NOT_FOUND", "Sale not found.");
-                case WRONG_SELLER -> MarketplaceResult.failKey("TC_MARKET_RESULT_SALE_OWNER_ONLY",
+                case NOT_FOUND -> MarketplaceResult.failKey("tc.market.result.sale.not.found", "Sale not found.");
+                case WRONG_SELLER -> MarketplaceResult.failKey("tc.market.result.sale.owner.only",
                         "Only the seller can remove this sale.");
             };
         } catch (SQLException ex) {
             Marketplace.logger().error("Failed to hide marketplace sale: " + ex.getMessage());
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_SALE_REMOVE_FAILED",
+            return MarketplaceResult.failKey("tc.market.result.sale.remove.failed",
                     "Could not remove the sale.");
         }
     }
 
     private long now() {
         return System.currentTimeMillis();
+    }
+
+    private MarketplaceResult validateCrierListing(Player player, Optional<MarketZone> zone, String listingType)
+            throws SQLException {
+        if (zone.isEmpty()) return MarketplaceResult.okKey("tc.market.result.currency.accepted", "Currency accepted.");
+        MarketCrier crier = database.findCrierByEndpoint(zone.get().id()).orElse(null);
+        if (crier == null || crier.global()) return MarketplaceResult.okKey("tc.market.result.currency.accepted", "Currency accepted.");
+        if (!crier.sharedListings() && !crier.ownedBy(player.getDbID())) {
+            return MarketplaceResult.failKey("tc.market.result.crier.owner.only",
+                    "Only the owner may create listings at this market crier.");
+        }
+        if (database.activeListingCountForEndpoint(crier.endpointId(), listingType) >= crierServiceSlotLimit(crier)) {
+            return MarketplaceResult.failKey("tc.market.result.crier.slot.limit",
+                    "This market crier has no free listing slots.");
+        }
+        return MarketplaceResult.okKey("tc.market.result.currency.accepted", "Currency accepted.");
+    }
+
+    private int crierServiceSlotLimit(MarketCrier crier) {
+        long slots = (long) Math.max(1, crier.level()) * Math.max(1, settings.marketCrierBaseSlots);
+        return slots > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) slots;
+    }
+
+    /** Personal wanted listings are payable only from their crier's Wallet account. */
+    private MarketplaceResult validateCrierWantedFunding(Optional<MarketZone> zone, long offeredPrice,
+            String currencyIdentifier) throws SQLException {
+        if (zone.isEmpty()) return MarketplaceResult.okKey("tc.market.result.currency.accepted", "Currency accepted.");
+        MarketCrier crier = database.findCrierByEndpoint(zone.get().id()).orElse(null);
+        if (crier == null || !crier.personal()) {
+            return MarketplaceResult.okKey("tc.market.result.currency.accepted", "Currency accepted.");
+        }
+        if (!wallet.hasSystemAccountApi()) {
+            return MarketplaceResult.failKey("tc.market.result.crier.funds.insufficient",
+                    "This market crier does not have enough funds for that wanted listing.");
+        }
+        long available = wallet.systemAccountBalances(crier.accountId()).stream()
+                .filter(balance -> balance.currencyIdentifier().equalsIgnoreCase(currencyIdentifier))
+                .mapToLong(WalletBridge.SystemBalanceInfo::balance)
+                .findFirst().orElse(0L);
+        return available >= offeredPrice
+                ? MarketplaceResult.okKey("tc.market.result.currency.accepted", "Currency accepted.")
+                : MarketplaceResult.failKey("tc.market.result.crier.funds.insufficient",
+                        "This market crier does not have enough funds for that wanted listing.");
     }
 
     private long fee(MarketplaceListing listing, MarketZone buyerZone) {
@@ -760,19 +823,19 @@ public class MarketplaceService {
                 ? defaultCurrencyIdentifier()
                 : currencyIdentifier;
         if (effectiveCurrency == null || effectiveCurrency.isBlank()) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_WALLET_CURRENCY_MISSING",
+            return MarketplaceResult.failKey("tc.market.result.wallet.currency.missing",
                     "Wallet default currency is not available.");
         }
         List<WalletBridge.CurrencyInfo> currencies = wallet.listCurrencies();
         if (currencies.isEmpty()) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_WALLET_CURRENCIES_FAILED",
+            return MarketplaceResult.failKey("tc.market.result.wallet.currencies.failed",
                     "Could not load Wallet currencies.");
         }
         String normalized = effectiveCurrency.trim().toUpperCase(Locale.ROOT);
         boolean exists = currencies.stream().anyMatch(currency -> currency.identifier().equals(normalized));
         return exists
-                ? MarketplaceResult.okKey("TC_MARKET_RESULT_CURRENCY_ACCEPTED", "Currency accepted.")
-                : MarketplaceResult.failKey("TC_MARKET_RESULT_CURRENCY_UNKNOWN",
+                ? MarketplaceResult.okKey("tc.market.result.currency.accepted", "Currency accepted.")
+                : MarketplaceResult.failKey("tc.market.result.currency.unknown",
                         "Unknown Wallet currency: PH_CURRENCY.", "PH_CURRENCY", effectiveCurrency);
     }
 
@@ -813,7 +876,7 @@ public class MarketplaceService {
 
     private MarketplaceResult walletFailure(String detail) {
         Marketplace.logger().warn("Marketplace Wallet operation failed: " + safe(detail));
-        return MarketplaceResult.failKey("TC_MARKET_RESULT_WALLET_FAILED",
+        return MarketplaceResult.failKey("tc.market.result.wallet.failed",
                 "The Wallet transaction failed.");
     }
 
@@ -835,14 +898,14 @@ public class MarketplaceService {
     private MarketplaceResult fulfillWanted(Player seller, MarketplaceListing listing, int requestedAmount)
             throws SQLException {
         if (seller == null || seller.getDbID() <= 0) return MarketplaceResult.failKey(
-                "TC_MARKET_RESULT_PLAYER_ID_MISSING", "Player has no database id.");
+                "tc.market.result.player.id.missing", "Player has no database id.");
         if (listing.sellerDbId() == seller.getDbID()) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_OWN_LISTING",
+            return MarketplaceResult.failKey("tc.market.result.own.listing",
                     "You cannot trade with your own listing.");
         }
         int amount = requestedAmount == Integer.MAX_VALUE ? listing.amount() : requestedAmount;
         if (amount <= 0 || amount > listing.amount()) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_AMOUNT_RANGE",
+            return MarketplaceResult.failKey("tc.market.result.amount.range",
                     "Amount must be between 1 and PH_AVAILABLE.",
                     "PH_AVAILABLE", String.valueOf(listing.amount()));
         }
@@ -850,23 +913,26 @@ public class MarketplaceService {
         MarketplaceResult access = validateTradeLocation(listing, zone);
         if (!access.success()) return access;
         if (mail == null || !mail.canReceiveMail(listing.sellerDbId())) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_MAILBOX_FULL",
+            return MarketplaceResult.failKey("tc.market.result.mailbox.full",
                     "The requester's OZ Mail mailbox has no free space.");
         }
         MarketplaceItemState itemState = InventoryTransfer.snapshotForSeller(seller, listing.itemName(),
                 listing.itemVariant(), amount);
         if (itemState == null) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_ITEMS_NOT_MATCHING",
+            return MarketplaceResult.failKey("tc.market.result.items.not.matching",
                     "You do not have enough matching items in one item state.");
         }
         if (!database.transitionListingStatus(listing.id(), STATUS_ACTIVE, STATUS_PENDING_PURCHASE)) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_LISTING_UNAVAILABLE",
+            return MarketplaceResult.failKey("tc.market.result.listing.unavailable",
                     "Listing is no longer available.");
         }
         boolean inventoryRemoved = false;
         long payout = partialPrice(listing.price(), listing.amount(), amount);
         boolean finalFulfillment = amount == listing.amount();
         long fee = finalFulfillment ? fee(listing, zone.orElse(null), listing.originalPrice()) : 0L;
+        String crierPayoutAccountId = crierAccountForEndpoint(listing.marketZoneId());
+        boolean crierPayout = !crierPayoutAccountId.isBlank();
+        String payoutCorrelation = "";
         try {
             MarketplaceResult removal = InventoryTransfer.removeFromSeller(seller, listing.itemName(),
                     listing.itemVariant(), amount, itemState);
@@ -875,10 +941,22 @@ public class MarketplaceService {
                 return removal;
             }
             inventoryRemoved = true;
-            WalletBridge.WalletCallResult priceWithdraw = payout > 0
-                    ? wallet.withdraw(listing.sellerDbId(), payout, "Marketplace wanted #" + listing.id(),
-                            listing.currencyIdentifier(), "OZ - Marketplace")
-                    : new WalletBridge.WalletCallResult(true, "No payout.");
+            WalletBridge.WalletCallResult priceWithdraw;
+            if (payout <= 0) {
+                priceWithdraw = new WalletBridge.WalletCallResult(true, "No payout.");
+            } else if (crierPayout && wallet.hasSystemAccountApi()) {
+                payoutCorrelation = "marketplace:wanted:payout:" + listing.id() + ':' + UUID.randomUUID();
+                WalletBridge.WalletTransferCallResult transfer = wallet.transferSystemToPlayerIdempotent(
+                        crierPayoutAccountId, seller.getDbID(), payout, "Marketplace wanted #" + listing.id(),
+                        listing.currencyIdentifier(), "OZ - Marketplace", payoutCorrelation);
+                priceWithdraw = new WalletBridge.WalletCallResult(transfer.success(), transfer.message());
+            } else if (crierPayout) {
+                priceWithdraw = new WalletBridge.WalletCallResult(false,
+                        "Wallet system-account transfers are not available.");
+            } else {
+                priceWithdraw = wallet.withdraw(listing.sellerDbId(), payout, "Marketplace wanted #" + listing.id(),
+                        listing.currencyIdentifier(), "OZ - Marketplace");
+            }
             if (!priceWithdraw.success()) {
                 restoreWantedSeller(seller, listing, amount, itemState);
                 releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
@@ -887,28 +965,25 @@ public class MarketplaceService {
             WalletBridge.WalletCallResult feeWithdraw = fee > 0
                     ? null : new WalletBridge.WalletCallResult(true, "No fee.");
             int feeRecipientDbId = zone.filter(MarketZone::playerOwned).map(MarketZone::ownerDbId).orElse(0);
+            String feeRecipientAccountId = crierFeeAccount(zone);
             FeePayment feePayment = fee > 0
-                    ? chargeFee(listing.sellerDbId(), fee, systemAuditText("TC_WALLET_MARKET_WANTED_FEE", listing.id()),
-                            listing.currencyIdentifier(), feeRecipientDbId, "wanted:" + listing.id())
+                    ? chargeFee(listing.sellerDbId(), fee, systemAuditText("tc.wallet.market.wanted.fee", listing.id()),
+                            listing.currencyIdentifier(), feeRecipientDbId, feeRecipientAccountId, "wanted:" + listing.id())
                     : FeePayment.none();
             feeWithdraw = feePayment.result();
             if (!feeWithdraw.success()) {
-                logWalletRollbackFailure("wanted price refund", listing.id(), wallet.deposit(listing.sellerDbId(),
-                        payout, "Marketplace wanted refund #" + listing.id(), listing.currencyIdentifier(),
-                        "OZ - Marketplace"));
+                rollbackWantedPayout(listing, seller, payout, crierPayout, payoutCorrelation);
                 restoreWantedSeller(seller, listing, amount, itemState);
                 releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
                 return walletFailure(feeWithdraw.message());
             }
-            WalletBridge.WalletCallResult sellerDeposit = payout > 0
-                    ? wallet.deposit(seller.getDbID(), payout, "Marketplace wanted fulfillment #" + listing.id(),
-                            listing.currencyIdentifier(), "OZ - Marketplace")
-                    : new WalletBridge.WalletCallResult(true, "No payout.");
+            WalletBridge.WalletCallResult sellerDeposit = crierPayout || payout <= 0
+                    ? new WalletBridge.WalletCallResult(true, "Payout already transferred.")
+                    : wallet.deposit(seller.getDbID(), payout, "Marketplace wanted fulfillment #" + listing.id(),
+                            listing.currencyIdentifier(), "OZ - Marketplace");
             if (!sellerDeposit.success()) {
-                refundRoutedFee(feePayment, systemAuditText("TC_WALLET_MARKET_WANTED_FEE_REFUND", listing.id()));
-                logWalletRollbackFailure("wanted requester refund", listing.id(), wallet.deposit(listing.sellerDbId(),
-                        payout + (feePayment.routedToWorld() ? 0 : fee), "Marketplace wanted refund #" + listing.id(), listing.currencyIdentifier(),
-                        "OZ - Marketplace"));
+                refundRoutedFee(feePayment, systemAuditText("tc.wallet.market.wanted.fee.refund", listing.id()));
+                rollbackWantedPayout(listing, seller, payout, crierPayout, payoutCorrelation);
                 restoreWantedSeller(seller, listing, amount, itemState);
                 releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
                 return walletFailure(sellerDeposit.message());
@@ -918,7 +993,7 @@ public class MarketplaceService {
                         "Marketplace wanted market tax #" + listing.id(), listing.currencyIdentifier(),
                         "OZ - Marketplace");
                 if (!taxDeposit.success()) {
-                    rollbackWantedMoney(listing, seller, payout, fee);
+                    rollbackWantedPayout(listing, seller, payout, crierPayout, payoutCorrelation);
                     restoreWantedSeller(seller, listing, amount, itemState);
                     releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
                     return walletFailure(taxDeposit.message());
@@ -929,11 +1004,11 @@ public class MarketplaceService {
                     itemState.color());
             Player requester = Server.getPlayerByDbID(listing.sellerDbId());
             I18n translations = I18n.getInstance(Marketplace.name);
-            String subject = (requester == null ? translations.get("TC_MARKET_WANTED_MAIL_SUBJECT", "en")
-                    : translations.get("TC_MARKET_WANTED_MAIL_SUBJECT", requester))
+            String subject = (requester == null ? translations.get("tc.market.wanted.mail.subject", "en")
+                    : translations.get("tc.market.wanted.mail.subject", requester))
                     .replace("PH_LISTING", String.valueOf(listing.id()));
-            String body = (requester == null ? translations.get("TC_MARKET_WANTED_MAIL_BODY", "en")
-                    : translations.get("TC_MARKET_WANTED_MAIL_BODY", requester))
+            String body = (requester == null ? translations.get("tc.market.wanted.mail.body", "en")
+                    : translations.get("tc.market.wanted.mail.body", requester))
                     .replace("PH_AMOUNT", String.valueOf(amount))
                     .replace("PH_ITEM", MarketplaceItemNames.listingLabel(listing.itemName(), listing.itemVariant()))
                     .replace("PH_SELLER", seller.getName());
@@ -941,16 +1016,16 @@ public class MarketplaceService {
                     Marketplace.name, listing.sellerDbId(), listing.sellerName(), subject, body,
                     "wanted-" + listing.id() + '-' + (listing.fulfilledAmount() + amount), List.of(attachment)));
             if (!mailResult.success()) {
-                refundRoutedFee(feePayment, systemAuditText("TC_WALLET_MARKET_WANTED_FEE_REFUND", listing.id()));
+                refundRoutedFee(feePayment, systemAuditText("tc.wallet.market.wanted.fee.refund", listing.id()));
                 if (fee > 0 && feeRecipientDbId > 0) {
                     logWalletRollbackFailure("wanted tax rollback", listing.id(), wallet.withdraw(feeRecipientDbId, fee,
                             "Marketplace wanted tax rollback #" + listing.id(), listing.currencyIdentifier(),
                             "OZ - Marketplace"));
                 }
-                rollbackWantedMoney(listing, seller, payout, feePayment.routedToWorld() ? 0 : fee);
+                rollbackWantedPayout(listing, seller, payout, crierPayout, payoutCorrelation);
                 restoreWantedSeller(seller, listing, amount, itemState);
                 releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_MAIL_DELIVERY_FAILED",
+                return MarketplaceResult.failKey("tc.market.result.mail.delivery.failed",
                         "OZ Mail could not deliver the wanted items (PH_CODE).",
                         "PH_CODE", mailResult.code());
             }
@@ -963,10 +1038,10 @@ public class MarketplaceService {
             if (!completed) {
                 Marketplace.logger().error("Wanted fulfillment completed externally but database finalization failed: "
                         + listing.id() + ".");
-                return MarketplaceResult.failKey("TC_MARKET_RESULT_ADMIN_REVIEW",
+                return MarketplaceResult.failKey("tc.market.result.admin.review",
                         "The transaction needs administrator review.");
             }
-            return MarketplaceResult.okKey("TC_MARKET_RESULT_WANTED_SOLD",
+            return MarketplaceResult.okKey("tc.market.result.wanted.sold",
                     "Sold PH_AMOUNT item(s) to wanted listing #PH_LISTING.",
                     "PH_AMOUNT", String.valueOf(amount),
                     "PH_LISTING", String.valueOf(listing.id()));
@@ -988,9 +1063,30 @@ public class MarketplaceService {
                 "OZ - Marketplace"));
     }
 
+    private void rollbackWantedPayout(MarketplaceListing listing, Player seller, long payout, boolean crierPayout,
+            String payoutCorrelation) {
+        if (crierPayout && !payoutCorrelation.isBlank()) {
+            WalletBridge.WalletTransferCallResult reversal = wallet.reverseAccountTransferIdempotent(payoutCorrelation,
+                    payoutCorrelation + ":refund", "Marketplace wanted payout refund #" + listing.id(),
+                    "OZ - Marketplace");
+            if (!reversal.success()) Marketplace.logger().error("Marketplace wanted payout refund failed: "
+                    + reversal.message());
+            return;
+        }
+        rollbackWantedMoney(listing, seller, payout, 0L);
+    }
+
+    /** Routes personal market-crier fees directly into its Wallet system account. */
     private FeePayment chargeFee(int payerDbId, long fee, String reason, String currencyIdentifier,
-            int playerFeeRecipientDbId, String operationId) {
+            int playerFeeRecipientDbId, String systemFeeRecipientAccountId, String operationId) {
         if (fee <= 0) return FeePayment.none();
+        if (!systemFeeRecipientAccountId.isBlank() && wallet.hasSystemAccountApi()) {
+            String correlation = "marketplace:fee:" + operationId + ":" + UUID.randomUUID();
+            WalletBridge.WalletTransferCallResult transfer = wallet.transferPlayerToSystemIdempotent(payerDbId,
+                    systemFeeRecipientAccountId, fee, reason, currencyIdentifier, "OZ - Marketplace", correlation);
+            return new FeePayment(new WalletBridge.WalletCallResult(transfer.success(), transfer.message()),
+                    correlation, true);
+        }
         if (playerFeeRecipientDbId <= 0 && wallet.hasSystemAccountApi()) {
             String correlation = "marketplace:fee:" + operationId + ":" + UUID.randomUUID();
             WalletBridge.WalletTransferCallResult transfer = wallet.transferPlayerToWorldIdempotent(payerDbId, fee,
@@ -1016,6 +1112,17 @@ public class MarketplaceService {
         }
     }
 
+    private String crierFeeAccount(Optional<MarketZone> zone) throws SQLException {
+        if (zone.isEmpty()) return "";
+        MarketCrier crier = database.findCrierByEndpoint(zone.get().id()).orElse(null);
+        return crier != null && crier.personal() ? crier.accountId() : "";
+    }
+
+    private String crierAccountForEndpoint(String endpointId) throws SQLException {
+        MarketCrier crier = database.findCrierByEndpoint(endpointId).orElse(null);
+        return crier != null && crier.personal() ? crier.accountId() : "";
+    }
+
     private record FeePayment(WalletBridge.WalletCallResult result, String correlationId, boolean routedToWorld) {
         private static FeePayment none() {
             return new FeePayment(new WalletBridge.WalletCallResult(true, "No fee."), "", false);
@@ -1033,47 +1140,47 @@ public class MarketplaceService {
 
     private MarketplaceResult validateListingLocation(boolean globalListing, Optional<MarketZone> zone) {
         if (!globalListing && !settings.localMarketplaceEnabled) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_LOCAL_DISABLED",
+            return MarketplaceResult.failKey("tc.market.result.local.disabled",
                     "Local marketplace listings are disabled.");
         }
         if (!globalListing && zone.isEmpty()) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_LOCAL_ZONE_REQUIRED",
+            return MarketplaceResult.failKey("tc.market.result.local.zone.required",
                     "You must stand in a market zone to create a local listing.");
         }
         if (globalListing && settings.marketZoneOnlyMode && zone.isEmpty()) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_GLOBAL_ZONE_REQUIRED",
+            return MarketplaceResult.failKey("tc.market.result.global.zone.required",
                     "You must stand in a market zone to create a global listing.");
         }
         if (globalListing && zone.isEmpty() && !settings.globalMarketplaceEnabled) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_GLOBAL_DISABLED",
+            return MarketplaceResult.failKey("tc.market.result.global.disabled",
                     "Global marketplace listings are disabled.");
         }
         if (globalListing && zone.isPresent() && !zone.get().globalTradeAllowed(settings.globalMarketplaceEnabled)) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_GLOBAL_NOT_ALLOWED",
+            return MarketplaceResult.failKey("tc.market.result.global.not.allowed",
                     "This market zone does not allow global trade.");
         }
-        return MarketplaceResult.okKey("TC_MARKET_RESULT_LOCATION_ACCEPTED", "Listing location accepted.");
+        return MarketplaceResult.okKey("tc.market.result.location.accepted", "Listing location accepted.");
     }
 
     private MarketplaceResult validateTradeLocation(MarketplaceListing listing, Optional<MarketZone> zone) {
         if (!listing.globalListing() && zone.isEmpty()) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_LOCAL_TRADE_ZONE_REQUIRED",
+            return MarketplaceResult.failKey("tc.market.result.local.trade.zone.required",
                     "You must stand in the listing's market zone for this local trade.");
         }
         if (!listing.globalListing() && !zone.get().id().equals(listing.marketZoneId())) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_WRONG_MARKET_ZONE",
+            return MarketplaceResult.failKey("tc.market.result.wrong.market.zone",
                     "This local listing belongs to another market zone.");
         }
         if (listing.globalListing() && settings.marketZoneOnlyMode && zone.isEmpty()) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_GLOBAL_TRADE_ZONE_REQUIRED",
+            return MarketplaceResult.failKey("tc.market.result.global.trade.zone.required",
                     "You must stand in a market zone for global trading.");
         }
         if (listing.globalListing() && zone.isPresent()
                 && !zone.get().globalTradeAllowed(settings.globalMarketplaceEnabled)) {
-            return MarketplaceResult.failKey("TC_MARKET_RESULT_GLOBAL_NOT_ALLOWED",
+            return MarketplaceResult.failKey("tc.market.result.global.not.allowed",
                     "This market zone does not allow global trade.");
         }
-        return MarketplaceResult.okKey("TC_MARKET_RESULT_LOCATION_ACCEPTED", "Listing location accepted.");
+        return MarketplaceResult.okKey("tc.market.result.location.accepted", "Listing location accepted.");
     }
 
     private boolean hasAddPlayerPermission(Player player) {

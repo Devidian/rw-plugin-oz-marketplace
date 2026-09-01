@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class MarketplaceDatabase {
-    private static final int SCHEMA_VERSION = 6;
+    private static final int SCHEMA_VERSION = 8;
     private final Connection connection;
 
     public enum HideSaleStatus {
@@ -27,6 +27,39 @@ public class MarketplaceDatabase {
     private void initialize() throws SQLException {
         try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA foreign_keys = ON;");
+            statement.execute("""
+                    CREATE TABLE IF NOT EXISTS marketplace_crier_locations (
+                        endpoint_id TEXT PRIMARY KEY, x REAL NOT NULL, y REAL NOT NULL, z REAL NOT NULL,
+                        rx REAL NOT NULL, ry REAL NOT NULL, rz REAL NOT NULL, rw REAL NOT NULL
+                    );
+                    """);
+            statement.execute("""
+                    CREATE TABLE IF NOT EXISTS marketplace_crier_appearances (
+                        endpoint_id TEXT PRIMARY KEY, gender TEXT NOT NULL, skin_color INTEGER NOT NULL,
+                        hair_color INTEGER NOT NULL, eye_color INTEGER NOT NULL, hairstyle INTEGER NOT NULL,
+                        beard INTEGER NOT NULL, variation INTEGER NOT NULL, clothes BLOB NOT NULL
+                    );
+                    """);
+            statement.execute("""
+                    CREATE TABLE IF NOT EXISTS marketplace_criers (
+                        npc_id BIGINT PRIMARY KEY,
+                        endpoint_id TEXT NOT NULL UNIQUE,
+                        name TEXT NOT NULL,
+                        owner_db_id INTEGER NOT NULL DEFAULT 0,
+                        owner_name TEXT NOT NULL DEFAULT '',
+                        global_crier INTEGER NOT NULL DEFAULT 0,
+                        global_trade_enabled INTEGER NOT NULL DEFAULT 0,
+                        shared_listings INTEGER NOT NULL DEFAULT 0,
+                        level INTEGER NOT NULL DEFAULT 1,
+                        male INTEGER NOT NULL DEFAULT 1,
+                        created_at BIGINT NOT NULL,
+                        fee_percent INTEGER NOT NULL DEFAULT 5
+                    );
+                    """);
+            statement.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_marketplace_criers_owner
+                    ON marketplace_criers(owner_db_id, global_crier, created_at);
+                    """);
             statement.execute("""
                     CREATE TABLE IF NOT EXISTS marketplace_zones (
                         id TEXT PRIMARY KEY,
@@ -147,6 +180,7 @@ public class MarketplaceDatabase {
         ensureColumn(statement, "marketplace_zones", "owner_db_id", "INTEGER NOT NULL DEFAULT 0");
         ensureColumn(statement, "marketplace_zones", "owner_name", "TEXT NOT NULL DEFAULT ''");
         ensureColumn(statement, "marketplace_zones", "owner_area_permission", "TEXT NOT NULL DEFAULT ''");
+        ensureColumn(statement, "marketplace_criers", "fee_percent", "INTEGER NOT NULL DEFAULT 5");
         statement.execute("""
                 UPDATE marketplace_listings
                 SET original_amount = amount
@@ -445,6 +479,180 @@ public class MarketplaceDatabase {
         }
     }
 
+    public void upsertCrier(MarketCrier crier) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO marketplace_criers(npc_id, endpoint_id, name, owner_db_id, owner_name, global_crier,
+                    global_trade_enabled, shared_listings, level, male, created_at, fee_percent)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(npc_id) DO UPDATE SET endpoint_id=excluded.endpoint_id, name=excluded.name,
+                    owner_db_id=excluded.owner_db_id, owner_name=excluded.owner_name,
+                    global_crier=excluded.global_crier, global_trade_enabled=excluded.global_trade_enabled,
+                    shared_listings=excluded.shared_listings, level=excluded.level, male=excluded.male,
+                    fee_percent=excluded.fee_percent;
+                """)) {
+            writeCrier(statement, crier);
+            statement.executeUpdate();
+        }
+    }
+
+    public record CrierLocation(float x, float y, float z, float rx, float ry, float rz, float rw) { }
+
+    public void upsertCrierLocation(String endpointId, CrierLocation location) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO marketplace_crier_locations(endpoint_id,x,y,z,rx,ry,rz,rw) VALUES(?,?,?,?,?,?,?,?)
+                ON CONFLICT(endpoint_id) DO UPDATE SET x=excluded.x,y=excluded.y,z=excluded.z,rx=excluded.rx,
+                ry=excluded.ry,rz=excluded.rz,rw=excluded.rw;
+                """)) {
+            statement.setString(1, endpointId); statement.setFloat(2, location.x()); statement.setFloat(3, location.y());
+            statement.setFloat(4, location.z()); statement.setFloat(5, location.rx()); statement.setFloat(6, location.ry());
+            statement.setFloat(7, location.rz()); statement.setFloat(8, location.rw()); statement.executeUpdate();
+        }
+    }
+
+    public Optional<CrierLocation> findCrierLocation(String endpointId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT x,y,z,rx,ry,rz,rw FROM marketplace_crier_locations WHERE endpoint_id=?")) {
+            statement.setString(1, endpointId);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next() ? Optional.of(new CrierLocation(result.getFloat(1), result.getFloat(2), result.getFloat(3),
+                        result.getFloat(4), result.getFloat(5), result.getFloat(6), result.getFloat(7))) : Optional.empty();
+            }
+        }
+    }
+
+    public record CrierAppearance(String gender, int skinColor, int hairColor, int eyeColor, byte hairstyle,
+            byte beard, byte variation, byte[] clothes) { }
+
+    public void upsertCrierAppearance(String endpointId, CrierAppearance appearance) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO marketplace_crier_appearances(endpoint_id,gender,skin_color,hair_color,eye_color,hairstyle,beard,variation,clothes)
+                VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(endpoint_id) DO UPDATE SET gender=excluded.gender,skin_color=excluded.skin_color,
+                hair_color=excluded.hair_color,eye_color=excluded.eye_color,hairstyle=excluded.hairstyle,beard=excluded.beard,
+                variation=excluded.variation,clothes=excluded.clothes;
+                """)) {
+            statement.setString(1, endpointId); statement.setString(2, appearance.gender()); statement.setInt(3, appearance.skinColor());
+            statement.setInt(4, appearance.hairColor()); statement.setInt(5, appearance.eyeColor()); statement.setByte(6, appearance.hairstyle());
+            statement.setByte(7, appearance.beard()); statement.setByte(8, appearance.variation()); statement.setBytes(9, appearance.clothes()); statement.executeUpdate();
+        }
+    }
+
+    public Optional<CrierAppearance> findCrierAppearance(String endpointId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("SELECT * FROM marketplace_crier_appearances WHERE endpoint_id=?")) {
+            statement.setString(1, endpointId); try (ResultSet result = statement.executeQuery()) {
+                return result.next() ? Optional.of(new CrierAppearance(result.getString("gender"), result.getInt("skin_color"),
+                        result.getInt("hair_color"), result.getInt("eye_color"), result.getByte("hairstyle"), result.getByte("beard"),
+                        result.getByte("variation"), result.getBytes("clothes"))) : Optional.empty();
+            }
+        }
+    }
+
+    public void replaceCrierNpcId(long oldNpcId, MarketCrier replacement) throws SQLException {
+        connection.setAutoCommit(false);
+        try {
+            try (PreparedStatement delete = connection.prepareStatement("DELETE FROM marketplace_criers WHERE npc_id=?")) {
+                delete.setLong(1, oldNpcId); delete.executeUpdate();
+            }
+            upsertCrier(replacement);
+            connection.commit();
+        } catch (SQLException ex) { connection.rollback(); throw ex; }
+        finally { connection.setAutoCommit(true); }
+    }
+
+    public Optional<MarketCrier> findCrier(long npcId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT * FROM marketplace_criers WHERE npc_id = ?")) {
+            statement.setLong(1, npcId);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next() ? Optional.of(readCrier(result)) : Optional.empty();
+            }
+        }
+    }
+
+    public Optional<MarketCrier> findCrierByEndpoint(String endpointId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT * FROM marketplace_criers WHERE endpoint_id = ?")) {
+            statement.setString(1, endpointId == null ? "" : endpointId);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next() ? Optional.of(readCrier(result)) : Optional.empty();
+            }
+        }
+    }
+
+    public List<MarketCrier> listCriers() throws SQLException {
+        List<MarketCrier> criers = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT * FROM marketplace_criers ORDER BY name COLLATE NOCASE, npc_id");
+                ResultSet result = statement.executeQuery()) {
+            while (result.next()) criers.add(readCrier(result));
+        }
+        return criers;
+    }
+
+    public int playerCrierCount(int ownerDbId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT COUNT(*) FROM marketplace_criers WHERE owner_db_id = ? AND global_crier = 0;
+                """)) {
+            statement.setInt(1, ownerDbId);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next() ? result.getInt(1) : 0;
+            }
+        }
+    }
+
+    /** Keeps a missing NPC's endpoint while it still owns active listings. */
+    public CrierDeleteResult deleteCrierIfEmpty(long npcId) throws SQLException {
+        Optional<MarketCrier> crier = findCrier(npcId);
+        if (crier.isEmpty()) return new CrierDeleteResult(false, 0);
+        try (PreparedStatement count = connection.prepareStatement("""
+                SELECT COUNT(*) FROM marketplace_listings
+                WHERE market_zone_id = ? AND status NOT IN ('SOLD', 'CANCELLED');
+                """)) {
+            count.setString(1, crier.get().endpointId());
+            try (ResultSet result = count.executeQuery()) {
+                int active = result.next() ? result.getInt(1) : 0;
+                if (active > 0) return new CrierDeleteResult(false, active);
+            }
+        }
+        try (PreparedStatement delete = connection.prepareStatement("DELETE FROM marketplace_criers WHERE npc_id = ?")) {
+            delete.setLong(1, npcId);
+            return new CrierDeleteResult(delete.executeUpdate() == 1, 0);
+        }
+    }
+
+    public int activeListingCountForEndpoint(String endpointId, String listingType) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT COUNT(*) FROM marketplace_listings
+                WHERE market_zone_id = ? AND listing_type = ? AND status = 'ACTIVE';
+                """)) {
+            statement.setString(1, endpointId == null ? "" : endpointId);
+            statement.setString(2, listingType);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next() ? result.getInt(1) : 0;
+            }
+        }
+    }
+
+    /** Atomically moves active offers and wants before removing their source zone. */
+    public int convertZoneToCrier(String zoneId, MarketCrier crier) throws SQLException {
+        boolean autoCommit = connection.getAutoCommit();
+        connection.setAutoCommit(false);
+        try {
+            upsertCrier(crier);
+            int moved = relinkListings(zoneId, crier.endpointId(), crier.global() && crier.globalTradeEnabled());
+            try (PreparedStatement delete = connection.prepareStatement("DELETE FROM marketplace_zones WHERE id = ?")) {
+                delete.setString(1, zoneId);
+                if (delete.executeUpdate() != 1) throw new SQLException("Marketplace zone no longer exists: " + zoneId);
+            }
+            connection.commit();
+            return moved;
+        } catch (SQLException ex) {
+            connection.rollback();
+            throw ex;
+        } finally {
+            connection.setAutoCommit(autoCommit);
+        }
+    }
+
     public boolean areaHasMarket(long areaId, String excludedZoneId) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 SELECT 1 FROM marketplace_zones WHERE area_id = ? AND id <> ? LIMIT 1;
@@ -571,6 +779,29 @@ public class MarketplaceDatabase {
         statement.setString(16, zone.ownerAreaPermission());
     }
 
+    private void writeCrier(PreparedStatement statement, MarketCrier crier) throws SQLException {
+        statement.setLong(1, crier.npcId());
+        statement.setString(2, crier.endpointId());
+        statement.setString(3, crier.name());
+        statement.setInt(4, crier.ownerDbId());
+        statement.setString(5, crier.ownerName());
+        statement.setInt(6, crier.global() ? 1 : 0);
+        statement.setInt(7, crier.globalTradeEnabled() ? 1 : 0);
+        statement.setInt(8, crier.sharedListings() ? 1 : 0);
+        statement.setInt(9, crier.level());
+        statement.setInt(10, crier.male() ? 1 : 0);
+        statement.setLong(11, crier.createdAt());
+        statement.setInt(12, crier.feePercent());
+    }
+
+    private MarketCrier readCrier(ResultSet result) throws SQLException {
+        return new MarketCrier(result.getLong("npc_id"), result.getString("endpoint_id"), result.getString("name"),
+                result.getInt("owner_db_id"), result.getString("owner_name"), result.getInt("global_crier") != 0,
+                result.getInt("global_trade_enabled") != 0, result.getInt("shared_listings") != 0,
+                result.getInt("level"), result.getInt("male") != 0, result.getLong("created_at"),
+                result.getInt("fee_percent"));
+    }
+
     private MarketZone readZone(ResultSet result) throws SQLException {
         return new MarketZone(
                 result.getString("id"),
@@ -632,5 +863,8 @@ public class MarketplaceDatabase {
     }
 
     public record ZoneDeleteResult(boolean deleted, int activeListings) {
+    }
+
+    public record CrierDeleteResult(boolean deleted, int activeListings) {
     }
 }

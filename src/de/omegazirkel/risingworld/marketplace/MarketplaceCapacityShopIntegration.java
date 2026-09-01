@@ -41,8 +41,8 @@ public final class MarketplaceCapacityShopIntegration {
         Player player = args != null && args.length > 0 && args[0] instanceof Player p ? p : null;
         I18n translations = I18n.getInstance(owner);
         return switch (method.getName()) {
-            case "title" -> translations.get("TC_MARKET_SHOP_CAPACITY_TITLE", player);
-            case "description" -> translations.get("TC_MARKET_SHOP_CAPACITY_DESC", player);
+            case "title" -> translations.get("tc.market.shop.capacity.title", player);
+            case "description" -> translations.get("tc.market.shop.capacity.desc", player);
             case "toString" -> "MarketplaceCapacityOffer";
             case "hashCode" -> System.identityHashCode(proxy);
             case "equals" -> false;
@@ -67,7 +67,7 @@ public final class MarketplaceCapacityShopIntegration {
             double factor = MarketplacePlayerPreferences.increaseCapacityFactor(player);
             Class<?> result = Class.forName("de.omegazirkel.risingworld.shop.ShopPurchaseResult");
             Class<?> offerType = Class.forName("de.omegazirkel.risingworld.shop.ShopOffer");
-            String message = I18n.getInstance(owner).get("TC_MARKET_SHOP_CAPACITY_PURCHASED", player)
+            String message = I18n.getInstance(owner).get("tc.market.shop.capacity.purchased", player)
                     .replace("PH_FACTOR", String.valueOf((int) Math.round(factor)));
             return result.getMethod("success", String.class, offerType).invoke(null,
                     message, offer);

@@ -1,0 +1,777 @@
+{
+  "tc": {
+    "cmd": {
+      "help": "Help:\nAvailable chat commands:\n\u003ccolor\u003dred\u003e/PH_PLUGIN_CMD status\u003c/color\u003e shows plugin infos\n\u003ccolor\u003dred\u003e/PH_PLUGIN_CMD open\u003c/color\u003e opens the plugin menu\n\u003ccolor\u003dred\u003e/PH_PLUGIN_CMD help\u003c/color\u003e shows this help\n\n\u003ccolor\u003dyellow\u003eTip:\u003c/color\u003e Bind the command \u003ccolor\u003dred\u003e/PH_PLUGIN_CMD open\u003c/color\u003e to a mouse button or keyboard key.",
+      "status": "🔎 Plugin Status\n➡️ Plugin version: PH_VERSION\n➡️ Installed languages: PH_LANG_AVAILABLE\n➡️ Your language: PH_LANGUAGE\n➡️ Used language: PH_USEDLANG\n➡️ Translated by: Devidian"
+    },
+    "data": {
+      "desc": "Here you can view stored player data for PH_PLUGIN_NAME.",
+      "empty": "No stored player data is available for this plugin yet.",
+      "title": "Saved Data for PH_PLUGIN_NAME"
+    },
+    "err": {
+      "cmd": {
+        "unknown": "Unknown command. Type \u003ccolor\u003dred\u003e/PH_PLUGIN_CMD help\u003c/color\u003e for help."
+      }
+    },
+    "label": {
+      "marketplace": {
+        "shortcut": "Show Marketplace shortcut in /ozt and inventory"
+      }
+    },
+    "market": {
+      "chat": {
+        "admin": {
+          "only": "Only administrators can manage market zones."
+        },
+        "buy": {
+          "hint": "Use /PH_COMMAND buy \u003clisting-ID\u003e."
+        },
+        "current": {
+          "zone": {
+            "$value": "PH_NAME (PH_ZONE), fee PH_FEE%, global mode PH_GLOBAL",
+            "failed": "Could not read the current market zone."
+          }
+        },
+        "global": {
+          "allow": "allowed",
+          "default": "default",
+          "deny": "denied"
+        },
+        "latest": {
+          "sales": "Latest sales:"
+        },
+        "listings": {
+          "$value": "Marketplace listings:",
+          "failed": "Could not load Marketplace listings."
+        },
+        "listing": {
+          "row": "#PH_LISTING PH_AMOUNT x PH_ITEM by PH_SELLER for PH_PRICE PH_CURRENCY, PH_MODE"
+        },
+        "no": {
+          "current": {
+            "zone": "There is no market zone at this position."
+          },
+          "listings": "No Marketplace listings are visible here.",
+          "sales": "No sales yet.",
+          "zones": "No market zones are defined."
+        },
+        "open": {
+          "hint": "Use /PH_COMMAND to open the Marketplace menu."
+        },
+        "sales": {
+          "failed": "Could not load sales."
+        },
+        "sale": {
+          "row": "#PH_SALE listing PH_LISTING: PH_AMOUNT x PH_ITEM, payout PH_PAYOUT PH_CURRENCY, fee PH_FEE"
+        },
+        "usage": {
+          "$value": "Usage: /PH_COMMAND | list | buy \u003cID\u003e [amount] | wanted \u003citem\u003e \u003cvariant\u003e \u003camount\u003e \u003cprice\u003e \u003clocal|global\u003e [currency] | cancel \u003cID\u003e | sales | crier create \u003cpersonal\u003e \u003cmale|female\u003e | crier convert \u003cpersonal|global\u003e \u003cmale|female\u003e confirm | crier configure \u003cshare|global\u003e \u003con|off\u003e | crier account \u003cdeposit|withdraw\u003e \u003camount\u003e [currency]",
+          "admin": "Admin: /PH_COMMAND zone set \u003cID\u003e \u003cradiusChunks\u003e \u003cfeePercent\u003e \u003cglobalMode\u003e [label] | zone list | zone delete [current-ID] | crier create \u003cpersonal|global\u003e \u003cmale|female\u003e | crier convert \u003cpersonal|global\u003e \u003cmale|female\u003e confirm"
+        },
+        "welcome": "PH_PLUGIN PH_VERSION enabled. Use /PH_COMMAND.",
+        "zones": {
+          "$value": "Market zones:",
+          "failed": "Could not load market zones."
+        },
+        "zone": {
+          "row": "PH_ZONE PH_NAME, fee PH_FEE%, global mode PH_GLOBAL, area PH_AREA"
+        }
+      },
+      "crier": {
+        "account": {
+          "failed": "The market crier account transfer could not be completed.",
+          "invalid": "Open your personal market crier and provide a positive amount.",
+          "success": "Market crier account transfer completed."
+        },
+        "configure": {
+          "denied": "You may not change this market crier setting.",
+          "failed": "The market crier setting could not be saved.",
+          "interact": "Open this market crier before changing its settings.",
+          "invalid": "Use on or off for this market crier setting.",
+          "success": "Market crier setting saved."
+        },
+        "convert": {
+          "confirm": "To replace the market zone here: /PH_COMMAND crier convert \u003cpersonal|global\u003e \u003cmale|female\u003e confirm",
+          "failed": "The market zone could not be converted. The original market remains available.",
+          "ownership": "The selected market crier type does not match this market\u0027s ownership.",
+          "success": "Market zone converted to PH_NAME; PH_COUNT active listing(s) moved.",
+          "ui": {
+            "text": "Replace the current market zone with this market crier? Active listings are retained and moved to the new endpoint.\n\nPH_KIND",
+            "title": "Convert market zone"
+          },
+          "zone": {
+            "required": "Stand in an area market zone that has not already been converted."
+          }
+        },
+        "create": {
+          "confirm": {
+            "text": "Create this market crier here? The current location will become its marketplace endpoint.\n\nPH_KIND",
+            "title": "Create market crier"
+          },
+          "denied": "You cannot create that market crier.",
+          "failed": "The market crier could not be created.",
+          "limit": "Your shared market-zone and market-crier limit has been reached.",
+          "success": "Market crier PH_NAME created.",
+          "wallet": {
+            "failed": "The market crier account could not be created."
+          },
+          "zone": {
+            "exists": "This location already has a market zone. Convert it instead of creating a second endpoint."
+          }
+        },
+        "delete": {
+          "active": "This market crier still has PH_COUNT active listing(s).",
+          "failed": "Market crier could not be dissolved.",
+          "success": "Market crier dissolved."
+        },
+        "edit": {
+          "appearance": {
+            "failed": "Market crier appearance could not be updated.",
+            "success": "Market crier appearance updated."
+          },
+          "denied": "You may not edit this market crier.",
+          "missing": "This market crier is no longer available.",
+          "position": {
+            "success": "Market crier position updated."
+          }
+        },
+        "menu": {
+          "global": {
+            "female": "Create global female market crier",
+            "male": "Create global male market crier"
+          },
+          "personal": {
+            "female": "Create personal female market crier",
+            "male": "Create personal male market crier"
+          }
+        },
+        "name": {
+          "female": "Market Crier",
+          "male": "Market Crier"
+        },
+        "upgrade": {
+          "confirm": "To upgrade this personal market crier: /PH_COMMAND crier upgrade confirm",
+          "failed": "The market crier upgrade could not be completed.",
+          "success": "Market crier upgraded to level PH_LEVEL."
+        }
+      },
+      "info": {
+        "panel": {
+          "info": "\u003cb\u003ePH_PLUGIN_NAME\u003c/b\u003e\nVersion: PH_VERSION\nCommand: /PH_PLUGIN_CMD\n\nMarketplace manages player-to-player listings, market zones, Wallet-backed purchases, and seller sale history.",
+          "status": "\u003cb\u003eMarketplace status\u003c/b\u003e\nWallet: PH_WALLET_STATUS\nLocal enabled: PH_LOCAL_ENABLED\nGlobal enabled: PH_GLOBAL_ENABLED\nZone-only mode: PH_ZONE_ONLY\nCurrent zone: PH_CURRENT_ZONE\nZone global mode: PH_ZONE_GLOBAL_MODE\nDefault local fee: PH_LOCAL_FEE%\nDefault global fee: PH_GLOBAL_FEE%\nMax listings per player: PH_MAX_LISTINGS\nPlayer market limit: PH_MAX_PLAYER_MARKETS"
+        }
+      },
+      "result": {
+        "admin": {
+          "review": "The transaction needs administrator review."
+        },
+        "amount": {
+          "positive": "Amount must be greater than 0.",
+          "price": {
+            "invalid": "Amount and offered price must be greater than 0."
+          },
+          "range": "Amount must be between 1 and PH_AVAILABLE."
+        },
+        "area": {
+          "already": {
+            "market": "This area is already linked to a market."
+          },
+          "permission": {
+            "required": "You need the addplayer permission in this area to create a market."
+          },
+          "required": "Stand inside an existing area to create a market."
+        },
+        "crier": {
+          "only": "New markets are available as market criers only.",
+          "funds": {
+            "insufficient": "This market crier does not have enough funds for that wanted listing."
+          },
+          "owner": {
+            "only": "Only the owner may create listings at this market crier."
+          },
+          "slot": {
+            "limit": "This market crier has no free listing slots."
+          }
+        },
+        "currency": {
+          "accepted": "Currency accepted.",
+          "unknown": "Unknown Wallet currency: PH_CURRENCY."
+        },
+        "database": {
+          "unavailable": "The Marketplace database is not available."
+        },
+        "delete": {
+          "current": {
+            "only": "You can only delete the market zone you are currently standing in."
+          }
+        },
+        "global": {
+          "disabled": "Global Marketplace listings are disabled.",
+          "not": {
+            "allowed": "This market zone does not allow global trade."
+          },
+          "trade": {
+            "zone": {
+              "required": "Stand in a market zone for global trading."
+            }
+          },
+          "zone": {
+            "required": "Stand in a market zone to create a global listing."
+          }
+        },
+        "inventory": {
+          "added": "Item added to inventory.",
+          "add": {
+            "failed": "Could not add the item to inventory."
+          },
+          "removed": "Item removed from inventory.",
+          "remove": {
+            "failed": "Could not remove the listed item from inventory."
+          }
+        },
+        "items": {
+          "not": {
+            "matching": "You do not have enough matching items in one item state."
+          }
+        },
+        "item": {
+          "unknown": "Unknown item: PH_ITEM."
+        },
+        "listing": {
+          "cancelled": "Listing #PH_LISTING withdrawn.",
+          "cancel": {
+            "failed": "Could not withdraw the listing."
+          },
+          "created": "Listing #PH_LISTING created.",
+          "create": {
+            "failed": "Could not create the listing."
+          },
+          "limit": "You reached the active listing limit.",
+          "not": {
+            "found": "Listing not found."
+          },
+          "unavailable": "The listing is no longer available."
+        },
+        "local": {
+          "disabled": "Local Marketplace listings are disabled.",
+          "trade": {
+            "zone": {
+              "required": "Stand in the listing\u0027s market zone for this local trade."
+            }
+          },
+          "zone": {
+            "required": "Stand in a market zone to create a local listing."
+          }
+        },
+        "location": {
+          "accepted": "Market location accepted."
+        },
+        "mailbox": {
+          "full": "The requester\u0027s OZ Mail mailbox has no free space."
+        },
+        "mail": {
+          "delivery": {
+            "failed": "OZ Mail could not deliver the wanted items (PH_CODE)."
+          }
+        },
+        "manage": {
+          "own": {
+            "only": "You can only manage your own market."
+          }
+        },
+        "not": {
+          "in": {
+            "market": "You are not standing in a market zone."
+          }
+        },
+        "only": {
+          "owner": {
+            "cancel": "Only the owner can withdraw this listing."
+          }
+        },
+        "own": {
+          "listing": "You cannot trade with your own listing."
+        },
+        "player": {
+          "id": {
+            "missing": "No database ID is available for the player."
+          },
+          "markets": {
+            "disabled": "Player-created markets are disabled."
+          },
+          "market": {
+            "created": "Player market created: PH_ZONE.",
+            "create": {
+              "failed": "Could not create the player market."
+            },
+            "global": {
+              "locked": "Private markets cannot change global trading."
+            },
+            "limit": "You reached the player market limit."
+          }
+        },
+        "purchased": "Purchased PH_AMOUNT item(s) from listing #PH_LISTING.",
+        "purchase": {
+          "failed": "Could not complete the purchase."
+        },
+        "requester": {
+          "item": {
+            "required": "Requester and item are required."
+          }
+        },
+        "sale": {
+          "not": {
+            "found": "Sale not found."
+          },
+          "owner": {
+            "only": "Only the seller can remove this sale."
+          },
+          "removed": "Sale removed from your history.",
+          "remove": {
+            "failed": "Could not remove the sale."
+          }
+        },
+        "wallet": {
+          "currencies": {
+            "failed": "Could not load Wallet currencies."
+          },
+          "currency": {
+            "missing": "The Wallet default currency is not available."
+          },
+          "failed": "The Wallet transaction failed.",
+          "required": "OZ Wallet is required for this Marketplace action."
+        },
+        "wanted": {
+          "created": "Wanted listing #PH_LISTING created.",
+          "create": {
+            "failed": "Could not create the wanted listing."
+          },
+          "sold": "Sold PH_AMOUNT item(s) to wanted listing #PH_LISTING.",
+          "withdraw": {
+            "locked": "A wanted listing cannot be withdrawn after its first fulfillment."
+          }
+        },
+        "wrong": {
+          "market": {
+            "zone": "This local listing belongs to another market zone."
+          }
+        },
+        "zone": {
+          "deleted": "Market zone deleted: PH_ZONE.",
+          "delete": {
+            "failed": "Could not delete the market zone."
+          },
+          "fee": {
+            "failed": "Could not update the market zone fee."
+          },
+          "global": {
+            "failed": "Could not update the market zone global mode."
+          },
+          "id": {
+            "required": "A zone ID is required."
+          },
+          "not": {
+            "empty": "A market can only be dissolved after all listings are gone.",
+            "found": "Market zone not found: PH_ZONE."
+          },
+          "radius": {
+            "invalid": "The zone radius must be at least 0 chunks."
+          },
+          "saved": "Market zone saved: PH_ZONE.",
+          "save": {
+            "failed": "Could not save the market zone."
+          },
+          "sync": {
+            "failed": "Could not synchronize the market zone name."
+          }
+        }
+      },
+      "seller": {
+        "sale": {
+          "notification": "You sold PH_AMOUNT PH_ITEM for PH_PRICE PH_CURRENCY to PH_BUYER!"
+        }
+      },
+      "shop": {
+        "capacity": {
+          "desc": "Increases active listing capacity by its base limit per purchase.",
+          "purchased": "Your listing capacity is now PH_FACTOR× the base limit.",
+          "title": "Marketplace capacity"
+        }
+      },
+      "ui": {
+        "buy": {
+          "$value": "Buy",
+          "all": "Buy all",
+          "amount": "Buy amount",
+          "confirm": {
+            "text": "Item: PH_ITEM\nAmount: PH_AMOUNT\nPrice: PH_PRICE PH_CURRENCY\nFee: PH_FEE PH_CURRENCY (PH_FEE_PERCENT%)\nTotal: PH_TOTAL PH_CURRENCY\nMode: PH_MODE\nSeller: PH_SELLER",
+            "title": "Confirm purchase"
+          }
+        },
+        "cancel": {
+          "$value": "Cancel",
+          "listing": {
+            "$value": "Withdraw",
+            "confirm": {
+              "text": "Withdraw this listing and return the item to your inventory?\nItem: PH_ITEM\nAmount: PH_AMOUNT\nPrice: PH_PRICE PH_CURRENCY",
+              "title": "Withdraw listing"
+            }
+          }
+        },
+        "card": {
+          "amount": "Amount: PH_AMOUNT",
+          "seller": "Seller: PH_SELLER",
+          "variant": "Variant: PH_VARIANT"
+        },
+        "col": {
+          "action": "Action",
+          "amount": "Amount",
+          "available": "Available",
+          "buyer": "Buyer",
+          "condition": "Condition",
+          "fee": "Fee",
+          "item": "Item",
+          "payout": "Payout",
+          "price": "Price",
+          "seller": "Seller",
+          "variant": "Variant",
+          "zone": "Zone"
+        },
+        "condition": {
+          "$value": "Condition: PH_PERCENT%",
+          "not": {
+            "applicable": "Condition: not applicable"
+          }
+        },
+        "confirm": {
+          "$value": "Confirm",
+          "text": "Item: PH_ITEM\nAmount: PH_AMOUNT\nPrice: PH_PRICE PH_CURRENCY\nMode: PH_MODE\nZone: PH_ZONE",
+          "title": "Confirm listing"
+        },
+        "create": {
+          "$value": "Create",
+          "global": "Create global",
+          "local": "Create local"
+        },
+        "default": {
+          "balance": "Balance: PH_BALANCE PH_CURRENCY"
+        },
+        "durability": {
+          "warning": "Warning: this item is damaged (PH_PERCENT% condition)."
+        },
+        "empty": {
+          "filter": "No listings match your search.",
+          "global": "No global listings visible here.",
+          "inventory": "No sellable inventory items found.",
+          "local": {
+            "$value": "No local listings visible in this market zone.",
+            "no": {
+              "zone": "Stand in a market zone to see local listings."
+            }
+          },
+          "sales": "No completed sales visible in your history.",
+          "wanted": "No wanted listings are visible here."
+        },
+        "err": {
+          "amount": {
+            "available": "Amount cannot exceed PH_AVAILABLE.",
+            "positive": "Amount must be greater than 0.",
+            "range": "Enter an amount between 1 and PH_AVAILABLE.",
+            "title": "Invalid amount"
+          },
+          "market": {
+            "zone": "You must stand in a market zone to create a listing."
+          },
+          "price": {
+            "positive": "Price must be greater than 0."
+          },
+          "select": {
+            "item": "Select an item first."
+          },
+          "wanted": {
+            "values": "Amount and offered price must be greater than 0."
+          },
+          "zone": {
+            "read": "Could not read your current market zone."
+          }
+        },
+        "field": {
+          "amount": "Amount",
+          "currency": "Currency",
+          "price": "Price"
+        },
+        "form": {
+          "title": "Listing"
+        },
+        "layout": {
+          "cards": "Cards",
+          "table": "Table"
+        },
+        "legend": "",
+        "mailbox": {
+          "full": {
+            "text": "The requester has no free OZ Mail mailbox slot. No items were removed.",
+            "title": "Mailbox full"
+          }
+        },
+        "management": {
+          "create": {
+            "$value": "Create market zone",
+            "private": "Create private market",
+            "system": "Create system market"
+          },
+          "crier": {
+            "appearance": "Copy clothing",
+            "delete": {
+              "$value": "Dissolve market crier",
+              "confirm": {
+                "text": "The market link can only be removed after all listings have been completed or withdrawn. Should the NPC remain or be deleted as well?",
+                "title": "Dissolve market crier?"
+              },
+              "npc": "Delete NPC too",
+              "unlink": "Remove market link only"
+            },
+            "position": "Move here",
+            "transform": "Move position",
+            "move": {
+              "step": "Step (m)"
+            },
+            "rotation": {
+              "$value": "Rotate",
+              "step": "Step (degrees)"
+            },
+            "sharing": {
+              "disable": "Block other players' offers and requests",
+              "enable": "Allow other players' offers and requests",
+              "label": "Other players' offers and requests",
+              "off": "OFF",
+              "on": "ON"
+            }
+          },
+          "delete": {
+            "$value": "Dissolve market zone",
+            "confirm": {
+              "text": "Dissolve the market for your current area? This is only possible after every listing has been completed or withdrawn.",
+              "title": "Delete market zone"
+            }
+          },
+          "fee": {
+            "field": "Fee %"
+          },
+          "next": {
+            "global": "Cycle global mode"
+          },
+          "set": {
+            "fee": "Set new fee"
+          },
+          "sync": {
+            "name": "Sync name"
+          },
+          "title": "Current market"
+        },
+        "mode": {
+          "global": "Global",
+          "local": "Local"
+        },
+        "no": {
+          "selection": "Select an inventory row."
+        },
+        "own": {
+          "listing": "Own"
+        },
+        "refresh": "Refresh",
+        "remove": {
+          "$value": "Remove",
+          "confirm": {
+            "text": "Hide this completed sale from your history?\nItem: PH_ITEM\nAmount: PH_AMOUNT\nPayout: PH_PAYOUT PH_CURRENCY",
+            "title": "Remove sale"
+          }
+        },
+        "search": {
+          "$value": "Search",
+          "apply": "Search",
+          "clear": "Reset"
+        },
+        "select": "Select",
+        "sell": {
+          "all": "Sell all",
+          "amount": "Sell amount",
+          "disabled": "Selling is unavailable because local and global marketplace listings are disabled.",
+          "no": {
+            "mode": "No listing mode is available at your current position."
+          },
+          "to": {
+            "request": "Sell"
+          },
+          "zone": {
+            "required": "Stand inside a market zone to sell while zone-only mode is enabled."
+          }
+        },
+        "status": {
+          "global": {
+            "disabled": "Global marketplace disabled.",
+            "enabled": "Global marketplace enabled."
+          },
+          "zone": {
+            "only": "Marketplace is only available in designated areas."
+          }
+        },
+        "subtitle": "Create a listing from inventory after confirming the item removal.",
+        "tab": {
+          "global": "Global",
+          "local": "Local",
+          "management": "Market management",
+          "sales": "Sales",
+          "sell": "Sell",
+          "wanted": "Wanted"
+        },
+        "title": "Marketplace",
+        "unit": {
+          "price": {
+            "$value": "Calculated unit price: PH_UNIT PH_CURRENCY (PH_TOTAL PH_CURRENCY for PH_AMOUNT)",
+            "invalid": "Enter an amount between 1 and PH_AVAILABLE to calculate the unit price."
+          }
+        },
+        "unknown": "Unknown",
+        "wallet": {
+          "balances": "Wallet balances"
+        },
+        "wanted": {
+          "create": {
+            "$value": "Create wanted listing",
+            "text": "Requested item: PH_ITEM\nChoose the amount, total offer, currency, and market mode.",
+            "title": "Create wanted listing"
+          },
+          "fulfill": {
+            "text": "Item: PH_ITEM\nRemaining amount: PH_AMOUNT\nRemaining offer: PH_PRICE PH_CURRENCY\nTax is charged to the requester when the listing is completed.\nRequester: PH_SELLER",
+            "title": "Sell to wanted listing"
+          }
+        },
+        "withdraw": {
+          "listing": "Withdraw listing"
+        },
+        "zone": {
+          "global": "Global marketplace"
+        }
+      },
+      "wanted": {
+        "mail": {
+          "body": "PH_SELLER fulfilled PH_AMOUNT x PH_ITEM from your wanted listing.",
+          "subject": "Marketplace wanted listing #PH_LISTING"
+        }
+      }
+    },
+    "menu": {
+      "marketplace": {
+        "open": "Open Marketplace"
+      }
+    },
+    "msg": {
+      "plugin": {
+        "welcome": "ℹ️ \u003ccolor\u003d#F00000\u003ePH_PLUGIN_NAME\u003c/color\u003e | \u003ccolor\u003d#F0F000\u003evPH_PLUGIN_VERSION\u003c/color\u003e | \u003ccolor\u003d#C0C0C0\u003e/PH_PLUGIN_CMD\u003c/color\u003e | loaded!"
+      }
+    },
+    "settings": {
+      "desc": "Here you can adjust the player-facing settings for PH_PLUGIN_NAME.",
+      "empty": "No player settings are available for PH_PLUGIN_NAME yet.",
+      "title": "Plugin Settings for PH_PLUGIN_NAME"
+    },
+    "setting": {
+      "defaultglobalfeepercent": {
+        "desc": "Fee charged to buyers for global listings.",
+        "label": "Default global fee percent"
+      },
+      "defaultlocalfeepercent": {
+        "desc": "Fee charged to buyers for local listings when a market zone has no override.",
+        "label": "Default local fee percent"
+      },
+      "exposemarketplaceoffers": {
+        "desc": "Allows bridge layers to read marketplace offers.",
+        "label": "Expose marketplace offers"
+      },
+      "exposemarketplacezones": {
+        "desc": "Allows bridge layers to read marketplace zones.",
+        "label": "Expose marketplace zones"
+      },
+      "fees": {
+        "desc": "Default buyer fees and listing limits.",
+        "label": "Fees and limits"
+      },
+      "general": {
+        "desc": "Logging, reload, command, and welcome behavior.",
+        "label": "General"
+      },
+      "globalmarketplaceenabled": {
+        "desc": "Enables global listings in zones that allow global trade.",
+        "label": "Global marketplace"
+      },
+      "localmarketplaceenabled": {
+        "desc": "Enables local listings tied to a market zone.",
+        "label": "Local marketplace"
+      },
+      "loglevel": {
+        "desc": "Controls Marketplace logging verbosity.",
+        "label": "Log level"
+      },
+      "marketcommand": {
+        "desc": "Chat command used for marketplace actions.",
+        "label": "Market command"
+      },
+      "marketzoneonlymode": {
+        "desc": "Requires a market zone for listing discovery.",
+        "label": "Zone-only mode"
+      },
+      "onlymarketcriers": {
+        "desc": "Players create market criers only; administrators may still create market zones. Existing zones remain unchanged.",
+        "label": "Only market criers"
+      },
+      "maxlistingsperplayer": {
+        "desc": "Maximum active listings a player may own at once.",
+        "label": "Max listings per player"
+      },
+      "maxplayermarketplaces": {
+        "desc": "0 disables player markets, negative is unlimited, positive limits markets per player.",
+        "label": "Max player marketplaces"
+      },
+      "minimumglobalfee": {
+        "desc": "Minimum whole-number fee charged to buyers for global listings.",
+        "label": "Minimum global fee"
+      },
+      "minimumlocalfee": {
+        "desc": "Minimum whole-number fee charged to buyers for local listings.",
+        "label": "Minimum local fee"
+      },
+      "reloadonchange": {
+        "desc": "Reloads Marketplace settings when the file changes.",
+        "label": "Reload on change"
+      },
+      "sendpluginwelcome": {
+        "desc": "Shows a short Marketplace message when a player joins.",
+        "label": "Welcome message"
+      },
+      "showmarketplacezoneindicator": {
+        "desc": "Shows the Marketplace icon in the shared Tools indicator bar while players are in an active market zone.",
+        "label": "Marketplace-zone indicator"
+      },
+      "trademodes": {
+        "desc": "Local, global, and zone-only trade behavior.",
+        "label": "Trade modes"
+      }
+    },
+    "wallet": {
+      "market": {
+        "fee": {
+          "$value": "Marketplace fee #PH_LISTING",
+          "refund": "Marketplace fee refund #PH_LISTING"
+        },
+        "wanted": {
+          "fee": {
+            "$value": "Marketplace wanted-listing fee #PH_LISTING",
+            "refund": "Marketplace wanted-listing fee refund #PH_LISTING"
+          }
+        }
+      }
+    }
+  }
+}
