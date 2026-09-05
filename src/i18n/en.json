@@ -131,6 +131,11 @@
             "success": "Market crier appearance updated."
           },
           "denied": "You may not edit this market crier.",
+          "name": {
+            "failed": "Market crier name could not be updated.",
+            "invalid": "Enter a market crier name between 1 and 64 characters.",
+            "success": "Market crier name updated."
+          },
           "missing": "This market crier is no longer available.",
           "position": {
             "success": "Market crier position updated."
@@ -508,6 +513,13 @@
           "cards": "Cards",
           "table": "Table"
         },
+        "crier": {
+          "title": "Market Crier: PH_NAME",
+          "identity": {
+            "global": "This is a global market crier.",
+            "personal": "This is the personal market crier of PH_OWNER."
+          }
+        },
         "legend": "",
         "mailbox": {
           "full": {
@@ -522,6 +534,15 @@
             "system": "Create system market"
           },
           "crier": {
+            "account": {
+              "amount": "Amount",
+              "balance": "Crier balance: PH_BALANCE PH_CURRENCY",
+              "deposit": "Deposit",
+              "player": {
+                "balance": "Your balance: PH_BALANCE PH_CURRENCY"
+              },
+              "withdraw": "Withdraw"
+            },
             "appearance": "Copy clothing",
             "delete": {
               "$value": "Dissolve market crier",
@@ -532,6 +553,7 @@
               "npc": "Delete NPC too",
               "unlink": "Remove market link only"
             },
+            "name": "Name",
             "position": "Move here",
             "transform": "Move position",
             "move": {
@@ -581,6 +603,7 @@
           "listing": "Own"
         },
         "refresh": "Refresh",
+        "save": "Save",
         "remove": {
           "$value": "Remove",
           "confirm": {

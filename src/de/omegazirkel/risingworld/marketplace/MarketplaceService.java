@@ -316,15 +316,15 @@ public class MarketplaceService {
                         "You reached the active listing limit.");
             }
             Optional<MarketZone> zone = currentZone(requester);
-            MarketplaceResult access = validateListingLocation(globalListing, zone);
+            MarketCrier crier = currentCrier(zone);
+            boolean endpointGlobalListing = crier == null ? globalListing : crier.global();
+            MarketplaceResult access = validateListingLocation(endpointGlobalListing, zone);
             if (!access.success()) return access;
             MarketplaceResult crierAccess = validateCrierListing(requester, zone, MarketplaceListing.TYPE_WANTED);
             if (!crierAccess.success()) return crierAccess;
-            MarketplaceResult crierFunding = validateCrierWantedFunding(zone, offeredPrice, currency);
-            if (!crierFunding.success()) return crierFunding;
             MarketplaceListing listing = new MarketplaceListing(0L, requester.getDbID(), requester.getName(),
                     itemName.trim(), itemVariant, amount, MarketplaceItemState.NEUTRAL, offeredPrice, currency,
-                    zone.map(MarketZone::id).orElse("global"), globalListing, now(), STATUS_ACTIVE,
+                    wantedListingEndpoint(zone, crier), endpointGlobalListing, now(), STATUS_ACTIVE,
                     MarketplaceListing.TYPE_WANTED, amount, 0, offeredPrice);
             long id = database.createListing(listing);
             return id > 0L ? MarketplaceResult.okKey("tc.market.result.wanted.created",
@@ -610,7 +610,8 @@ public class MarketplaceService {
         }
         String message = I18n.getInstance(Marketplace.name).get("tc.market.seller.sale.notification", seller)
                 .replace("PH_AMOUNT", String.valueOf(amount))
-                .replace("PH_ITEM", MarketplaceItemNames.listingLabel(listing.itemName(), listing.itemVariant()))
+                .replace("PH_ITEM", MarketplaceItemNames.listingLabel(listing.itemName(), listing.itemVariant(),
+                        seller.getLanguage()))
                 .replace("PH_PRICE", String.valueOf(price))
                 .replace("PH_CURRENCY", listing.currencyIdentifier())
                 .replace("PH_BUYER", buyer.getName());
@@ -671,6 +672,12 @@ public class MarketplaceService {
                 return List.of();
             }
             return database.listGlobalListings();
+        }
+        MarketCrier crier = currentCrier(zone);
+        if (crier != null) {
+            return crier.global()
+                    ? database.listGlobalListings()
+                    : database.listActiveListings(crier.endpointId(), false);
         }
         if (!settings.localMarketplaceEnabled && !settings.globalMarketplaceEnabled) {
             return zone.get().globalTradeAllowed(false) ? database.listGlobalListings() : List.of();
@@ -772,26 +779,12 @@ public class MarketplaceService {
         return slots > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) slots;
     }
 
-    /** Personal wanted listings are payable only from their crier's Wallet account. */
-    private MarketplaceResult validateCrierWantedFunding(Optional<MarketZone> zone, long offeredPrice,
-            String currencyIdentifier) throws SQLException {
-        if (zone.isEmpty()) return MarketplaceResult.okKey("tc.market.result.currency.accepted", "Currency accepted.");
-        MarketCrier crier = database.findCrierByEndpoint(zone.get().id()).orElse(null);
-        if (crier == null || !crier.personal()) {
-            return MarketplaceResult.okKey("tc.market.result.currency.accepted", "Currency accepted.");
-        }
-        if (!wallet.hasSystemAccountApi()) {
-            return MarketplaceResult.failKey("tc.market.result.crier.funds.insufficient",
-                    "This market crier does not have enough funds for that wanted listing.");
-        }
-        long available = wallet.systemAccountBalances(crier.accountId()).stream()
-                .filter(balance -> balance.currencyIdentifier().equalsIgnoreCase(currencyIdentifier))
-                .mapToLong(WalletBridge.SystemBalanceInfo::balance)
-                .findFirst().orElse(0L);
-        return available >= offeredPrice
-                ? MarketplaceResult.okKey("tc.market.result.currency.accepted", "Currency accepted.")
-                : MarketplaceResult.failKey("tc.market.result.crier.funds.insufficient",
-                        "This market crier does not have enough funds for that wanted listing.");
+    private MarketCrier currentCrier(Optional<MarketZone> zone) throws SQLException {
+        return zone.isEmpty() ? null : database.findCrierByEndpoint(zone.get().id()).orElse(null);
+    }
+
+    static String wantedListingEndpoint(Optional<MarketZone> zone, MarketCrier crier) {
+        return crier != null && crier.global() ? "global" : zone.map(MarketZone::id).orElse("global");
     }
 
     private long fee(MarketplaceListing listing, MarketZone buyerZone) {
@@ -880,6 +873,11 @@ public class MarketplaceService {
                 "The Wallet transaction failed.");
     }
 
+    private MarketplaceResult crierFundsInsufficient() {
+        return MarketplaceResult.failKey("tc.market.result.crier.funds.insufficient",
+                "This market crier does not have enough funds for that wanted listing.");
+    }
+
     public static long partialPrice(long remainingPrice, int remainingAmount, int requestedAmount) {
         if (remainingPrice <= 0L || remainingAmount <= 0 || requestedAmount <= 0) return 0L;
         if (requestedAmount >= remainingAmount) return remainingPrice;
@@ -922,37 +920,38 @@ public class MarketplaceService {
             return MarketplaceResult.failKey("tc.market.result.items.not.matching",
                     "You do not have enough matching items in one item state.");
         }
-        if (!database.transitionListingStatus(listing.id(), STATUS_ACTIVE, STATUS_PENDING_PURCHASE)) {
-            return MarketplaceResult.failKey("tc.market.result.listing.unavailable",
-                    "Listing is no longer available.");
-        }
-        boolean inventoryRemoved = false;
         long payout = partialPrice(listing.price(), listing.amount(), amount);
         boolean finalFulfillment = amount == listing.amount();
         long fee = finalFulfillment ? fee(listing, zone.orElse(null), listing.originalPrice()) : 0L;
         String crierPayoutAccountId = crierAccountForEndpoint(listing.marketZoneId());
         boolean crierPayout = !crierPayoutAccountId.isBlank();
         String payoutCorrelation = "";
+        if (crierPayout) {
+            if (!wallet.hasSystemAccountApi()) return crierFundsInsufficient();
+            payoutCorrelation = "marketplace:wanted:payout:" + listing.id() + ':' + UUID.randomUUID();
+            WalletBridge.WalletTransferCallResult transfer = wallet.transferSystemToPlayerIdempotent(
+                    crierPayoutAccountId, seller.getDbID(), payout, "Marketplace wanted #" + listing.id(),
+                    listing.currencyIdentifier(), "OZ - Marketplace", payoutCorrelation);
+            if (!transfer.success()) return crierFundsInsufficient();
+        }
+        if (!database.transitionListingStatus(listing.id(), STATUS_ACTIVE, STATUS_PENDING_PURCHASE)) {
+            rollbackWantedPayout(listing, seller, payout, crierPayout, payoutCorrelation);
+            return MarketplaceResult.failKey("tc.market.result.listing.unavailable",
+                    "Listing is no longer available.");
+        }
+        boolean inventoryRemoved = false;
         try {
             MarketplaceResult removal = InventoryTransfer.removeFromSeller(seller, listing.itemName(),
                     listing.itemVariant(), amount, itemState);
             if (!removal.success()) {
+                rollbackWantedPayout(listing, seller, payout, crierPayout, payoutCorrelation);
                 releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
                 return removal;
             }
             inventoryRemoved = true;
             WalletBridge.WalletCallResult priceWithdraw;
-            if (payout <= 0) {
+            if (crierPayout || payout <= 0) {
                 priceWithdraw = new WalletBridge.WalletCallResult(true, "No payout.");
-            } else if (crierPayout && wallet.hasSystemAccountApi()) {
-                payoutCorrelation = "marketplace:wanted:payout:" + listing.id() + ':' + UUID.randomUUID();
-                WalletBridge.WalletTransferCallResult transfer = wallet.transferSystemToPlayerIdempotent(
-                        crierPayoutAccountId, seller.getDbID(), payout, "Marketplace wanted #" + listing.id(),
-                        listing.currencyIdentifier(), "OZ - Marketplace", payoutCorrelation);
-                priceWithdraw = new WalletBridge.WalletCallResult(transfer.success(), transfer.message());
-            } else if (crierPayout) {
-                priceWithdraw = new WalletBridge.WalletCallResult(false,
-                        "Wallet system-account transfers are not available.");
             } else {
                 priceWithdraw = wallet.withdraw(listing.sellerDbId(), payout, "Marketplace wanted #" + listing.id(),
                         listing.currencyIdentifier(), "OZ - Marketplace");
@@ -1010,7 +1009,8 @@ public class MarketplaceService {
             String body = (requester == null ? translations.get("tc.market.wanted.mail.body", "en")
                     : translations.get("tc.market.wanted.mail.body", requester))
                     .replace("PH_AMOUNT", String.valueOf(amount))
-                    .replace("PH_ITEM", MarketplaceItemNames.listingLabel(listing.itemName(), listing.itemVariant()))
+                    .replace("PH_ITEM", MarketplaceItemNames.listingLabel(listing.itemName(), listing.itemVariant(),
+                            requester == null ? "en" : requester.getLanguage()))
                     .replace("PH_SELLER", seller.getName());
             MailBridge.BridgeResult mailResult = mail.sendAttachmentMail(new MailBridge.PluginAttachmentMailRequest(
                     Marketplace.name, listing.sellerDbId(), listing.sellerName(), subject, body,

@@ -21,6 +21,8 @@ import de.omegazirkel.risingworld.marketplace.MarketplaceService;
 import de.omegazirkel.risingworld.marketplace.MarketplacePluginInfoStatusProvider;
 import de.omegazirkel.risingworld.marketplace.PluginSettings;
 import de.omegazirkel.risingworld.marketplace.PluginGUI;
+import de.omegazirkel.risingworld.marketplace.exports.MarketplaceExportService;
+import de.omegazirkel.risingworld.marketplace.web.MarketplaceExportRoute;
 import de.omegazirkel.risingworld.marketplace.WalletBridge;
 import de.omegazirkel.risingworld.marketplace.ui.MarketplacePlayerPluginData;
 import de.omegazirkel.risingworld.marketplace.ui.MarketplacePlayerPluginSettings;
@@ -76,6 +78,10 @@ class MarketplaceRuntime extends Plugin {
     private static MarketCrierService crierService;
     private MarketplaceCapacityShopIntegration capacityShop;
     public static String name;
+    private static final String WEBSERVER_ZONES_ROUTE = "zones";
+    private static final String WEBSERVER_OFFERS_ROUTE = "offers";
+    private MarketplaceExportRoute webserverZonesRoute;
+    private MarketplaceExportRoute webserverOffersRoute;
 
     public static OZLogger logger() {
         return OZLogger.getInstance("OZ.Marketplace");
@@ -94,6 +100,7 @@ class MarketplaceRuntime extends Plugin {
             playerSettings = new PlayerSettings(sqliteCon);
             service = new MarketplaceService(database, new WalletBridge(this), new MailBridge(this), s);
             crierService = new MarketCrierService(database, s);
+            registerWebserverExportRoutes();
             int repairedMarkets = service.repairLostPlayerMarkets();
             int cleanedCriers = cleanMissingCriersAfterEnable();
             logger().info("Marketplace startup repair completed; repaired player markets: " + repairedMarkets + ".");
@@ -169,6 +176,7 @@ class MarketplaceRuntime extends Plugin {
 
     @Override
     public void onDisable() {
+        unregisterWebserverExportRoutes();
         if (name != null) {
             PluginShortcutVisibility.unregister(name);
             PluginInfoStatusProviders.unregisterProvider(name);
@@ -181,6 +189,20 @@ class MarketplaceRuntime extends Plugin {
                 logger().error("Failed to close marketplace database connection: " + ex.getMessage());
             }
         }
+    }
+
+    private void registerWebserverExportRoutes() {
+        MarketplaceExportService exports = new MarketplaceExportService(sqliteCon);
+        webserverZonesRoute = new MarketplaceExportRoute(() -> s.exposeMarketplaceZones, true, exports);
+        webserverOffersRoute = new MarketplaceExportRoute(() -> s.exposeMarketplaceOffers, false, exports);
+        registerWebserverHandler(WEBSERVER_ZONES_ROUTE, webserverZonesRoute);
+        registerWebserverHandler(WEBSERVER_OFFERS_ROUTE, webserverOffersRoute);
+        logger().info("Native Marketplace export routes registered: /zones, /offers");
+    }
+
+    private void unregisterWebserverExportRoutes() {
+        if (webserverZonesRoute != null) { unregisterWebserverHandler(WEBSERVER_ZONES_ROUTE); webserverZonesRoute = null; }
+        if (webserverOffersRoute != null) { unregisterWebserverHandler(WEBSERVER_OFFERS_ROUTE); webserverOffersRoute = null; }
     }
 
     public void onSettingsChanged(Path settingsPath) {
@@ -301,7 +323,8 @@ class MarketplaceRuntime extends Plugin {
         }
         if ((parts.length == 5 || parts.length == 6) && parts[1].equalsIgnoreCase("crier")
                 && parts[2].equalsIgnoreCase("account")) {
-            transferCrierAccount(player, parts[3], parseLong(parts[4], 0L), parts.length == 6 ? parts[5] : "");
+            sendResult(player, transferCurrentMarketCrierAccount(player, parts[3], parseLong(parts[4], 0L),
+                    parts.length == 6 ? parts[5] : ""));
             return;
         }
         if (parts.length != 5 || !parts[1].equalsIgnoreCase("crier") || !parts[2].equalsIgnoreCase("create")) {
@@ -319,16 +342,17 @@ class MarketplaceRuntime extends Plugin {
         createMarketCrier(player, global, male);
     }
 
-    private void transferCrierAccount(Player player, String direction, long amount, String requestedCurrency) {
+    public MarketplaceResult transferCurrentMarketCrierAccount(Player player, String direction, long amount,
+            String requestedCurrency) {
         Object endpoint = player.getAttribute("oz.marketplace.crier.endpoint");
         if (!(endpoint instanceof MarketCrier current) || !current.ownedBy(player.getDbID()) || amount <= 0L) {
-            player.sendTextMessage(c.error + tr(player, "tc.market.crier.account.invalid"));
-            return;
+            return MarketplaceResult.failKey("tc.market.crier.account.invalid",
+                    "Open your personal market crier and provide a positive amount.");
         }
         WalletBridge wallet = new WalletBridge(this);
         if (!wallet.hasSystemAccountApi()) {
-            player.sendTextMessage(c.error + tr(player, "tc.market.crier.account.failed"));
-            return;
+            return MarketplaceResult.failKey("tc.market.crier.account.failed",
+                    "The market crier account transfer could not be completed.");
         }
         String currency = requestedCurrency == null || requestedCurrency.isBlank()
                 ? wallet.defaultCurrencyIdentifier() : requestedCurrency.trim();
@@ -341,11 +365,13 @@ class MarketplaceRuntime extends Plugin {
             transfer = wallet.transferSystemToPlayerIdempotent(current.accountId(), player.getDbID(), amount,
                     "Marketplace crier withdrawal #" + current.npcId(), currency, "OZ - Marketplace", correlation);
         } else {
-            player.sendTextMessage(c.error + tr(player, "tc.market.crier.account.invalid"));
-            return;
+            return MarketplaceResult.failKey("tc.market.crier.account.invalid",
+                    "Open your personal market crier and provide a positive amount.");
         }
-        player.sendTextMessage((transfer.success() ? c.okay : c.error)
-                + tr(player, transfer.success() ? "tc.market.crier.account.success" : "tc.market.crier.account.failed"));
+        return transfer.success()
+                ? MarketplaceResult.okKey("tc.market.crier.account.success", "Market crier account transfer completed.")
+                : MarketplaceResult.failKey("tc.market.crier.account.failed",
+                        "The market crier account transfer could not be completed.");
     }
 
     private void upgradeCurrentCrier(Player player, String confirmation) {
@@ -446,6 +472,30 @@ class MarketplaceRuntime extends Plugin {
         } catch (SQLException ex) {
             logger().error("Failed to update market crier fee: " + ex.getMessage());
             return MarketplaceResult.failKey("tc.market.crier.configure.failed", "The market crier setting could not be saved.");
+        }
+    }
+
+    /** Renames only the crier selected through the server-side interaction endpoint. */
+    public MarketplaceResult renameCurrentMarketCrier(Player player, String name) {
+        MarketCrier current = currentEditableCrier(player);
+        String normalized = name == null ? "" : name.trim();
+        if (current == null) return MarketplaceResult.failKey("tc.market.crier.edit.denied",
+                "You may not edit this market crier.");
+        if (normalized.isEmpty() || normalized.length() > 64) return MarketplaceResult.failKey(
+                "tc.market.crier.edit.name.invalid", "Enter a market crier name between 1 and 64 characters.");
+        MarketCrier updated = new MarketCrier(current.npcId(), current.endpointId(), normalized, current.ownerDbId(),
+                current.ownerName(), current.global(), current.globalTradeEnabled(), current.sharedListings(), current.level(),
+                current.male(), current.createdAt(), current.feePercent());
+        try {
+            database.upsertCrier(updated);
+            Npc npc = World.getNpc(updated.npcId());
+            if (npc != null) npc.setName(updated.name());
+            if (updated.personal()) new WalletBridge(this).updateSystemAccountDisplayName(updated.accountId(), updated.name(), "OZ - Marketplace");
+            player.setAttribute("oz.marketplace.crier.endpoint", updated);
+            return MarketplaceResult.okKey("tc.market.crier.edit.name.success", "Market crier name updated.");
+        } catch (SQLException ex) {
+            logger().error("Failed to rename market crier: " + ex.getMessage());
+            return MarketplaceResult.failKey("tc.market.crier.edit.name.failed", "Market crier name could not be updated.");
         }
     }
 
@@ -1114,6 +1164,17 @@ class MarketplaceRuntime extends Plugin {
             return new WalletBridge.BalanceInfo(false, 0L);
         }
         return service.balance(player, currencyIdentifier);
+    }
+
+    public long currentMarketCrierBalance(Player player, String currencyIdentifier) {
+        if (player == null || !(player.getAttribute("oz.marketplace.crier.endpoint") instanceof MarketCrier crier)
+                || !crier.ownedBy(player.getDbID())) {
+            return 0L;
+        }
+        return new WalletBridge(this).systemAccountBalances(crier.accountId()).stream()
+                .filter(balance -> balance.currencyIdentifier().equalsIgnoreCase(currencyIdentifier))
+                .mapToLong(WalletBridge.SystemBalanceInfo::balance)
+                .findFirst().orElse(0L);
     }
 
     public static PlayerSettings playerSettings() {

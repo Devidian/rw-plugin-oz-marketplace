@@ -139,14 +139,15 @@ fulfillment progress. Existing rows migrate as regular offers with their
 current amount and price as original totals. Do not downgrade while wanted or
 partially fulfilled listings remain active.
 
-## Future export route preparation
+## Native export routes
 
-Marketplace contains route-ready export DTOs/services for future native plugin
-routes. Prepared exports cover market zones and active offers for a Rising World
-area id. Both exports support `lastChange` cursor filtering over the persisted
-`created_at` values and match the transitional bridge contract.
+Marketplace exposes read-only native plugin routes for market zones and active
+offers for a Rising World area id. Both exports support `lastChange` cursor
+filtering over the persisted `created_at` values and match the transitional
+bridge contract.
 `exposeMarketplaceZones=true` and `exposeMarketplaceOffers=true` control whether
-the future native routes should be exposed.
+the routes are exposed at `/plugins/oz---marketplace/zones` and
+`/plugins/oz---marketplace/offers?areaId=<id>` respectively.
 
 ## Validation
 

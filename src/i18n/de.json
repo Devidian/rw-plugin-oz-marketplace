@@ -131,6 +131,11 @@
             "success": "Erscheinungsbild des Marktschreiers aktualisiert."
           },
           "denied": "Du darfst diesen Marktschreier nicht bearbeiten.",
+          "name": {
+            "failed": "Name des Marktschreiers konnte nicht aktualisiert werden.",
+            "invalid": "Gib einen Namen mit 1 bis 64 Zeichen ein.",
+            "success": "Name des Marktschreiers aktualisiert."
+          },
           "missing": "Dieser Marktschreier ist nicht mehr verfügbar.",
           "position": {
             "success": "Position des Marktschreiers aktualisiert."
@@ -508,6 +513,13 @@
           "cards": "Karten",
           "table": "Tabelle"
         },
+        "crier": {
+          "title": "Marktschreier: PH_NAME",
+          "identity": {
+            "global": "Dies ist ein Globaler Marktschreier.",
+            "personal": "Dies ist ein persönlicher Marktschreier von PH_OWNER."
+          }
+        },
         "legend": "",
         "mailbox": {
           "full": {
@@ -522,6 +534,15 @@
             "system": "Systemmarkt erstellen"
           },
           "crier": {
+            "account": {
+              "amount": "Betrag",
+              "balance": "Marktschreier-Guthaben: PH_BALANCE PH_CURRENCY",
+              "deposit": "Einzahlen",
+              "player": {
+                "balance": "Dein Guthaben: PH_BALANCE PH_CURRENCY"
+              },
+              "withdraw": "Auszahlen"
+            },
             "appearance": "Aussehen übernehmen",
             "delete": {
               "$value": "Marktschreier auflösen",
@@ -532,6 +553,7 @@
               "npc": "NPC ebenfalls löschen",
               "unlink": "Nur Verknüpfung lösen"
             },
+            "name": "Name",
             "position": "Hierher bewegen",
             "transform": "Position verschieben",
             "move": {
@@ -581,6 +603,7 @@
           "listing": "Eigenes"
         },
         "refresh": "Aktualisieren",
+        "save": "Speichern",
         "remove": {
           "$value": "Entfernen",
           "confirm": {

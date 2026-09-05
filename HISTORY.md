@@ -1,5 +1,10 @@
 # History
 
+## [0.4.0] - 2026-09-05 | Native routes and global wanted listings
+
+- feat: expose opt-in native market-zone and area-offer routes for Manager integration.
+- fix: register global Marktschreier wanted listings in the global market instead of a local Crier market.
+
 ## [0.3.4] - 2026-08-09 | Default-currency fee settlement
 
 - fix: resolve default-currency listings to Wallet's concrete currency identifier before transferring buyer fees to the world account

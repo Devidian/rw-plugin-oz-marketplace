@@ -83,6 +83,8 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     private UITextField amountField;
     private UITextField priceField;
     private UITextField managementFeeField;
+    private UITextField managementCrierNameField;
+    private UITextField managementCrierAccountAmountField;
     private UITextField managementTransformStepField;
     private UITextField managementRotationStepField;
     private String managementTransformStepDraft = "1.00";
@@ -116,6 +118,27 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     @Override
+    protected String titleText() {
+        MarketCrier crier = currentMarketCrier();
+        if (crier == null) {
+            return super.titleText();
+        }
+        return t().get("tc.market.ui.crier.title", uiPlayer).replace("PH_NAME", crier.name());
+    }
+
+    @Override
+    protected String descriptionText() {
+        MarketCrier crier = currentMarketCrier();
+        if (crier == null) {
+            return super.descriptionText();
+        }
+        String key = crier.global()
+                ? "tc.market.ui.crier.identity.global"
+                : "tc.market.ui.crier.identity.personal";
+        return t().get(key, uiPlayer).replace("PH_OWNER", crier.ownerName());
+    }
+
+    @Override
     protected String legendText() {
         PluginSettings settings = plugin.marketplaceSettings();
         if (!settings.globalMarketplaceEnabled) {
@@ -125,6 +148,11 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             return t().get("tc.market.ui.status.zone.only", uiPlayer);
         }
         return t().get("tc.market.ui.status.global.enabled", uiPlayer);
+    }
+
+    private MarketCrier currentMarketCrier() {
+        Object endpoint = uiPlayer.getAttribute("oz.marketplace.crier.endpoint");
+        return endpoint instanceof MarketCrier crier ? crier : null;
     }
 
     @Override
@@ -847,8 +875,13 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
                 event -> showBuyConfirmation(listing));
         button.setPivot(Pivot.UpperLeft);
         button.setPosition(4, 5, false);
-        button.setSize(72, 22, false);
+        button.setSize(listing.wanted() ? 126 : 72, 22, false);
         button.setBorderEdgeRadius(3, false);
+        if (listing.wanted() && InventoryTransfer.snapshotForSeller(uiPlayer, listing.itemName(),
+                listing.itemVariant(), 1) == null) {
+            button.setClickable(false);
+            styleDisabledButton(button);
+        }
         return button;
     }
 
@@ -1243,7 +1276,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
                     () -> runManagementAction(plugin.moveCurrentMarketCrier(uiPlayer)));
             addManagementButton(panel, t().get("tc.market.ui.management.crier.appearance", uiPlayer), 188, marketY, editable,
                     () -> runManagementAction(plugin.copyCurrentMarketCrierAppearance(uiPlayer)));
-            marketY += 54;
+            marketY += 40;
             UILabel transform = label(t().get("tc.market.ui.management.crier.transform", uiPlayer), 13, Font.DefaultBold);
             transform.setPivot(Pivot.UpperLeft);
             transform.setPosition(0, 0, false);
@@ -1266,15 +1299,50 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             addField(transformPanel, t().get("tc.market.ui.management.crier.rotation.step", uiPlayer), managementRotationStepField, 140);
             addCrierRotationButton(transformPanel, "Y−", 0, 178, editable, -1);
             addCrierRotationButton(transformPanel, "Y+", 58, 178, editable, 1);
+            managementCrierNameField = textField(crier.name());
+            addField(panel, t().get("tc.market.ui.management.crier.name", uiPlayer), managementCrierNameField, marketY);
+            addManagementButton(panel, t().get("tc.market.ui.save", uiPlayer), 288, marketY, editable,
+                    () -> managementCrierNameField.getCurrentText(uiPlayer,
+                            value -> runManagementAction(plugin.renameCurrentMarketCrier(uiPlayer, value))));
+            marketY += 40;
             managementFeeField = textField(String.valueOf(crier.feePercent()));
             addField(panel, t().get("tc.market.ui.management.fee.field", uiPlayer), managementFeeField, marketY);
             addManagementButton(panel, t().get("tc.market.ui.management.set.fee", uiPlayer), 288, marketY, editable,
                     () -> managementFeeField.getCurrentText(uiPlayer,
                             value -> runManagementAction(plugin.setCurrentMarketCrierFee(uiPlayer, parseInt(value)))));
-            marketY += 54;
+            marketY += 40;
             if (crier.personal()) {
                 addCrierSharingSwitch(panel, crier, 0, marketY, editable);
-                marketY += 54;
+                marketY += 40;
+                String currency = plugin.defaultCurrencyIdentifier();
+                WalletBridge.BalanceInfo playerBalance = plugin.walletBalance(uiPlayer, currency);
+                UILabel playerBalanceLabel = label(t().get("tc.market.ui.management.crier.account.player.balance", uiPlayer)
+                        .replace("PH_BALANCE", String.valueOf(playerBalance.success() ? playerBalance.balance() : 0L))
+                        .replace("PH_CURRENCY", currency), 14, Font.DefaultBold);
+                playerBalanceLabel.setPivot(Pivot.UpperLeft);
+                playerBalanceLabel.setPosition(0, marketY, false);
+                playerBalanceLabel.setSize(560, 20, false);
+                panel.addChild(playerBalanceLabel);
+                UILabel balance = label(t().get("tc.market.ui.management.crier.account.balance", uiPlayer)
+                        .replace("PH_BALANCE", String.valueOf(plugin.currentMarketCrierBalance(uiPlayer, currency)))
+                        .replace("PH_CURRENCY", currency), 14, Font.DefaultBold);
+                balance.setPivot(Pivot.UpperLeft);
+                balance.setPosition(0, marketY + 20, false);
+                balance.setSize(560, 20, false);
+                panel.addChild(balance);
+                marketY += 40;
+                managementCrierAccountAmountField = textField("");
+                addField(panel, t().get("tc.market.ui.management.crier.account.amount", uiPlayer),
+                        managementCrierAccountAmountField, marketY);
+                addManagementButton(panel, t().get("tc.market.ui.management.crier.account.deposit", uiPlayer), 280, marketY, 132, editable,
+                        () -> managementCrierAccountAmountField.getCurrentText(uiPlayer,
+                                value -> runManagementAction(plugin.transferCurrentMarketCrierAccount(uiPlayer,
+                                        "deposit", parseLong(value), currency))));
+                addManagementButton(panel, t().get("tc.market.ui.management.crier.account.withdraw", uiPlayer), 420, marketY, 132, editable,
+                        () -> managementCrierAccountAmountField.getCurrentText(uiPlayer,
+                                value -> runManagementAction(plugin.transferCurrentMarketCrierAccount(uiPlayer,
+                                        "withdraw", parseLong(value), currency))));
+                marketY += 40;
             }
             OZUIElement dissolve = AdvancedButtonFactory.danger(t().get("tc.market.ui.management.crier.delete", uiPlayer),
                     event -> showDissolveCrierConfirmation());
@@ -1353,6 +1421,11 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private void addManagementButton(OZUIElement parent, String text, int x, int y, boolean enabled, Runnable action) {
+        addManagementButton(parent, text, x, y, 178, enabled, action);
+    }
+
+    private void addManagementButton(OZUIElement parent, String text, int x, int y, int width, boolean enabled,
+            Runnable action) {
         AdvancedButton button = AdvancedButtonFactory.defaultButton(text, event -> action.run());
         button.setClickable(enabled);
         if (!enabled) {
@@ -1360,7 +1433,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         }
         button.setPivot(Pivot.UpperLeft);
         button.setPosition(x, y, false);
-        button.setSize(178, 32, false);
+        button.setSize(width, 32, false);
         button.setBorderEdgeRadius(3, false);
         parent.addChild(button);
     }
@@ -1706,7 +1779,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private String listingLabel(String itemName, int itemVariant) {
-        return MarketplaceItemNames.listingLabel(itemName, itemVariant);
+        return MarketplaceItemNames.listingLabel(itemName, itemVariant, uiPlayer.getLanguage());
     }
 
     private String sellUnavailableMessage() {
