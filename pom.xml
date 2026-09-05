@@ -8,7 +8,7 @@
 
     <groupId>com.github.devidian</groupId>
     <artifactId>rw-plugin-oz-marketplace</artifactId>
-	<version>0.4.0</version>
+	<version>0.4.1</version>
 
     <name>OZMarketplace</name>
     <description>Player-to-player marketplace for Rising World</description>
