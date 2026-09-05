@@ -4,6 +4,8 @@
 
 - feat: expose opt-in native market-zone and area-offer routes for Manager integration.
 - fix: register global Marktschreier wanted listings in the global market instead of a local Crier market.
+- feat: add administrator management for Market Criers, including persistent Crier markets and player wanted listings.
+- change: migrate Marketplace settings and translations to JSON while retaining existing market data.
 
 ## [0.3.4] - 2026-08-09 | Default-currency fee settlement
 
