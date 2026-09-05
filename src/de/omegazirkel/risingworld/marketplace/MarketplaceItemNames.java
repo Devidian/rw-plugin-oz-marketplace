@@ -54,6 +54,10 @@ public final class MarketplaceItemNames {
     }
 
     public static String candidateLabel(Item item, ItemDefinition definition, int variant, String language) {
+        String storedName = storedItemName(item, definition);
+        if (objectDefinition(storedName, variant) != null) {
+            return listingLabel(storedName, variant, language);
+        }
         if (item != null) {
             String localized = item.getLocalizedName(language);
             if (localized != null && !localized.isBlank()) {
@@ -76,7 +80,7 @@ public final class MarketplaceItemNames {
                     ? itemVariant.name
                     : definition == null ? "" : definition.name;
         }
-        return listingLabel(name, variant);
+        return listingLabel(name, variant, language);
     }
 
     public static ItemDefinition definition(String itemName) {
