@@ -16,6 +16,10 @@
             <includes>
                 <include>**/*</include>
             </includes>
+            <excludes>
+                <exclude>settings*.properties</exclude>
+                <exclude>i18n/**/*.properties</exclude>
+            </excludes>
         </fileSet>
     </fileSets>
 </assembly>

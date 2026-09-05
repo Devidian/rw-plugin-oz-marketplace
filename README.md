@@ -154,3 +154,13 @@ the routes are exposed at `/plugins/oz---marketplace/zones` and
 - `scripts/verify-plugin-api.sh --summary`
 - `mvn -B -DskipTests package`
 - `mvn -B test`
+
+## JSON-only distribution
+
+Settings defaults (`settings.default.json`) and translations (`i18n/*.json`)
+are shipped only as JSON. Legacy default and translation `.properties` files
+are no longer included. Runtime settings remain world-scoped as
+`settings.<world>.json`; migration of an existing `settings.properties` and
+its backup remains supported. Updating the package does not delete old files
+already present on the server. Use `mvn clean package` for a fresh local
+package; ZIP assembly also excludes stale legacy settings and translations.
