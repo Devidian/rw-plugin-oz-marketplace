@@ -1,5 +1,10 @@
 # History
 
+## [0.4.1] - 2026-09-06 | Item editor and localization fixes
+
+- Show the localized object name instead of the generic object-kit label in inventory selections.
+- build: ship JSON settings and translations only; retain existing-server migration and backups.
+
 ## [0.4.0] - 2026-09-05 | Native routes and global wanted listings
 
 - feat: expose opt-in native market-zone and area-offer routes for Manager integration.
