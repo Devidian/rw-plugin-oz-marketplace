@@ -79,6 +79,10 @@
         }
       },
       "crier": {
+        "return": {
+          "subject": "Marktschreier aufgelöst",
+          "body": "Der Marktschreier PH_CRIER wurde aufgelöst. Dein Angebot #PH_LISTING wurde beendet. Verbleibende Verkaufsgegenstände liegen dieser Nachricht bei."
+        },
         "account": {
           "failed": "Die Übertragung auf das Marktschreier-Konto konnte nicht abgeschlossen werden.",
           "invalid": "Öffne deinen persönlichen Marktschreier und gib einen positiven Betrag an.",
@@ -121,7 +125,7 @@
           }
         },
         "delete": {
-          "active": "Dieser Marktschreier hat noch PH_COUNT aktive Angebote.",
+          "active": "Dieser Marktschreier hat noch PH_COUNT offene Angebote oder Rückgaben. Eigene Angebote zuerst zurückziehen; fremde Angebote benötigen eine erfolgreiche Zustellung durch OZ Mail.",
           "failed": "Der Marktschreier konnte nicht aufgelöst werden.",
           "success": "Marktschreier wurde aufgelöst."
         },

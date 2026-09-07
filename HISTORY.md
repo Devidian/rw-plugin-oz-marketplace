@@ -1,5 +1,10 @@
 # History
 
+## [0.4.2] - 2026-09-07 | Marktschreier removal safeguards
+
+- fix: keep local offers visible at their own global Marktschreier endpoint and promote them to global listings when that Crier is removed.
+- fix: return foreign item listings through idempotent OZ Mail before removing a personal Marktschreier, while blocking removal when delivery or settlement cannot complete.
+
 ## [0.4.1] - 2026-09-06 | Item editor and localization fixes
 
 - Show the localized object name instead of the generic object-kit label in inventory selections.

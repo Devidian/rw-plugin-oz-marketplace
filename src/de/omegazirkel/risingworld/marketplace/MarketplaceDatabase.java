@@ -619,6 +619,59 @@ public class MarketplaceDatabase {
         }
     }
 
+    /** All unsettled endpoint listings, including durable mail returns awaiting retry. */
+    public List<MarketplaceListing> unsettledEndpointListings(String endpointId) throws SQLException {
+        List<MarketplaceListing> listings = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT * FROM marketplace_listings WHERE market_zone_id = ?
+                AND status NOT IN ('SOLD', 'CANCELLED') ORDER BY id;
+                """)) {
+            statement.setString(1, endpointId);
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) listings.add(readListing(rows));
+            }
+        }
+        return listings;
+    }
+
+    /** No external call occurs while the endpoint's offers are atomically reserved/migrated. */
+    public CrierDeleteResult prepareCrierRemoval(MarketCrier crier, boolean mailAvailable) throws SQLException {
+        boolean previousAutoCommit = connection.getAutoCommit();
+        connection.setAutoCommit(false);
+        try {
+            List<MarketplaceListing> listings = unsettledEndpointListings(crier.endpointId());
+            boolean blocked = listings.stream().anyMatch(listing -> crier.global()
+                    ? !"ACTIVE".equals(listing.status())
+                    // A wanted listing has no attached item to return. Its Crier-account
+                    // refund is a separate settlement workflow, so retain custody here.
+                    : listing.wanted() || listing.sellerDbId() == crier.ownerDbId()
+                        || !("ACTIVE".equals(listing.status()) || "PENDING_CRIER_RETURN".equals(listing.status())));
+            if (blocked || (crier.personal() && !listings.isEmpty() && !mailAvailable)) {
+                connection.rollback();
+                return new CrierDeleteResult(false, listings.size());
+            }
+            if (crier.global()) {
+                relinkListings(crier.endpointId(), "global", true);
+                CrierDeleteResult result = deleteCrierIfEmpty(crier.npcId());
+                if (!result.deleted()) { connection.rollback(); return result; }
+                connection.commit();
+                return result;
+            }
+            for (MarketplaceListing listing : listings) {
+                if ("ACTIVE".equals(listing.status()) && !transitionListingStatus(
+                        listing.id(), "ACTIVE", "PENDING_CRIER_RETURN")) {
+                    connection.rollback();
+                    return new CrierDeleteResult(false, listings.size());
+                }
+            }
+            connection.commit();
+            return new CrierDeleteResult(false, 0);
+        } catch (SQLException ex) {
+            connection.rollback();
+            throw ex;
+        } finally { connection.setAutoCommit(previousAutoCommit); }
+    }
+
     public int activeListingCountForEndpoint(String endpointId, String listingType) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 SELECT COUNT(*) FROM marketplace_listings

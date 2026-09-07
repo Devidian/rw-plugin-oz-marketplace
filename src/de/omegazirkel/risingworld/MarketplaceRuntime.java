@@ -580,7 +580,7 @@ class MarketplaceRuntime extends Plugin {
         if (current == null) return MarketplaceResult.failKey("tc.market.crier.edit.denied",
                 "You may not edit this market crier.");
         try {
-            MarketplaceDatabase.CrierDeleteResult result = database.deleteCrierIfEmpty(current.npcId());
+            MarketplaceDatabase.CrierDeleteResult result = service.dissolveCrier(current, getPluginByName("OZ - Mail") != null);
             if (!result.deleted()) {
                 return MarketplaceResult.failKey("tc.market.crier.delete.active",
                         "This market crier still has PH_COUNT active listing(s).",

@@ -55,6 +55,16 @@ rollback; each settlement remains individually atomic.
 
 ## Implementation Checklist
 
+- [x] At a global Crier, show global listings plus local listings from that
+  Crier's own endpoint. The local-market switch continues to govern zones;
+  unrelated local endpoints remain hidden.
+- [x] Deleting a global Crier promotes its active endpoint listings to global
+  listings. Empty endpoints and unrelated global listings no longer block it.
+- [x] Deleting a personal Crier reserves foreign item listings and returns them
+  through idempotent OZ Mail. Missing Mail, failed delivery, owner listings,
+  and wanted listings block deletion; wanted listings require their existing
+  account-settlement workflow rather than an item mail.
+
 - [ ] Change wanted creation so insufficient Crier account balance does not
   block listing creation. Check funding only in the fulfillment transaction,
   before removing any seller inventory; return a localized no-payout result.

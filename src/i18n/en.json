@@ -79,6 +79,10 @@
         }
       },
       "crier": {
+        "return": {
+          "subject": "Market crier dissolved",
+          "body": "Market crier PH_CRIER was dissolved. Your listing #PH_LISTING was closed. Remaining sale items are attached to this message."
+        },
         "account": {
           "failed": "The market crier account transfer could not be completed.",
           "invalid": "Open your personal market crier and provide a positive amount.",
@@ -121,7 +125,7 @@
           }
         },
         "delete": {
-          "active": "This market crier still has PH_COUNT active listing(s).",
+          "active": "This market crier has PH_COUNT unsettled listings or returns. Withdraw your own listings first; foreign listings require successful delivery through OZ Mail.",
           "failed": "Market crier could not be dissolved.",
           "success": "Market crier dissolved."
         },

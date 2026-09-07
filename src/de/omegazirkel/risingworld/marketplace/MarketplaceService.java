@@ -357,10 +357,6 @@ public class MarketplaceService {
         if (!currencyValidation.success()) {
             return currencyValidation;
         }
-        if (!globalListing && !settings.localMarketplaceEnabled) {
-            return MarketplaceResult.failKey("tc.market.result.local.disabled",
-                    "Local marketplace listings are disabled.");
-        }
         boolean inventoryRemoved = false;
         MarketplaceItemState itemState = null;
         try {
@@ -369,6 +365,9 @@ public class MarketplaceService {
                         "You reached the active listing limit.");
             }
             Optional<MarketZone> zone = currentZone(seller);
+            if (!globalListing && !localTradeEnabledAt(zone)) {
+                return MarketplaceResult.failKey("tc.market.result.local.disabled", "Local marketplace listings are disabled.");
+            }
             if (!globalListing && zone.isEmpty()) {
                 return MarketplaceResult.failKey("tc.market.result.local.zone.required",
                         "You must stand in a market zone to create a local listing.");
@@ -465,11 +464,11 @@ public class MarketplaceService {
                         "Amount must be between 1 and PH_AVAILABLE.",
                         "PH_AVAILABLE", String.valueOf(listing.amount()));
             }
-            if (!listing.globalListing() && !settings.localMarketplaceEnabled) {
+            Optional<MarketZone> zone = currentZone(buyer);
+            if (!listing.globalListing() && !localTradeEnabledAt(zone)) {
                 return MarketplaceResult.failKey("tc.market.result.local.disabled",
                         "Local marketplace listings are disabled.");
             }
-            Optional<MarketZone> zone = currentZone(buyer);
             if (!listing.globalListing() && zone.isEmpty()) {
                 return MarketplaceResult.failKey("tc.market.result.local.trade.zone.required",
                         "You must stand in the listing's market zone for this local trade.");
@@ -618,6 +617,23 @@ public class MarketplaceService {
         seller.sendTextMessage(message);
     }
 
+    public MarketplaceDatabase.CrierDeleteResult dissolveCrier(MarketCrier crier, boolean mailAvailable)
+            throws SQLException {
+        return new CrierRemovalService(database).remove(crier, mailAvailable, (listing, correlationId) -> {
+            Player recipient = Server.getPlayerByDbID(listing.sellerDbId());
+            String language = recipient == null ? "en" : recipient.getLanguage();
+            I18n translations = I18n.getInstance(Marketplace.name);
+            String subject = translations.get("tc.market.crier.return.subject", language);
+            String body = translations.get("tc.market.crier.return.body", language)
+                    .replace("PH_CRIER", crier.name()).replace("PH_LISTING", String.valueOf(listing.id()));
+            MarketplaceItemState state = listing.itemState();
+            return mail.sendAttachmentMail(new MailBridge.PluginAttachmentMailRequest(Marketplace.name,
+                    listing.sellerDbId(), listing.sellerName(), subject, body, correlationId,
+                    List.of(new MailBridge.PluginAttachment(listing.itemName(), listing.itemVariant(), listing.amount(),
+                            state.durability(), state.status(), state.modifier(), state.color())))).success();
+        });
+    }
+
     public MarketplaceResult cancel(Player seller, long listingId) {
         boolean listingReserved = false;
         try {
@@ -675,9 +691,7 @@ public class MarketplaceService {
         }
         MarketCrier crier = currentCrier(zone);
         if (crier != null) {
-            return crier.global()
-                    ? database.listGlobalListings()
-                    : database.listActiveListings(crier.endpointId(), false);
+            return listCrierListings(crier);
         }
         if (!settings.localMarketplaceEnabled && !settings.globalMarketplaceEnabled) {
             return zone.get().globalTradeAllowed(false) ? database.listGlobalListings() : List.of();
@@ -690,6 +704,14 @@ public class MarketplaceService {
             return database.listActiveListings(zone.get().id(), false);
         }
         return database.listActiveListings(zone.get().id(), true);
+    }
+
+    boolean localTradeEnabledAt(Optional<MarketZone> zone) throws SQLException {
+        return settings.localMarketplaceEnabled || currentCrier(zone) != null;
+    }
+
+    List<MarketplaceListing> listCrierListings(MarketCrier crier) throws SQLException {
+        return database.listActiveListings(crier.endpointId(), crier.global());
     }
 
     public long buyerFee(Player buyer, MarketplaceListing listing) {
@@ -1138,8 +1160,8 @@ public class MarketplaceService {
         }
     }
 
-    private MarketplaceResult validateListingLocation(boolean globalListing, Optional<MarketZone> zone) {
-        if (!globalListing && !settings.localMarketplaceEnabled) {
+    private MarketplaceResult validateListingLocation(boolean globalListing, Optional<MarketZone> zone) throws SQLException {
+        if (!globalListing && !localTradeEnabledAt(zone)) {
             return MarketplaceResult.failKey("tc.market.result.local.disabled",
                     "Local marketplace listings are disabled.");
         }
