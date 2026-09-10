@@ -167,6 +167,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         }
         setupTabContainer();
         setupWalletBalanceBar();
+        setupActiveListingFooter();
         if (tabAvailable(MarketTab.SELL)) {
             addTab(t().get("tc.market.ui.tab.sell", uiPlayer), 132, marketTab == MarketTab.SELL,
                     () -> switchTab(MarketTab.SELL));
@@ -258,13 +259,18 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         }
         if (added) panel.addChild(bar);
 
+    }
+
+    private void setupActiveListingFooter() {
         UILabel listingStatus = label(t().get("tc.market.ui.status.active.listings", uiPlayer)
                 .replace("PH_ACTIVE", String.valueOf(plugin.activeMarketplaceListingCount(uiPlayer)))
                 .replace("PH_LIMIT", String.valueOf(plugin.activeMarketplaceListingLimit(uiPlayer))),
                 12, Font.DefaultBold);
-        listingStatus.setPivot(Pivot.UpperRight);
-        listingStatus.setPosition(0, -34, false);
-        listingStatus.setSize(280, 28, false);
+        listingStatus.setPivot(Pivot.LowerRight);
+        listingStatus.style.position.set(Position.Absolute);
+        listingStatus.style.right.set(24, Unit.Pixel);
+        listingStatus.style.bottom.set(15, Unit.Pixel);
+        listingStatus.setSize(280, 18, false);
         listingStatus.setTextAlign(TextAnchor.MiddleRight);
         panel.addChild(listingStatus);
     }
