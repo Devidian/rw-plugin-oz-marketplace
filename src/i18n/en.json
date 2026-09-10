@@ -573,6 +573,13 @@
               "label": "Other players' offers and requests",
               "off": "OFF",
               "on": "ON"
+            },
+            "global": {
+              "trade": {
+                "label": "Global market tab",
+                "off": "OFF",
+                "on": "ON"
+              }
             }
           },
           "delete": {

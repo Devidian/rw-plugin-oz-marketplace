@@ -573,6 +573,13 @@
               "label": "Fremde Angebote und Gesuche",
               "off": "AUS",
               "on": "AN"
+            },
+            "global": {
+              "trade": {
+                "label": "Globaler Markttab",
+                "off": "AUS",
+                "on": "AN"
+              }
             }
           },
           "delete": {

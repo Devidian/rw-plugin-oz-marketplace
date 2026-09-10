@@ -1311,6 +1311,10 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
                     () -> managementFeeField.getCurrentText(uiPlayer,
                             value -> runManagementAction(plugin.setCurrentMarketCrierFee(uiPlayer, parseInt(value)))));
             marketY += 40;
+            if (crier.global()) {
+                addCrierGlobalTradeSwitch(panel, crier, 0, marketY, uiPlayer.isAdmin());
+                marketY += 40;
+            }
             if (crier.personal()) {
                 addCrierSharingSwitch(panel, crier, 0, marketY, editable);
                 marketY += 40;
@@ -1406,6 +1410,32 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
                 event -> runManagementAction(plugin.setCurrentMarketCrierSharing(uiPlayer, !shared)));
         toggle.setClickable(enabled);
         if (shared) {
+            toggle.setBackgroundColor(0.12f, 0.40f, 0.16f, 0.96f);
+            toggle.setBorderColor(0.50f, 0.88f, 0.50f, 0.58f);
+        } else {
+            toggle.setBackgroundColor(0.46f, 0.18f, 0.12f, 0.96f);
+            toggle.setBorderColor(0.95f, 0.42f, 0.32f, 0.58f);
+        }
+        if (!enabled) styleDisabledButton(toggle);
+        toggle.setPivot(Pivot.UpperLeft);
+        toggle.setPosition(x + 300, y, false);
+        toggle.setSize(112, 32, false);
+        toggle.setBorderEdgeRadius(16, false);
+        parent.addChild(toggle);
+    }
+
+    private void addCrierGlobalTradeSwitch(OZUIElement parent, MarketCrier crier, int x, int y, boolean enabled) {
+        UILabel label = label(t().get("tc.market.ui.management.crier.global.trade.label", uiPlayer), 12, Font.DefaultBold);
+        label.setPivot(Pivot.UpperLeft);
+        label.setPosition(x, y + 4, false);
+        label.setSize(280, 24, false);
+        parent.addChild(label);
+        boolean globalTrade = crier.globalTradeEnabled();
+        AdvancedButton toggle = AdvancedButtonFactory.defaultButton(t().get(globalTrade
+                ? "tc.market.ui.management.crier.global.trade.on" : "tc.market.ui.management.crier.global.trade.off", uiPlayer),
+                event -> runManagementAction(plugin.setCurrentMarketCrierGlobalTrade(uiPlayer, !globalTrade)));
+        toggle.setClickable(enabled);
+        if (globalTrade) {
             toggle.setBackgroundColor(0.12f, 0.40f, 0.16f, 0.96f);
             toggle.setBorderColor(0.50f, 0.88f, 0.50f, 0.58f);
         } else {

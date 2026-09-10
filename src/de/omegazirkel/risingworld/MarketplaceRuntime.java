@@ -716,7 +716,8 @@ class MarketplaceRuntime extends Plugin {
             if (npc == null) throw new SQLException("Could not spawn market crier NPC");
             String name = crierName(player, male);
             crier = new MarketCrier(npc.getGlobalID(), "crier-" + npc.getGlobalID(), name,
-                    personal ? player.getDbID() : 0, personal ? player.getName() : "", global, false, false,
+                    personal ? player.getDbID() : 0, personal ? player.getName() : "", global,
+                    global && s.globalMarketplaceEnabled, false,
                     1, male, System.currentTimeMillis(), s.defaultLocalFeePercent);
             if (personal && !new WalletBridge(this).createSystemAccount(crier.accountId(), "MARKET_CRIER", name,
                     "OZ - Marketplace").success()) {
@@ -1195,11 +1196,34 @@ class MarketplaceRuntime extends Plugin {
         if (s == null) {
             return false;
         }
+        Object endpoint = player == null ? null : player.getAttribute("oz.marketplace.crier.endpoint");
+        if (endpoint instanceof MarketCrier crier && crier.global()) {
+            return s.globalMarketplaceEnabled && crier.globalTradeEnabled();
+        }
         Optional<MarketZone> zone = safeCurrentMarketZone(player);
         if (zone.isEmpty()) {
             return s.globalMarketplaceEnabled && !s.marketZoneOnlyMode;
         }
         return zone.get().globalTradeAllowed(s.globalMarketplaceEnabled);
+    }
+
+    /** Enables or disables the global-market tab for the interacted global crier. */
+    public MarketplaceResult setCurrentMarketCrierGlobalTrade(Player player, boolean enabled) {
+        Object endpoint = player == null ? null : player.getAttribute("oz.marketplace.crier.endpoint");
+        if (!(endpoint instanceof MarketCrier current) || !current.global() || !player.isAdmin()) {
+            return MarketplaceResult.failKey("tc.market.crier.configure.denied", "You may not configure this market crier.");
+        }
+        MarketCrier updated = new MarketCrier(current.npcId(), current.endpointId(), current.name(), current.ownerDbId(),
+                current.ownerName(), true, enabled, current.sharedListings(), current.level(), current.male(),
+                current.createdAt(), current.feePercent());
+        try {
+            database.upsertCrier(updated);
+            player.setAttribute("oz.marketplace.crier.endpoint", updated);
+            return MarketplaceResult.okKey("tc.market.crier.configure.success", "Market crier configuration saved.");
+        } catch (SQLException ex) {
+            logger().error("Failed to configure global market crier: " + ex.getMessage());
+            return MarketplaceResult.failKey("tc.market.crier.configure.failed", "Could not save market crier configuration.");
+        }
     }
 
     public boolean sellingAllowed(Player player) {
