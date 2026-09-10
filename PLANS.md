@@ -92,3 +92,5 @@ Planning is stored in repository-local docs.
 - [x] Add partial purchase state and ceiling-rounded tax
 - [x] Add wanted listings with partial fulfillment and OZ Mail delivery
 - [x] Complete development-server player-flow acceptance
+- [x] Add a player overview for active offers and wanted listings with endpoint-aware withdrawal
+- [x] Show the active-listing count and personal limit in the Marketplace footer

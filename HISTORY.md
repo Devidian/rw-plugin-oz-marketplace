@@ -1,5 +1,12 @@
 # History
 
+## [0.4.3] - 2026-09-10 | Personal listing overview and Crier access
+
+- feat: add a player-facing overview for active offers and wanted listings, including their market location and a direct withdrawal action for unavailable zone or Crier endpoints.
+- feat: show the active-listing count and personal limit in the Marketplace footer.
+- fix: make the global market tab available at Global Marktschreier when their global-trade setting is enabled.
+- feat: export persisted Market Criers for compatible map integrations.
+
 ## [0.4.2] - 2026-09-07 | Marktschreier removal safeguards
 
 - fix: keep local offers visible at their own global Marktschreier endpoint and promote them to global listings when that Crier is removed.

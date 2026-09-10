@@ -78,6 +78,8 @@ The `Sell` tab scans the player's inventory, groups sellable items by concrete i
 
 The `Local` and `Global` tabs show visible sale listings for the current access context. Both tabs default to a card layout and include a card/table toggle that persists per player, plus a name search that filters visible offers by their displayed item label. The `Local` tab is hidden outside market zones, and disabled marketplace modes are hidden from the overlay. Listings use derived display names with variant suffixes when needed, show the listing price plus the buyer fee amount and percent where a fee applies, and the purchase dialog offers cancel, a selected partial amount, or the complete remaining stack. Partial trades reduce both the remaining amount and remaining total price. Sellers can cancel their own active listings from these tabs; cancellation returns only the remaining item amount.
 
+The `My listings` tab shows a player's active offers and wanted listings together with their original market location. It keeps withdrawal available even when the original market zone or Market Crier is no longer present, and the Marketplace footer shows the current active-listing count against the player's personal limit. A Global Marktschreier exposes the Global tab whenever its global-trade setting is enabled.
+
 The `Wanted` tab uses Rising World's item selector to create local or global
 requests. Other players may fulfill any positive partial amount. The requester
 pays the proportional offer amount per fulfillment and the complete tax only
