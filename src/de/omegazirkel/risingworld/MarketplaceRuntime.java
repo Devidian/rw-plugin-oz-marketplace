@@ -80,8 +80,10 @@ class MarketplaceRuntime extends Plugin {
     public static String name;
     private static final String WEBSERVER_ZONES_ROUTE = "zones";
     private static final String WEBSERVER_OFFERS_ROUTE = "offers";
+    private static final String WEBSERVER_CRIERS_ROUTE = "criers";
     private MarketplaceExportRoute webserverZonesRoute;
     private MarketplaceExportRoute webserverOffersRoute;
+    private MarketplaceExportRoute webserverCriersRoute;
 
     public static OZLogger logger() {
         return OZLogger.getInstance("OZ.Marketplace");
@@ -192,17 +194,21 @@ class MarketplaceRuntime extends Plugin {
     }
 
     private void registerWebserverExportRoutes() {
-        MarketplaceExportService exports = new MarketplaceExportService(sqliteCon);
+        MarketplaceExportService exports = new MarketplaceExportService(sqliteCon,
+                accountId -> new WalletBridge(this).systemAccountBalances(accountId));
         webserverZonesRoute = new MarketplaceExportRoute(() -> s.exposeMarketplaceZones, true, exports);
         webserverOffersRoute = new MarketplaceExportRoute(() -> s.exposeMarketplaceOffers, false, exports);
+        webserverCriersRoute = new MarketplaceExportRoute(() -> s.exposeMarketplaceCriers, false, true, exports);
         registerWebserverHandler(WEBSERVER_ZONES_ROUTE, webserverZonesRoute);
         registerWebserverHandler(WEBSERVER_OFFERS_ROUTE, webserverOffersRoute);
-        logger().info("Native Marketplace export routes registered: /zones, /offers");
+        registerWebserverHandler(WEBSERVER_CRIERS_ROUTE, webserverCriersRoute);
+        logger().info("Native Marketplace export routes registered: /zones, /offers, /criers");
     }
 
     private void unregisterWebserverExportRoutes() {
         if (webserverZonesRoute != null) { unregisterWebserverHandler(WEBSERVER_ZONES_ROUTE); webserverZonesRoute = null; }
         if (webserverOffersRoute != null) { unregisterWebserverHandler(WEBSERVER_OFFERS_ROUTE); webserverOffersRoute = null; }
+        if (webserverCriersRoute != null) { unregisterWebserverHandler(WEBSERVER_CRIERS_ROUTE); webserverCriersRoute = null; }
     }
 
     public void onSettingsChanged(Path settingsPath) {

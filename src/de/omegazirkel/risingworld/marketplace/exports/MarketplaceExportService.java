@@ -7,14 +7,22 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
+import de.omegazirkel.risingworld.marketplace.WalletBridge;
 
 public final class MarketplaceExportService {
     private static final int SCHEMA_VERSION = 1;
 
     private final Connection connection;
+    private final Function<String, List<WalletBridge.SystemBalanceInfo>> balances;
 
     public MarketplaceExportService(Connection connection) {
+        this(connection, ignored -> List.of());
+    }
+
+    public MarketplaceExportService(Connection connection, Function<String, List<WalletBridge.SystemBalanceInfo>> balances) {
         this.connection = connection;
+        this.balances = balances;
     }
 
     public MarketplaceZonesExportResponse exportZones(Long lastChange) throws SQLException {
@@ -72,6 +80,45 @@ public final class MarketplaceExportService {
             }
         }
         return new MarketplaceOffersExportResponse(SCHEMA_VERSION, areaId, offers);
+    }
+
+    /** Exports Crier locations and their active listings for authenticated Manager bridges. */
+    public MarketplaceCriersExportResponse exportCriers() throws SQLException {
+        List<MarketplaceCrierExport> criers = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT c.npc_id, c.endpoint_id, c.name, l.x, l.y, l.z
+                FROM marketplace_criers c JOIN marketplace_crier_locations l ON l.endpoint_id = c.endpoint_id
+                ORDER BY c.name COLLATE NOCASE, c.npc_id
+                """); ResultSet result = statement.executeQuery()) {
+            while (result.next()) {
+                long npcId = result.getLong("npc_id");
+                String endpointId = result.getString("endpoint_id");
+                List<MarketplaceBalanceExport> accountBalances = balances.apply("market-crier::" + npcId).stream()
+                        .map(balance -> new MarketplaceBalanceExport(balance.currencyIdentifier(), balance.balance())).toList();
+                criers.add(new MarketplaceCrierExport(npcId, endpointId, result.getString("name"),
+                        result.getFloat("x"), result.getFloat("y"), result.getFloat("z"),
+                        accountBalances, exportOffersForEndpoint(endpointId)));
+            }
+        }
+        return new MarketplaceCriersExportResponse(SCHEMA_VERSION, criers);
+    }
+
+    private List<MarketplaceOfferExport> exportOffersForEndpoint(String endpointId) throws SQLException {
+        List<MarketplaceOfferExport> offers = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT id, seller_name, item_name, item_variant, amount, price, currency_identifier, created_at
+                FROM marketplace_listings WHERE status = 'ACTIVE' AND market_zone_id = ?
+                ORDER BY created_at DESC, id DESC LIMIT 30
+                """)) {
+            statement.setString(1, endpointId);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) offers.add(new MarketplaceOfferExport(result.getLong("id"),
+                        result.getString("item_name"), result.getInt("item_variant"), result.getInt("amount"),
+                        result.getLong("price"), result.getString("currency_identifier"), result.getString("seller_name"),
+                        result.getLong("created_at")));
+            }
+        }
+        return offers;
     }
 
     private Optional<String> zoneIdForArea(long areaId) throws SQLException {

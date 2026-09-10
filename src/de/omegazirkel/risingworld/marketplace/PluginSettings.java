@@ -40,6 +40,7 @@ public class PluginSettings {
     public boolean showMarketplaceZoneIndicator = true;
     public boolean exposeMarketplaceZones = true;
     public boolean exposeMarketplaceOffers = true;
+    public boolean exposeMarketplaceCriers = true;
     private Path settingsFile;
 
     private static OZLogger logger() {
@@ -104,6 +105,7 @@ public class PluginSettings {
             showMarketplaceZoneIndicator = bool(settings, defaults, "showMarketplaceZoneIndicator", true);
             exposeMarketplaceZones = bool(settings, defaults, "exposeMarketplaceZones", true);
             exposeMarketplaceOffers = bool(settings, defaults, "exposeMarketplaceOffers", true);
+            exposeMarketplaceCriers = bool(settings, defaults, "exposeMarketplaceCriers", true);
 
             logger().info((plugin == null ? "OZMarketplace" : plugin.getName()) + " Plugin settings loaded");
             logger().info("Marketplace command is /" + marketCommand);
@@ -153,6 +155,7 @@ public class PluginSettings {
             showMarketplaceZoneIndicator = bool(settings, defaults, "showMarketplaceZoneIndicator", true);
             exposeMarketplaceZones = bool(settings, defaults, "exposeMarketplaceZones", true);
             exposeMarketplaceOffers = bool(settings, defaults, "exposeMarketplaceOffers", true);
+            exposeMarketplaceCriers = bool(settings, defaults, "exposeMarketplaceCriers", true);
     }
 
     public List<AdminSettingsEntry> adminSettingsEntries() {
@@ -220,6 +223,9 @@ public class PluginSettings {
                         AdminSettingsType.BOOLEAN),
                 entry("exposeMarketplaceOffers", "Expose marketplace offers",
                         "Enables the future Marketplace area-offer export route.", exposeMarketplaceOffers, "true",
+                        AdminSettingsType.BOOLEAN),
+                entry("exposeMarketplaceCriers", "Expose marketplace criers",
+                        "Allows authenticated Manager bridges to read Crier locations and offers.", exposeMarketplaceCriers, "true",
                         AdminSettingsType.BOOLEAN));
     }
 
