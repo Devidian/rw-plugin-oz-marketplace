@@ -13,6 +13,7 @@ import de.omegazirkel.risingworld.marketplace.MarketCrierService;
 import de.omegazirkel.risingworld.marketplace.MarketplacePlayerPreferences;
 import de.omegazirkel.risingworld.marketplace.MarketplaceDatabase;
 import de.omegazirkel.risingworld.marketplace.MarketplaceListing;
+import de.omegazirkel.risingworld.marketplace.MarketplaceListingLocation;
 import de.omegazirkel.risingworld.marketplace.MarketplaceItemState;
 import de.omegazirkel.risingworld.marketplace.MarketplaceCapacityShopIntegration;
 import de.omegazirkel.risingworld.marketplace.MarketplaceResult;
@@ -1066,6 +1067,48 @@ class MarketplaceRuntime extends Plugin {
             return List.of();
         }
         return service.listVisibleListings(player);
+    }
+
+    public List<MarketplaceListing> ownMarketplaceListings(Player player) throws SQLException {
+        if (service == null) {
+            return List.of();
+        }
+        return service.listOwnActiveListings(player);
+    }
+
+    public int activeMarketplaceListingCount(Player player) {
+        if (database == null || player == null) {
+            return 0;
+        }
+        try {
+            return database.activeListingCount(player.getDbID());
+        } catch (SQLException ex) {
+            logger().warn("Failed to count active marketplace listings: " + ex.getMessage());
+            return 0;
+        }
+    }
+
+    public int activeMarketplaceListingLimit(Player player) {
+        return service == null ? 0 : service.activeListingLimit(player);
+    }
+
+    public MarketplaceListingLocation marketplaceListingLocation(MarketplaceListing listing) {
+        if (database == null || listing == null) {
+            return new MarketplaceListingLocation("", false);
+        }
+        try {
+            Optional<MarketZone> zone = database.findZone(listing.marketZoneId());
+            if (zone.isPresent()) {
+                return new MarketplaceListingLocation(zone.get().name(), true);
+            }
+            Optional<MarketCrier> crier = database.findCrierByEndpoint(listing.marketZoneId());
+            if (crier.isPresent()) {
+                return new MarketplaceListingLocation(crier.get().name(), World.getNpc(crier.get().npcId()) != null);
+            }
+        } catch (SQLException ex) {
+            logger().warn("Failed to resolve marketplace listing location: " + ex.getMessage());
+        }
+        return new MarketplaceListingLocation(listing.marketZoneId(), false);
     }
 
     public List<MarketplaceSale> marketplaceSales(Player player, int limit) throws SQLException {

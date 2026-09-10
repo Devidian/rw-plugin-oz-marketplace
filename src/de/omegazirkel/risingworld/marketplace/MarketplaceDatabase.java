@@ -393,6 +393,23 @@ public class MarketplaceDatabase {
         }
     }
 
+    public List<MarketplaceListing> listActiveListingsForSeller(int sellerDbId) throws SQLException {
+        List<MarketplaceListing> listings = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT * FROM marketplace_listings
+                WHERE seller_db_id = ? AND status = 'ACTIVE'
+                ORDER BY created_at DESC, id DESC;
+                """)) {
+            statement.setInt(1, sellerDbId);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    listings.add(readListing(result));
+                }
+            }
+        }
+        return listings;
+    }
+
     public boolean transitionListingStatus(long listingId, String expectedStatus, String newStatus) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 UPDATE marketplace_listings SET status = ? WHERE id = ? AND status = ?;

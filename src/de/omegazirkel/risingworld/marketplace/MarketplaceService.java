@@ -706,6 +706,17 @@ public class MarketplaceService {
         return database.listActiveListings(zone.get().id(), true);
     }
 
+    public List<MarketplaceListing> listOwnActiveListings(Player player) throws SQLException {
+        if (player == null) {
+            return List.of();
+        }
+        return database.listActiveListingsForSeller(player.getDbID());
+    }
+
+    public int activeListingLimit(Player player) {
+        return player == null ? 0 : listingCapacity(player);
+    }
+
     boolean localTradeEnabledAt(Optional<MarketZone> zone) throws SQLException {
         return settings.localMarketplaceEnabled || currentCrier(zone) != null;
     }

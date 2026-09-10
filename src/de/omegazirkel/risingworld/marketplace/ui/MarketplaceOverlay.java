@@ -17,6 +17,7 @@ import de.omegazirkel.risingworld.marketplace.MarketplaceItemNames;
 import de.omegazirkel.risingworld.marketplace.MarketplaceItemState;
 import de.omegazirkel.risingworld.marketplace.MarketplacePlayerPreferences;
 import de.omegazirkel.risingworld.marketplace.MarketplaceListing;
+import de.omegazirkel.risingworld.marketplace.MarketplaceListingLocation;
 import de.omegazirkel.risingworld.marketplace.MarketplaceResult;
 import de.omegazirkel.risingworld.marketplace.MarketplaceSale;
 import de.omegazirkel.risingworld.marketplace.MarketplaceService;
@@ -67,6 +68,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         LOCAL,
         GLOBAL,
         WANTED,
+        MY_LISTINGS,
         SALES,
         MANAGEMENT
     }
@@ -179,6 +181,8 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         }
         addTab(t().get("tc.market.ui.tab.wanted", uiPlayer), 132, marketTab == MarketTab.WANTED,
                 () -> switchTab(MarketTab.WANTED));
+        addTab(t().get("tc.market.ui.tab.my.listings", uiPlayer), 132, marketTab == MarketTab.MY_LISTINGS,
+                () -> switchTab(MarketTab.MY_LISTINGS));
         addTab(t().get("tc.market.ui.tab.sales", uiPlayer), 132, marketTab == MarketTab.SALES,
                 () -> switchTab(MarketTab.SALES));
         if (tabAvailable(MarketTab.MANAGEMENT)) {
@@ -195,6 +199,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             case LOCAL -> settings.localMarketplaceEnabled && plugin.safeCurrentMarketZone(uiPlayer).isPresent();
             case GLOBAL -> plugin.globalListingAllowed(uiPlayer);
             case WANTED -> true;
+            case MY_LISTINGS -> true;
             case SALES -> true;
             case MANAGEMENT -> plugin.marketplaceManagementAvailable(uiPlayer);
         };
@@ -216,6 +221,8 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             setupListingsTab(true);
         } else if (marketTab == MarketTab.WANTED) {
             setupWantedTab();
+        } else if (marketTab == MarketTab.MY_LISTINGS) {
+            setupMyListingsTab();
         } else if (marketTab == MarketTab.SALES) {
             setupSalesTab();
         } else {
@@ -249,9 +256,17 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             bar.addChild(walletBalanceEntry(currency, balance.balance()));
             added = true;
         }
-        if (added) {
-            panel.addChild(bar);
-        }
+        if (added) panel.addChild(bar);
+
+        UILabel listingStatus = label(t().get("tc.market.ui.status.active.listings", uiPlayer)
+                .replace("PH_ACTIVE", String.valueOf(plugin.activeMarketplaceListingCount(uiPlayer)))
+                .replace("PH_LIMIT", String.valueOf(plugin.activeMarketplaceListingLimit(uiPlayer))),
+                12, Font.DefaultBold);
+        listingStatus.setPivot(Pivot.UpperRight);
+        listingStatus.setPosition(0, -34, false);
+        listingStatus.setSize(280, 28, false);
+        listingStatus.setTextAlign(TextAnchor.MiddleRight);
+        panel.addChild(listingStatus);
     }
 
     private OZUIElement walletBalanceEntry(WalletBridge.CurrencyInfo currency, long balance) {
@@ -819,6 +834,60 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             }
         }
         body.addChild(table);
+    }
+
+    private void setupMyListingsTab() {
+        TableScrollView table = new TableScrollView(
+                Arrays.asList(
+                        t().get("tc.market.ui.col.item", uiPlayer),
+                        t().get("tc.market.ui.col.type", uiPlayer),
+                        t().get("tc.market.ui.col.amount", uiPlayer),
+                        t().get("tc.market.ui.col.price", uiPlayer),
+                        t().get("tc.market.ui.col.location", uiPlayer),
+                        t().get("tc.market.ui.col.action", uiPlayer)),
+                Arrays.asList(23f, 13f, 10f, 18f, 21f, 15f));
+        table.setScrollBodyHeight(TABLE_BODY_HEIGHT);
+
+        List<MarketplaceListing> listings = ownActiveListings();
+        if (listings.isEmpty()) {
+            table.addRow(new TableRow(Arrays.asList(labelCell(t().get("tc.market.ui.empty.my.listings", uiPlayer), 100f))));
+        } else {
+            for (MarketplaceListing listing : listings) {
+                table.addRow(ownListingRow(listing));
+            }
+        }
+        body.addChild(table);
+    }
+
+    private List<MarketplaceListing> ownActiveListings() {
+        try {
+            return plugin.ownMarketplaceListings(uiPlayer);
+        } catch (SQLException ex) {
+            Marketplace.logger().error("Failed to render own marketplace listings: " + ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private TableRow ownListingRow(MarketplaceListing listing) {
+        return new TableRow(Arrays.asList(
+                labelCell(listingLabel(listing), 23f),
+                labelCell(t().get(listing.wanted() ? "tc.market.ui.listing.type.wanted" : "tc.market.ui.listing.type.offer", uiPlayer), 13f),
+                labelCell(String.valueOf(listing.amount()), 10f),
+                labelCell(listing.price() + currencyLabel(listing.currencyIdentifier()), 18f),
+                labelCell(ownListingLocation(listing), 21f),
+                new TableCell(buyButton(listing), 15f)));
+    }
+
+    private String ownListingLocation(MarketplaceListing listing) {
+        if ("global".equals(listing.marketZoneId())) {
+            return t().get("tc.market.ui.location.global", uiPlayer);
+        }
+        MarketplaceListingLocation location = plugin.marketplaceListingLocation(listing);
+        if (location.available()) {
+            return location.name();
+        }
+        return t().get("tc.market.ui.location.missing", uiPlayer)
+                .replace("PH_LOCATION", location.name().isBlank() ? listing.marketZoneId() : location.name());
     }
 
     private List<MarketplaceSale> visibleSales() {

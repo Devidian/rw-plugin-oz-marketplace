@@ -47,6 +47,25 @@ public class MarketplaceDatabasePlayerMarketTest {
     }
 
     @Test
+    public void activeListingsForSellerIncludeOffersAndWantedListingsOnly() throws Exception {
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite::memory:")) {
+            MarketplaceDatabase database = new MarketplaceDatabase(connection);
+            database.createListing(wantedListing());
+            database.createListing(new MarketplaceListing(0L, 42, "Owner", "stone", 0, 3,
+                    MarketplaceItemState.NEUTRAL, 30L, "OZC", "global", true, 101L, "ACTIVE"));
+            long cancelledOfferId = database.createListing(new MarketplaceListing(0L, 42, "Owner", "clay", 0, 3,
+                    MarketplaceItemState.NEUTRAL, 30L, "OZC", "global", true, 102L, "ACTIVE"));
+            database.createListing(new MarketplaceListing(0L, 99, "Other", "iron", 0, 1,
+                    MarketplaceItemState.NEUTRAL, 10L, "OZC", "global", true, 103L, "ACTIVE"));
+            assertTrue(database.transitionListingStatus(cancelledOfferId, "ACTIVE", "CANCELLED"));
+
+            assertEquals(2, database.listActiveListingsForSeller(42).size());
+            assertTrue(database.listActiveListingsForSeller(42).stream().anyMatch(MarketplaceListing::wanted));
+            assertTrue(database.listActiveListingsForSeller(42).stream().anyMatch(MarketplaceListing::offer));
+        }
+    }
+
+    @Test
     public void partialWantedFulfillmentPersistsRemainderAndLocksProgress() throws Exception {
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite::memory:")) {
             MarketplaceDatabase database = new MarketplaceDatabase(connection);

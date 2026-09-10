@@ -441,9 +441,11 @@
           "condition": "Condition",
           "fee": "Fee",
           "item": "Item",
+          "location": "Location",
           "payout": "Payout",
           "price": "Price",
           "seller": "Seller",
+          "type": "Type",
           "variant": "Variant",
           "zone": "Zone"
         },
@@ -478,6 +480,9 @@
             "no": {
               "zone": "Stand in a market zone to see local listings."
             }
+          },
+          "my": {
+            "listings": "You have no active offers or wanted listings."
           },
           "sales": "No completed sales visible in your history.",
           "wanted": "No wanted listings are visible here."
@@ -516,6 +521,16 @@
         "layout": {
           "cards": "Cards",
           "table": "Table"
+        },
+        "listing": {
+          "type": {
+            "offer": "Offer",
+            "wanted": "Wanted"
+          }
+        },
+        "location": {
+          "global": "Global market",
+          "missing": "Unavailable: PH_LOCATION"
         },
         "crier": {
           "title": "Market Crier: PH_NAME",
@@ -643,6 +658,9 @@
           }
         },
         "status": {
+          "active": {
+            "listings": "PH_ACTIVE / PH_LIMIT active offers/wanted listings"
+          },
           "global": {
             "disabled": "Global marketplace disabled.",
             "enabled": "Global marketplace enabled."
@@ -656,6 +674,9 @@
           "global": "Global",
           "local": "Local",
           "management": "Market management",
+          "my": {
+            "listings": "My listings"
+          },
           "sales": "Sales",
           "sell": "Sell",
           "wanted": "Wanted"

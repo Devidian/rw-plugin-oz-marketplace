@@ -441,9 +441,11 @@
           "condition": "Zustand",
           "fee": "Gebühr",
           "item": "Item",
+          "location": "Standort",
           "payout": "Auszahlung",
           "price": "Preis",
           "seller": "Verkäufer",
+          "type": "Typ",
           "variant": "Variante",
           "zone": "Zone"
         },
@@ -478,6 +480,9 @@
             "no": {
               "zone": "Stelle dich in eine Marktzone, um lokale Angebote zu sehen."
             }
+          },
+          "my": {
+            "listings": "Du hast keine aktiven Angebote oder Gesuche."
           },
           "sales": "In deinem Verlauf sind keine abgeschlossenen Verkäufe sichtbar.",
           "wanted": "Hier sind keine Gesuche sichtbar."
@@ -516,6 +521,16 @@
         "layout": {
           "cards": "Karten",
           "table": "Tabelle"
+        },
+        "listing": {
+          "type": {
+            "offer": "Angebot",
+            "wanted": "Gesuch"
+          }
+        },
+        "location": {
+          "global": "Globaler Markt",
+          "missing": "Nicht verfügbar: PH_LOCATION"
         },
         "crier": {
           "title": "Marktschreier: PH_NAME",
@@ -643,6 +658,9 @@
           }
         },
         "status": {
+          "active": {
+            "listings": "PH_ACTIVE / PH_LIMIT aktive Angebote/Gesuche"
+          },
           "global": {
             "disabled": "Globaler Marktplatz deaktiviert.",
             "enabled": "Globaler Marktplatz aktiviert."
@@ -656,6 +674,9 @@
           "global": "Global",
           "local": "Lokal",
           "management": "Marktverwaltung",
+          "my": {
+            "listings": "Meine Angebote"
+          },
           "sales": "Verkäufe",
           "sell": "Verkaufen",
           "wanted": "Gesuche"
