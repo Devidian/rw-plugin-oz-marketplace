@@ -1,5 +1,11 @@
 # History
 
+## [0.5.0] - 2026-09-11 | Marketplace lifecycle and global Manager market
+
+- feat: add configurable listing expiry with safe returns and delivery retry handling.
+- feat: export active global offers for compatible authenticated Manager views.
+- fix: show global and local listings in their correct views and settle wanted listings in their configured Wallet currency.
+
 ## [0.4.3] - 2026-09-10 | Personal listing overview and Crier access
 
 - feat: add a player-facing overview for active offers and wanted listings, including their market location and a direct withdrawal action for unavailable zone or Crier endpoints.
