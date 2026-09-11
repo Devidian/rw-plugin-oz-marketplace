@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class MarketplaceDatabase {
-    private static final int SCHEMA_VERSION = 8;
+    private static final int SCHEMA_VERSION = 9;
     private final Connection connection;
 
     public enum HideSaleStatus {
@@ -101,7 +101,8 @@ public class MarketplaceDatabase {
                         listing_type TEXT NOT NULL DEFAULT 'OFFER',
                         original_amount INTEGER NOT NULL DEFAULT 0,
                         fulfilled_amount INTEGER NOT NULL DEFAULT 0,
-                        original_price BIGINT NOT NULL DEFAULT 0
+                        original_price BIGINT NOT NULL DEFAULT 0,
+                        expires_at BIGINT NOT NULL DEFAULT 0
                     );
                     """);
             ensureColumn(statement, "marketplace_listings", "item_durability", "INTEGER NOT NULL DEFAULT 0");
@@ -112,10 +113,12 @@ public class MarketplaceDatabase {
             ensureColumn(statement, "marketplace_listings", "original_amount", "INTEGER NOT NULL DEFAULT 0");
             ensureColumn(statement, "marketplace_listings", "fulfilled_amount", "INTEGER NOT NULL DEFAULT 0");
             ensureColumn(statement, "marketplace_listings", "original_price", "BIGINT NOT NULL DEFAULT 0");
+            ensureColumn(statement, "marketplace_listings", "expires_at", "BIGINT NOT NULL DEFAULT 0");
             statement.execute("""
                     CREATE INDEX IF NOT EXISTS idx_marketplace_listings_active
                     ON marketplace_listings(status, market_zone_id, global_listing, created_at DESC);
                     """);
+            statement.execute("CREATE INDEX IF NOT EXISTS idx_marketplace_listings_expiry ON marketplace_listings(status, expires_at);");
             statement.execute("""
                     CREATE TABLE IF NOT EXISTS marketplace_sales (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -295,13 +298,17 @@ public class MarketplaceDatabase {
     }
 
     public long createListing(MarketplaceListing listing) throws SQLException {
+        return createListing(listing, 0L);
+    }
+
+    public long createListing(MarketplaceListing listing, long expiresAt) throws SQLException {
         String sql = """
                 INSERT INTO marketplace_listings(
                     seller_db_id, seller_name, item_name, item_variant, amount, item_durability, item_status,
                     item_modifier, item_color, price, currency_identifier,
                     market_zone_id, global_listing, created_at, status, listing_type, original_amount,
-                    fulfilled_amount, original_price)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?);
+                    fulfilled_amount, original_price, expires_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?, ?);
                 """;
         try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             statement.setInt(1, listing.sellerDbId());
@@ -322,6 +329,7 @@ public class MarketplaceDatabase {
             statement.setInt(16, listing.originalAmount());
             statement.setInt(17, listing.fulfilledAmount());
             statement.setLong(18, listing.originalPrice());
+            statement.setLong(19, Math.max(0L, expiresAt));
             statement.executeUpdate();
             try (ResultSet keys = statement.getGeneratedKeys()) {
                 return keys.next() ? keys.getLong(1) : 0L;
@@ -343,21 +351,44 @@ public class MarketplaceDatabase {
         return Optional.empty();
     }
 
+    public List<MarketplaceListing> expiredActiveListings(long now) throws SQLException {
+        List<MarketplaceListing> listings = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT * FROM marketplace_listings
+                WHERE status = 'ACTIVE' AND expires_at > 0 AND expires_at <= ? ORDER BY expires_at, id;
+                """)) {
+            statement.setLong(1, now);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) listings.add(readListing(result));
+            }
+        }
+        return listings;
+    }
+
     public List<MarketplaceListing> listActiveListings(String zoneId, boolean includeGlobal) throws SQLException {
+        return listActiveListings(zoneId, includeGlobal, null);
+    }
+
+    /** Filters by listing type in SQL so offers cannot displace wanted listings at the display limit. */
+    public List<MarketplaceListing> listActiveListings(String zoneId, boolean includeGlobal, String listingType) throws SQLException {
         String sql = includeGlobal
                 ? """
                         SELECT * FROM marketplace_listings
                         WHERE status = 'ACTIVE' AND (market_zone_id = ? OR global_listing = 1)
-                        ORDER BY created_at DESC, id DESC LIMIT 30;
+                          AND (? IS NULL OR listing_type = ?)
+                        ORDER BY created_at DESC, id DESC;
                         """
                 : """
                         SELECT * FROM marketplace_listings
                         WHERE status = 'ACTIVE' AND market_zone_id = ?
-                        ORDER BY created_at DESC, id DESC LIMIT 30;
+                          AND (? IS NULL OR listing_type = ?)
+                        ORDER BY created_at DESC, id DESC;
                         """;
         List<MarketplaceListing> listings = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, zoneId);
+            statement.setString(2, listingType);
+            statement.setString(3, listingType);
             try (ResultSet result = statement.executeQuery()) {
                 while (result.next()) {
                     listings.add(readListing(result));
@@ -368,15 +399,24 @@ public class MarketplaceDatabase {
     }
 
     public List<MarketplaceListing> listGlobalListings() throws SQLException {
+        return listGlobalListings(null);
+    }
+
+    public List<MarketplaceListing> listGlobalListings(String listingType) throws SQLException {
         List<MarketplaceListing> listings = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement("""
                 SELECT * FROM marketplace_listings
                 WHERE status = 'ACTIVE' AND global_listing = 1
-                ORDER BY created_at DESC, id DESC LIMIT 30;
+                  AND (? IS NULL OR listing_type = ?)
+                ORDER BY created_at DESC, id DESC;
                 """);
-                ResultSet result = statement.executeQuery()) {
+                ) {
+            statement.setString(1, listingType);
+            statement.setString(2, listingType);
+            try (ResultSet result = statement.executeQuery()) {
             while (result.next()) {
                 listings.add(readListing(result));
+            }
             }
         }
         return listings;

@@ -433,6 +433,9 @@
           "seller": "Verkäufer: PH_SELLER",
           "variant": "Variante: PH_VARIANT"
         },
+        "offer": {
+          "details": "Angebotsdetails"
+        },
         "col": {
           "action": "Aktion",
           "amount": "Menge",
@@ -733,6 +736,12 @@
       "title": "Plugin Einstellungen für PH_PLUGIN_NAME"
     },
     "setting": {
+      "marketcapacitybaseprice": { "label": "Grundpreis Marktkapazität", "desc": "Startpreis für zusätzliche Marktkapazität." },
+      "marketcapacitypriceincreasefactor": { "label": "Preissteigerung Marktkapazität", "desc": "Faktor für den Preis weiterer Kapazitätsstufen." },
+      "marketcrierbaseslots": { "label": "Basisplätze Marktschreier", "desc": "Anzahl Angebotsplätze eines neuen Marktschreiers." },
+      "marketcrierupgradebaseprice": { "label": "Grundpreis Marktschreier-Upgrade", "desc": "Startpreis für ein Marktschreier-Upgrade." },
+      "marketcrierupgradepriceincreasefactor": { "label": "Preissteigerung Marktschreier-Upgrade", "desc": "Faktor für den Preis weiterer Upgrades." },
+      "exposemarketplacecriers": { "label": "Marktschreier bereitstellen", "desc": "Erlaubt dem Manager lesenden Zugriff auf Marktschreier." },
       "defaultglobalfeepercent": {
         "desc": "Gebühr, die Käufern bei globalen Angeboten berechnet wird.",
         "label": "Globale Standardgebühr in Prozent"
@@ -784,6 +793,10 @@
       "maxlistingsperplayer": {
         "desc": "Maximale aktive Angebote, die ein Spieler gleichzeitig besitzen darf.",
         "label": "Max. Angebote pro Spieler"
+      },
+      "maxlistinglifetimedays": {
+        "desc": "Maximale Laufzeit aktiver Angebote; 0 deaktiviert den automatischen Ablauf.",
+        "label": "Angebotslaufzeit in Tagen"
       },
       "maxplayermarketplaces": {
         "desc": "0 deaktiviert Spielermärkte, negative Werte sind unbegrenzt, positive Werte begrenzen Märkte pro Spieler.",

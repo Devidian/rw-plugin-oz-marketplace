@@ -24,7 +24,10 @@ public final class MarketplaceExportRoute implements WebserverHandler {
         if (!OZToolsNativeWebAccess.authorize(event)) return;
         if (event.getMethod() != HttpMethod.GET) { event.setResponseCode(405); event.setResponseHeader("Allow", "GET"); event.setResponseBody("{\"error\":\"method_not_allowed\"}"); return; }
         try { Long cursor = lastChange(event.getQueryParameters().get("lastChange"));
-            Object payload = criers ? exports.exportCriers() : zones ? exports.exportZones(cursor) : exports.exportOffers(areaId(event.getQueryParameters().get("areaId")), cursor);
+            boolean global = "true".equals(event.getQueryParameters().get("global"));
+            Object payload = criers ? exports.exportCriers() : zones ? exports.exportZones(cursor)
+                    : global ? exports.exportGlobalOffers(cursor)
+                    : exports.exportOffers(areaId(event.getQueryParameters().get("areaId")), cursor);
             event.setResponseCode(200); event.setResponseBody(GSON.toJson(payload));
         } catch (IllegalArgumentException ex) { event.setResponseCode(400); event.setResponseBody("{\"error\":\"invalid_request\"}");
         } catch (SQLException | RuntimeException ex) { event.setResponseCode(503); event.setResponseBody("{\"error\":\"marketplace_unavailable\"}"); }

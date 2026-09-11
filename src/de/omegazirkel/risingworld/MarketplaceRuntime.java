@@ -40,6 +40,7 @@ import de.omegazirkel.risingworld.tools.ui.PluginShortcutVisibility;
 import de.omegazirkel.risingworld.tools.ui.SharedIndicators;
 import de.omegazirkel.risingworld.tools.bridge.MailBridge;
 import net.risingworld.api.Plugin;
+import net.risingworld.api.Timer;
 import net.risingworld.api.events.player.PlayerCommandEvent;
 import net.risingworld.api.events.player.PlayerSpawnEvent;
 import net.risingworld.api.events.player.PlayerNpcInteractionEvent;
@@ -85,6 +86,7 @@ class MarketplaceRuntime extends Plugin {
     private MarketplaceExportRoute webserverZonesRoute;
     private MarketplaceExportRoute webserverOffersRoute;
     private MarketplaceExportRoute webserverCriersRoute;
+    private Timer expiryTimer;
 
     public static OZLogger logger() {
         return OZLogger.getInstance("OZ.Marketplace");
@@ -108,6 +110,8 @@ class MarketplaceRuntime extends Plugin {
             int cleanedCriers = cleanMissingCriersAfterEnable();
             logger().info("Marketplace startup repair completed; repaired player markets: " + repairedMarkets + ".");
             logger().info("Marketplace startup crier cleanup completed; removed records: " + cleanedCriers + ".");
+            service.expireDueListings();
+            startExpiryTimer();
         } catch (SQLException ex) {
             logger().error("Failed to initialize marketplace database: " + ex.getMessage());
             ex.printStackTrace();
@@ -179,6 +183,7 @@ class MarketplaceRuntime extends Plugin {
 
     @Override
     public void onDisable() {
+        stopExpiryTimer();
         unregisterWebserverExportRoutes();
         if (name != null) {
             PluginShortcutVisibility.unregister(name);
@@ -221,9 +226,29 @@ class MarketplaceRuntime extends Plugin {
         if (capacityShop != null) capacityShop.register(s);
     }
 
+    private void startExpiryTimer() {
+        if (expiryTimer != null && expiryTimer.isActive() && !expiryTimer.isKilled()) return;
+        stopExpiryTimer();
+        expiryTimer = new Timer(60f, 60f, -1, () -> {
+            if (service == null) return;
+            try {
+                service.expireDueListings();
+            } catch (RuntimeException ex) {
+                logger().error("Marketplace listing-expiry timer failed: " + ex.getMessage());
+            }
+        });
+        expiryTimer.start();
+    }
+
+    private void stopExpiryTimer() {
+        if (expiryTimer != null && !expiryTimer.isKilled()) expiryTimer.kill();
+        expiryTimer = null;
+    }
+
     public void onPlayerSpawnEvent(PlayerSpawnEvent event) {
         Player player = event.getPlayer();
         MarketplacePlayerPreferences.load(player);
+        if (service != null) service.expireDueListings();
         if (s.enableWelcomeMessage) {
             player.sendTextMessage(c.okay + tr(player, "tc.market.chat.welcome",
                     "PH_PLUGIN", getDescription("name"),
@@ -1067,6 +1092,10 @@ class MarketplaceRuntime extends Plugin {
             return List.of();
         }
         return service.listVisibleListings(player);
+    }
+
+    public List<MarketplaceListing> visibleMarketplaceWantedListings(Player player) throws SQLException {
+        return service == null ? List.of() : service.listVisibleWantedListings(player);
     }
 
     public List<MarketplaceListing> ownMarketplaceListings(Player player) throws SQLException {

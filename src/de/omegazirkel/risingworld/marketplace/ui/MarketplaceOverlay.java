@@ -946,11 +946,11 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             return button;
         }
         AdvancedButton button = AdvancedButtonFactory.defaultButton(
-                t().get(listing.wanted() ? "tc.market.ui.sell.to.request" : "tc.market.ui.buy", uiPlayer),
+                t().get(listing.wanted() ? "tc.market.ui.sell.to.request" : "tc.market.ui.offer.details", uiPlayer),
                 event -> showBuyConfirmation(listing));
         button.setPivot(Pivot.UpperLeft);
         button.setPosition(4, 5, false);
-        button.setSize(listing.wanted() ? 126 : 72, 22, false);
+        button.setSize(listing.wanted() ? 126 : 112, 22, false);
         button.setBorderEdgeRadius(3, false);
         if (listing.wanted() && InventoryTransfer.snapshotForSeller(uiPlayer, listing.itemName(),
                 listing.itemVariant(), 1) == null) {
@@ -1109,7 +1109,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         table.setScrollBodyHeight(TABLE_BODY_HEIGHT - 42);
         List<MarketplaceListing> wanted;
         try {
-            wanted = plugin.visibleMarketplaceListings(uiPlayer).stream().filter(MarketplaceListing::wanted).toList();
+            wanted = plugin.visibleMarketplaceWantedListings(uiPlayer);
         } catch (SQLException ex) {
             wanted = List.of();
         }

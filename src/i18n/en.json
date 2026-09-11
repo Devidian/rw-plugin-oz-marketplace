@@ -433,6 +433,9 @@
           "seller": "Seller: PH_SELLER",
           "variant": "Variant: PH_VARIANT"
         },
+        "offer": {
+          "details": "Offer details"
+        },
         "col": {
           "action": "Action",
           "amount": "Amount",
@@ -733,6 +736,12 @@
       "title": "Plugin Settings for PH_PLUGIN_NAME"
     },
     "setting": {
+      "marketcapacitybaseprice": { "label": "Market capacity base price", "desc": "Starting price for additional market capacity." },
+      "marketcapacitypriceincreasefactor": { "label": "Market capacity price increase", "desc": "Price factor for further capacity levels." },
+      "marketcrierbaseslots": { "label": "Market crier base slots", "desc": "Listing slots on a new market crier." },
+      "marketcrierupgradebaseprice": { "label": "Market crier upgrade base price", "desc": "Starting price for a market crier upgrade." },
+      "marketcrierupgradepriceincreasefactor": { "label": "Market crier upgrade price increase", "desc": "Price factor for further upgrades." },
+      "exposemarketplacecriers": { "label": "Expose market criers", "desc": "Allows Manager read access to market criers." },
       "defaultglobalfeepercent": {
         "desc": "Fee charged to buyers for global listings.",
         "label": "Default global fee percent"
@@ -784,6 +793,10 @@
       "maxlistingsperplayer": {
         "desc": "Maximum active listings a player may own at once.",
         "label": "Max listings per player"
+      },
+      "maxlistinglifetimedays": {
+        "desc": "Maximum active listing lifetime; 0 disables automatic expiry.",
+        "label": "Listing lifetime in days"
       },
       "maxplayermarketplaces": {
         "desc": "0 disables player markets, negative is unlimited, positive limits markets per player.",

@@ -60,8 +60,7 @@ public final class MarketplaceExportService {
                        currency_identifier, created_at
                 FROM marketplace_listings
                 WHERE status = 'ACTIVE' AND market_zone_id = ? AND created_at > ?
-                ORDER BY created_at DESC, id DESC
-                LIMIT 30;
+                ORDER BY created_at DESC, id DESC;
                 """)) {
             statement.setString(1, zoneId.get());
             statement.setLong(2, cursor);
@@ -80,6 +79,27 @@ public final class MarketplaceExportService {
             }
         }
         return new MarketplaceOffersExportResponse(SCHEMA_VERSION, areaId, offers);
+    }
+
+    /** Exports active global offers without binding them to a local area. */
+    public MarketplaceOffersExportResponse exportGlobalOffers(Long lastChange) throws SQLException {
+        long cursor = lastChange == null ? -1L : lastChange.longValue();
+        List<MarketplaceOfferExport> offers = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT id, seller_name, item_name, item_variant, amount, price, currency_identifier, created_at
+                FROM marketplace_listings
+                WHERE status = 'ACTIVE' AND global_listing = 1 AND created_at > ?
+                ORDER BY created_at DESC, id DESC
+                """)) {
+            statement.setLong(1, cursor);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) offers.add(new MarketplaceOfferExport(result.getLong("id"),
+                        result.getString("item_name"), result.getInt("item_variant"), result.getInt("amount"),
+                        result.getLong("price"), result.getString("currency_identifier"), result.getString("seller_name"),
+                        result.getLong("created_at")));
+            }
+        }
+        return new MarketplaceOffersExportResponse(SCHEMA_VERSION, 0L, offers);
     }
 
     /** Exports Crier locations and their active listings for authenticated Manager bridges. */
@@ -108,7 +128,7 @@ public final class MarketplaceExportService {
         try (PreparedStatement statement = connection.prepareStatement("""
                 SELECT id, seller_name, item_name, item_variant, amount, price, currency_identifier, created_at
                 FROM marketplace_listings WHERE status = 'ACTIVE' AND market_zone_id = ?
-                ORDER BY created_at DESC, id DESC LIMIT 30
+                ORDER BY created_at DESC, id DESC
                 """)) {
             statement.setString(1, endpointId);
             try (ResultSet result = statement.executeQuery()) {

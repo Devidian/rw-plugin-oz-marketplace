@@ -66,7 +66,7 @@ public class MarketplaceDatabaseItemColorTest {
 
             assertEquals(0, migrated.itemState().color());
             try (var result = statement.executeQuery("PRAGMA user_version")) {
-                assertEquals(8, result.getInt(1));
+                assertEquals(9, result.getInt(1));
             }
         }
     }

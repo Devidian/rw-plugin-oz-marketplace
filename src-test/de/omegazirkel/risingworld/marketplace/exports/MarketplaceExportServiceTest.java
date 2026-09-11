@@ -67,6 +67,30 @@ public class MarketplaceExportServiceTest {
         }
     }
 
+    @Test
+    public void exportsAllActiveOffersInsteadOfDiscardingOlderRows() throws Exception {
+        try (Connection connection = database()) {
+            seed(connection);
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    INSERT INTO marketplace_listings
+                    (seller_db_id, seller_name, item_name, item_variant, amount, price, currency_identifier,
+                     market_zone_id, global_listing, created_at, status)
+                    VALUES (?, 'Seller', 'Stone', 0, 1, 1, 'coins', 'zone-1', 0, ?, 'ACTIVE');
+                    """)) {
+                for (int index = 0; index < 31; index++) {
+                    statement.setInt(1, 100 + index);
+                    statement.setLong(2, 5_000L + index);
+                    statement.addBatch();
+                }
+                statement.executeBatch();
+            }
+
+            MarketplaceOffersExportResponse response = new MarketplaceExportService(connection).exportOffers(42L, null);
+
+            assertEquals(32, response.offers().size());
+        }
+    }
+
     private static Connection database() throws Exception {
         Connection connection = DriverManager.getConnection("jdbc:sqlite::memory:");
         try (Statement statement = connection.createStatement()) {

@@ -31,6 +31,7 @@ public class PluginSettings {
     public long minimumLocalFee = 0L;
     public long minimumGlobalFee = 0L;
     public int maxListingsPerPlayer = 20;
+    public int maxListingLifetimeDays = 7;
     public int maxPlayerMarketplaces = 0;
     public long marketCapacityBasePrice = 2500L;
     public double marketCapacityPriceIncreaseFactor = 1.0d;
@@ -94,6 +95,7 @@ public class PluginSettings {
             minimumLocalFee = decimal(settings, defaults, "minimumLocalFee", 0L, 0L, Long.MAX_VALUE);
             minimumGlobalFee = decimal(settings, defaults, "minimumGlobalFee", 0L, 0L, Long.MAX_VALUE);
             maxListingsPerPlayer = integer(settings, defaults, "maxListingsPerPlayer", 20, 1, 1000);
+            maxListingLifetimeDays = integer(settings, defaults, "maxListingLifetimeDays", 7, 0, 3650);
             maxPlayerMarketplaces = signedInteger(settings, defaults, "maxPlayerMarketplaces", 0);
             marketCapacityBasePrice = decimal(settings, defaults, "marketCapacityBasePrice", 2500L, 0L, Long.MAX_VALUE);
             marketCapacityPriceIncreaseFactor = decimalFactor(settings, defaults, "marketCapacityPriceIncreaseFactor", 1.0d);
@@ -144,6 +146,7 @@ public class PluginSettings {
             minimumLocalFee = decimal(settings, defaults, "minimumLocalFee", 0L, 0L, Long.MAX_VALUE);
             minimumGlobalFee = decimal(settings, defaults, "minimumGlobalFee", 0L, 0L, Long.MAX_VALUE);
             maxListingsPerPlayer = integer(settings, defaults, "maxListingsPerPlayer", 20, 1, 1000);
+            maxListingLifetimeDays = integer(settings, defaults, "maxListingLifetimeDays", 7, 0, 3650);
             maxPlayerMarketplaces = signedInteger(settings, defaults, "maxPlayerMarketplaces", 0);
             marketCapacityBasePrice = decimal(settings, defaults, "marketCapacityBasePrice", 2500L, 0L, Long.MAX_VALUE);
             marketCapacityPriceIncreaseFactor = decimalFactor(settings, defaults, "marketCapacityPriceIncreaseFactor", 1.0d);
@@ -194,6 +197,8 @@ public class PluginSettings {
                 entry("maxListingsPerPlayer", "Max listings per player",
                         "Maximum active listings a player may own at once.",
                         maxListingsPerPlayer, "20", AdminSettingsType.INTEGER),
+                entry("maxListingLifetimeDays", "Listing lifetime in days",
+                        "Maximum active listing lifetime; 0 disables automatic expiry.", maxListingLifetimeDays, "7", AdminSettingsType.INTEGER),
                 entry("maxPlayerMarketplaces", "Max player marketplaces",
                         "0 disables player markets, negative is unlimited, positive limits markets per player.",
                         maxPlayerMarketplaces, "0", AdminSettingsType.INTEGER),
