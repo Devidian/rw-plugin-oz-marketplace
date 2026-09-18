@@ -348,7 +348,7 @@
           "currency": {
             "missing": "The Wallet default currency is not available."
           },
-          "failed": "The Wallet transaction failed.",
+          "failed": {"$value": "The Wallet transaction failed.", "detail": "The Wallet transaction failed: PH_REASON"},
           "required": "OZ Wallet is required for this Marketplace action."
         },
         "wanted": {

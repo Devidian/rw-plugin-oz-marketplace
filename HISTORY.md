@@ -1,5 +1,9 @@
 # History
 
+## [0.5.1] - 2026-09-18 | Wallet transaction feedback
+
+- fix: show Marketplace Wallet transaction failures in a native error dialog with the safe operation reason.
+
 ## [0.5.0] - 2026-09-11 | Marketplace lifecycle and global Manager market
 
 - feat: add configurable listing expiry with safe returns and delivery retry handling.

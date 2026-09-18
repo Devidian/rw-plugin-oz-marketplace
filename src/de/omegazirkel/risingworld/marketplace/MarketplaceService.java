@@ -947,8 +947,8 @@ public class MarketplaceService {
 
     private MarketplaceResult walletFailure(String detail) {
         Marketplace.logger().warn("Marketplace Wallet operation failed: " + safe(detail));
-        return MarketplaceResult.failKey("tc.market.result.wallet.failed",
-                "The Wallet transaction failed.");
+        return MarketplaceResult.failKey("tc.market.result.wallet.failed.detail",
+                "The Wallet transaction failed: PH_REASON", "PH_REASON", safe(detail));
     }
 
     private MarketplaceResult crierFundsInsufficient() {

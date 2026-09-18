@@ -348,7 +348,7 @@
           "currency": {
             "missing": "Die Wallet-Standardwährung ist nicht verfügbar."
           },
-          "failed": "Die Wallet-Transaktion ist fehlgeschlagen.",
+          "failed": {"$value": "Die Wallet-Transaktion ist fehlgeschlagen.", "detail": "Die Wallet-Transaktion ist fehlgeschlagen: PH_REASON"},
           "required": "Für diese Marketplace-Aktion wird OZ Wallet benötigt."
         },
         "wanted": {

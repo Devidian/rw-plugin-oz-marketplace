@@ -1604,7 +1604,12 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private void sendResult(MarketplaceResult result) {
-        uiPlayer.sendTextMessage((result.success() ? c.okay : c.error) + result.localized(t(), uiPlayer));
+        String message = result.localized(t(), uiPlayer);
+        if (result.success()) {
+            uiPlayer.sendTextMessage(c.okay + message);
+        } else {
+            uiPlayer.showErrorMessageBox(t().get("tc.market.ui.title", uiPlayer), message);
+        }
     }
 
     private void showDeleteZoneConfirmation() {
