@@ -1,5 +1,9 @@
 # History
 
+## [0.5.2] - 2026-09-18 | Release pipeline compatibility
+
+- fix: install PluginAPI 0.9.3.2 in release validation and publishing workflows.
+
 ## [0.5.1] - 2026-09-18 | Wallet transaction feedback
 
 - fix: show Marketplace Wallet transaction failures in a native error dialog with the safe operation reason.
