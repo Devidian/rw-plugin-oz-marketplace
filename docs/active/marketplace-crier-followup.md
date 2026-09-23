@@ -31,16 +31,16 @@ public account-transfer bridge only; no direct Wallet persistence access.
 
 ## Validation Strategy
 
-- [ ] Add focused tests: underfunded wanted creation succeeds; an underfunded
+- [x] Add focused tests: underfunded wanted creation succeeds; an underfunded
   fulfillment fails without inventory/listing/account mutation; partial
   fulfillment is enabled when at least one matching item exists.
-- [ ] Test global wanted listings created at a global Crier remain global and
+- [x] Test global wanted listings created at a global Crier remain global and
   local wanted listings are excluded from global and unrelated-endpoint views.
-- [ ] Test account deposit/withdrawal follows the Shop-NPC player-account flow
+- [x] Test account deposit/withdrawal follows the Shop-NPC player-account flow
   and balance refreshes after each successful transfer.
-- [ ] Verify DE/EN UI labels, title/footer identity and disabled/width-adjusted
+- [x] Verify DE/EN UI labels, title/footer identity and disabled/width-adjusted
   fulfillment action in a Development interaction smoke test.
-- [ ] Run `mvn -B test` and `mvn -B -DskipTests package`.
+- [x] Run `mvn -B test` and `mvn -B -DskipTests package`.
 
 ## Affected Repositories/Plugins
 
@@ -65,26 +65,26 @@ rollback; each settlement remains individually atomic.
   and wanted listings block deletion; wanted listings require their existing
   account-settlement workflow rather than an item mail.
 
-- [ ] Change wanted creation so insufficient Crier account balance does not
+- [x] Change wanted creation so insufficient Crier account balance does not
   block listing creation. Check funding only in the fulfillment transaction,
   before removing any seller inventory; return a localized no-payout result.
 - [x] Preserve global scope when a wanted listing is created through a global
   Crier. Derive endpoint/scope from the resolved Crier, never from a stale or
   default local market context.
-- [ ] Apply endpoint-aware visibility consistently: local wanted listings are
+- [x] Apply endpoint-aware visibility consistently: local wanted listings are
   visible only at their own endpoint and permitted local zones/Criers; global
   lists contain global listings only.
-- [ ] Add the personal-Crier player-account deposit action using the same
+- [x] Add the personal-Crier player-account deposit action using the same
   Wallet-backed UI flow as Shop NPCs, with amount validation and server-side
   ownership checks.
-- [ ] Show the Crier Wallet balance in the management/trade UI, refreshed after
+- [x] Show the Crier Wallet balance in the management/trade UI, refreshed after
   funding, withdrawal, listing fees and fulfillment payouts.
-- [ ] Make the wanted-listing fulfillment action wide enough for localized
+- [x] Make the wanted-listing fulfillment action wide enough for localized
   `Verkaufen` copy. Disable it when no matching item exists, but allow partial
   fulfillment whenever the player owns at least one requested item.
-- [ ] Replace the generic footer title with `Marktschreier: [name]`. Show
+- [x] Replace the generic footer title with `Marktschreier: [name]`. Show
   `Dies ist ein Globaler Marktschreier` for global endpoints or `Dies ist ein
   persönlicher Marktschreier von [spielername]` for personal endpoints; add
   equivalent DE/EN localized strings.
-- [ ] Update player-facing documentation/history only with the eventual
+- [x] Update player-facing documentation/history with the released behavior.
   released behavior.

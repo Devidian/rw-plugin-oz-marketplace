@@ -18,7 +18,8 @@ Inventory/database boundary failures keep the existing reservation safeguards.
 ## Validation
 
 - [x] Maven build and tests (5 tests).
-- [ ] Runtime-check damaged-item listing, purchase and cancellation.
+- [x] Runtime-check damaged-item listing, purchase and cancellation on
+  Development; player acceptance confirmed on 2026-09-23.
 
 ## Checklist
 
