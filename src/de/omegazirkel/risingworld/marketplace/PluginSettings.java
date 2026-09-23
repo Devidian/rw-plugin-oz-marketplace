@@ -69,17 +69,9 @@ public class PluginSettings {
 
     public void initSettings(String filePath) {
         settingsFile = Paths.get(filePath);
-        if (settingsFile.getFileName().toString().endsWith(".properties")) {
-            initLegacyProperties(settingsFile);
-            return;
-        }
         Path defaultSettingsFile = settingsFile.resolveSibling("settings.default.json");
-        Path legacySettingsFile = settingsFile.resolveSibling("settings.properties");
         try {
-            if (JsonSettingsFile.migrateLegacyProperties(legacySettingsFile, settingsFile))
-                logger().info("Migrated legacy settings.properties to " + settingsFile.getFileName());
-            if (Files.notExists(settingsFile) && Files.exists(defaultSettingsFile))
-                JsonSettingsFile.writeFlatAtomically(settingsFile, JsonSettingsFile.loadFlat(defaultSettingsFile));
+            JsonSettingsFile.prepareWorldSettings(settingsFile);
             Properties settings = JsonSettingsFile.loadProperties(settingsFile);
             Properties defaults = JsonSettingsFile.loadProperties(defaultSettingsFile);
 
@@ -114,22 +106,6 @@ public class PluginSettings {
         } catch (IOException ex) {
             logger().error("IOException on initSettings: " + ex.getMessage());
             ex.printStackTrace();
-        }
-    }
-
-    /** Compatibility path for callers still passing an explicit properties file. */
-    private void initLegacyProperties(Path legacyFile) {
-        try {
-            Properties settings = new Properties();
-            if (Files.exists(legacyFile)) {
-                try (FileInputStream in = new FileInputStream(legacyFile.toFile())) {
-                    settings.load(new InputStreamReader(in, "UTF8"));
-                }
-            }
-            Properties defaults = new Properties();
-            apply(settings, defaults);
-        } catch (IOException ex) {
-            logger().error("IOException on initSettings: " + ex.getMessage());
         }
     }
 

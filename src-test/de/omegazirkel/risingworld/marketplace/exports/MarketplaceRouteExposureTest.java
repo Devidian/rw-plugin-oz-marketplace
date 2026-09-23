@@ -14,10 +14,11 @@ public class MarketplaceRouteExposureTest {
 
     @Test
     public void loadsRouteExposureFlagsFromSettings() throws Exception {
-        Path settings = Files.createTempFile("oz-marketplace-settings-", ".properties");
-        Files.writeString(settings, String.join("\n",
-                "exposeMarketplaceZones=false",
-                "exposeMarketplaceOffers=false"));
+        Path directory = Files.createTempDirectory("oz-marketplace-settings-");
+        Path settings = directory.resolve("settings.world.json");
+        Files.writeString(directory.resolve("settings.default.json"),
+                "{\"exposeMarketplaceZones\":true,\"exposeMarketplaceOffers\":true}");
+        Files.writeString(settings, "{\"exposeMarketplaceZones\":false,\"exposeMarketplaceOffers\":false}");
 
         PluginSettings pluginSettings = PluginSettings.getInstance();
         pluginSettings.initSettings(settings.toString());

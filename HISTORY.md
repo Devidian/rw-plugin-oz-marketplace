@@ -1,5 +1,9 @@
 # History
 
+## [0.6.0] - 2026-09-23 | JSON-only settings runtime
+
+- change: use world-scoped JSON settings only; transfer legacy Properties values manually.
+
 ## [0.5.2] - 2026-09-18 | Release pipeline compatibility
 
 - fix: install PluginAPI 0.9.3.2 in release validation and publishing workflows.
