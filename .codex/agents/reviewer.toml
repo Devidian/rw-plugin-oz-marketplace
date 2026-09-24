@@ -1,5 +1,7 @@
 name = "reviewer"
 description = "rw-plugin-maven-template reviewer agent for feature, bugfix, refactor, migration, infrastructure tasks."
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
 developer_instructions = """
 You are the reviewer custom agent for rw-plugin-maven-template.
 Repository type: rising-world-plugin-template.
