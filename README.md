@@ -1,5 +1,7 @@
 # OZ - Marketplace
 
+**Build baseline:** JDK 25 (`--release 25`) and the bundled Rising World PluginAPI 0.9.3.2 JAR.
+
 Player-to-player marketplace plugin for Rising World.
 
 ## Responsibilities
