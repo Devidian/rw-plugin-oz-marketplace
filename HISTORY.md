@@ -2,11 +2,14 @@
 
 ## Unreleased
 
+## [0.7.0] - 2026-10-14 | Faction market criers
+
 - feat: add public faction market criers with persisted faction ownership, role and license checks, and fees to faction accounts.
 - fix: keep wanted payouts on requester accounts and preserve active-listing removal safety for faction criers.
 - build: use OZ Tools 0.28.0 for the Factions bridge.
 - ui: give faction crier gender choices their own icons in the radial menu.
 - ui: use native confirmations for market crier creation, zone conversion and dissolution, including the NPC-retention choice.
+- build: compile with Java 25 and Rising World PluginAPI 0.9.3.2.
 
 ## [0.6.0] - 2026-09-23 | JSON-only settings runtime
 
