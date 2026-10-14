@@ -1,0 +1,3 @@
+- feat: add publicly usable faction market criers with faction fee settlement.
+- fix: keep wanted payouts on requester accounts and preserve safe NPC removal.
+- ui: add faction gender icons and native creation, conversion and dissolution dialogs.

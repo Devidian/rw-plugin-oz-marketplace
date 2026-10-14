@@ -9,6 +9,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 import de.omegazirkel.risingworld.Marketplace;
+import de.omegazirkel.risingworld.OZTools;
 import de.omegazirkel.risingworld.marketplace.InventoryListingCandidate;
 import de.omegazirkel.risingworld.marketplace.InventoryTransfer;
 import de.omegazirkel.risingworld.marketplace.MarketZone;
@@ -44,7 +45,9 @@ import net.risingworld.api.definitions.Items.ItemDefinition;
 import net.risingworld.api.definitions.Objects.ObjectDefinition;
 import net.risingworld.api.objects.Player;
 import net.risingworld.api.ui.UILabel;
+import net.risingworld.api.ui.MessageBoxButtons;
 import net.risingworld.api.ui.UIElement;
+import net.risingworld.api.ui.UITarget;
 import net.risingworld.api.ui.UIScrollView;
 import net.risingworld.api.ui.UIScrollView.ScrollViewMode;
 import net.risingworld.api.ui.UITextField;
@@ -134,7 +137,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         if (crier == null) {
             return super.descriptionText();
         }
-        String key = crier.global()
+        String key = crier.factionId() > 0 ? "tc.market.ui.crier.identity.faction" : crier.global()
                 ? "tc.market.ui.crier.identity.global"
                 : "tc.market.ui.crier.identity.personal";
         return t().get(key, uiPlayer).replace("PH_OWNER", crier.ownerName());
@@ -1332,7 +1335,7 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
         int y = 96;
         Object endpoint = uiPlayer.getAttribute("oz.marketplace.crier.endpoint");
         if (endpoint instanceof MarketCrier crier) {
-            boolean editable = crier.ownedBy(uiPlayer.getDbID()) || (crier.global() && uiPlayer.isAdmin());
+            boolean editable = plugin.canEditCurrentMarketCrier(uiPlayer);
             OZUIElement divider = new OZUIElement();
             divider.setPivot(Pivot.UpperLeft);
             divider.setPosition(0, y, false);
@@ -1621,25 +1624,21 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
     }
 
     private void showDissolveCrierConfirmation() {
-        OZUIElement dialog = confirmationDialog(t().get("tc.market.ui.management.crier.delete.confirm.title", uiPlayer));
-        dialog.setSize(560, 250, false);
-        addDialogMessage(dialog, t().get("tc.market.ui.management.crier.delete.confirm.text", uiPlayer), 520);
-        addDissolveCrierButtons(dialog);
-    }
-
-    private void addDissolveCrierButtons(OZUIElement dialog) {
-        OZUIElement cancel = AdvancedButtonFactory.cancel(t().get("tc.market.ui.cancel", uiPlayer), event -> removeChild(dialog));
-        cancel.setPivot(Pivot.UpperLeft); cancel.setPosition(20, 184, false); cancel.setSize(120, 32, false);
-        dialog.addChild(cancel);
-        AdvancedButton unlink = AdvancedButtonFactory.defaultButton(t().get("tc.market.ui.management.crier.delete.unlink", uiPlayer),
-                event -> { removeChild(dialog); runManagementAction(plugin.dissolveCurrentMarketCrier(uiPlayer, false)); });
-        styleWarningButton(unlink);
-        unlink.setPivot(Pivot.UpperLeft); unlink.setPosition(152, 184, false); unlink.setSize(190, 32, false);
-        dialog.addChild(unlink);
-        OZUIElement deleteNpc = AdvancedButtonFactory.danger(t().get("tc.market.ui.management.crier.delete.npc", uiPlayer),
-                event -> { removeChild(dialog); runManagementAction(plugin.dissolveCurrentMarketCrier(uiPlayer, true)); });
-        deleteNpc.setPivot(Pivot.UpperLeft); deleteNpc.setPosition(354, 184, false); deleteNpc.setSize(186, 32, false);
-        dialog.addChild(deleteNpc);
+        if (currentMarketCrier() == null) return;
+        String title = t().get("tc.market.ui.management.crier.delete.confirm.title", uiPlayer);
+        String message = t().get("tc.market.ui.management.crier.delete.confirm.text", uiPlayer);
+        uiPlayer.removeUIElement(this);
+        uiPlayer.closeAllActiveUIWindows();
+        OZTools.runAfterModalClose(uiPlayer, () -> uiPlayer.showMessageBox(MessageBoxButtons.Yes_No_Cancel,
+                title, message, 0, answer -> plugin.enqueue(() -> {
+                    if (!uiPlayer.isConnected()) return;
+                    if (answer != null && (answer == 0 || answer == 1)) {
+                        runManagementAction(plugin.dissolveCurrentMarketCrier(uiPlayer, answer == 0));
+                    } else {
+                        rebuild();
+                    }
+                    uiPlayer.addUIElement(this, UITarget.Modal);
+                })));
     }
 
     private OZUIElement confirmationDialog(String titleText) {

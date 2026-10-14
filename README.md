@@ -108,6 +108,19 @@ Inside an owned market the UI syncs its Area name, cycles global-trade mode,
 sets its fee, and dissolves it after confirmation. A market cannot be dissolved
 while any listing remains active or reserved.
 
+Faction leaders and officers may create a faction market crier from the Marketplace
+menu or with `/mp crier create faction male|female` while their faction has a
+crier license. Anyone may post offers and wanted listings there. The crier has
+distinct male and female faction icons in the menu and native confirmation
+dialogs for creation and dissolution. Its dissolution dialog lets the owner
+remove only the market link or both the link and NPC. It has no separate
+Wallet account: fees credit the faction account, while wanted
+fulfillments debit the requesting player's account. A faction crier cannot be
+removed while unsettled listings or returns remain. Existing private and
+global criers keep their original account and access rules. Factions is an
+optional runtime dependency; faction crier actions fail closed when it or
+Wallet account data is unavailable. OZ Tools 0.28.0 or newer is required.
+
 On startup, lost player-market Area links are repaired to the nearest unused
 Area with the owner's stored owner permission. Without an eligible owner Area,
 listings move to the nearest remaining market, or become global when no market

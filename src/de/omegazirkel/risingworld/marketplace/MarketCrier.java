@@ -3,7 +3,7 @@ package de.omegazirkel.risingworld.marketplace;
 /** Persisted Marketplace-owned NPC endpoint. Wallet accounts are resolved by the runtime. */
 public record MarketCrier(long npcId, String endpointId, String name, int ownerDbId, String ownerName,
         boolean global, boolean globalTradeEnabled, boolean sharedListings, int level, boolean male, long createdAt,
-        int feePercent) {
+        int feePercent, int factionId) {
 
     public MarketCrier {
         endpointId = endpointId == null ? "" : endpointId.trim();
@@ -11,6 +11,14 @@ public record MarketCrier(long npcId, String endpointId, String name, int ownerD
         ownerName = ownerName == null ? "" : ownerName.trim();
         level = Math.max(1, level);
         feePercent = Math.max(0, Math.min(100, feePercent));
+        factionId = Math.max(0, factionId);
+    }
+
+    public MarketCrier(long npcId, String endpointId, String name, int ownerDbId, String ownerName,
+            boolean global, boolean globalTradeEnabled, boolean sharedListings, int level, boolean male, long createdAt,
+            int feePercent) {
+        this(npcId, endpointId, name, ownerDbId, ownerName, global, globalTradeEnabled, sharedListings, level, male,
+                createdAt, feePercent, 0);
     }
 
     /** Compatibility constructor for persisted callers created before per-crier fees existed. */
@@ -21,7 +29,7 @@ public record MarketCrier(long npcId, String endpointId, String name, int ownerD
     }
 
     public boolean personal() {
-        return !global;
+        return !global && factionId == 0;
     }
 
     public boolean ownedBy(int playerDbId) {

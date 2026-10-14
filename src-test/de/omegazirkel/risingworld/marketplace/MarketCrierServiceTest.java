@@ -11,6 +11,29 @@ import org.junit.Test;
 
 public class MarketCrierServiceTest {
     @Test
+    public void legacyCriersMigrateToZeroAndFactionCriersArePublic() throws Exception {
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite::memory:")) {
+            try (var statement = connection.createStatement()) {
+                statement.execute("""
+                        CREATE TABLE marketplace_criers (npc_id BIGINT PRIMARY KEY, endpoint_id TEXT NOT NULL UNIQUE,
+                        name TEXT NOT NULL, owner_db_id INTEGER NOT NULL DEFAULT 0, owner_name TEXT NOT NULL DEFAULT '',
+                        global_crier INTEGER NOT NULL DEFAULT 0, global_trade_enabled INTEGER NOT NULL DEFAULT 0,
+                        shared_listings INTEGER NOT NULL DEFAULT 0, level INTEGER NOT NULL DEFAULT 1,
+                        male INTEGER NOT NULL DEFAULT 1, created_at BIGINT NOT NULL, fee_percent INTEGER NOT NULL DEFAULT 5)
+                        """);
+                statement.execute("INSERT INTO marketplace_criers(npc_id,endpoint_id,name,created_at) VALUES(1,'old','Old',1)");
+            }
+            MarketplaceDatabase database = new MarketplaceDatabase(connection);
+            assertEquals(0, database.findCrier(1).orElseThrow().factionId());
+            MarketCrier faction = new MarketCrier(2, "faction-2", "Faction", 0, "", false, false,
+                    false, 1, true, 2L, 5, 17);
+            database.upsertCrier(faction);
+            assertEquals(1, database.factionCrierCount(17));
+            assertFalse(database.findCrier(2).orElseThrow().personal());
+            assertTrue(new MarketCrierService(database, PluginSettings.getInstance()).mayCreateListings(faction, 999));
+        }
+    }
+    @Test
     public void personalZonesAndCriersShareTheCreationBudget() throws Exception {
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite::memory:")) {
             MarketplaceDatabase database = new MarketplaceDatabase(connection);

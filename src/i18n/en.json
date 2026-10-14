@@ -109,6 +109,7 @@
           }
         },
         "create": {
+          "faction": { "denied": "Your faction cannot create another market crier." },
           "confirm": {
             "text": "Create this market crier here? The current location will become its marketplace endpoint.\n\nPH_KIND",
             "title": "Create market crier"
@@ -146,6 +147,10 @@
           }
         },
         "menu": {
+          "faction": {
+            "female": "Create faction female market crier",
+            "male": "Create faction male market crier"
+          },
           "global": {
             "female": "Create global female market crier",
             "male": "Create global male market crier"
@@ -538,6 +543,7 @@
         "crier": {
           "title": "Market Crier: PH_NAME",
           "identity": {
+            "faction": "This is a market crier of PH_OWNER.",
             "global": "This is a global market crier.",
             "personal": "This is the personal market crier of PH_OWNER."
           }
@@ -569,7 +575,7 @@
             "delete": {
               "$value": "Dissolve market crier",
               "confirm": {
-                "text": "The market link can only be removed after all listings have been completed or withdrawn. Should the NPC remain or be deleted as well?",
+                "text": "The market link is removed only when open listings can be settled or returned safely. Yes = delete link and NPC; No = remove the link only; Cancel = leave everything unchanged.",
                 "title": "Dissolve market crier?"
               },
               "npc": "Delete NPC too",

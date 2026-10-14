@@ -184,6 +184,7 @@ public class MarketplaceDatabase {
         ensureColumn(statement, "marketplace_zones", "owner_name", "TEXT NOT NULL DEFAULT ''");
         ensureColumn(statement, "marketplace_zones", "owner_area_permission", "TEXT NOT NULL DEFAULT ''");
         ensureColumn(statement, "marketplace_criers", "fee_percent", "INTEGER NOT NULL DEFAULT 5");
+        ensureColumn(statement, "marketplace_criers", "faction_id", "INTEGER NOT NULL DEFAULT 0");
         statement.execute("""
                 UPDATE marketplace_listings
                 SET original_amount = amount
@@ -539,13 +540,13 @@ public class MarketplaceDatabase {
     public void upsertCrier(MarketCrier crier) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 INSERT INTO marketplace_criers(npc_id, endpoint_id, name, owner_db_id, owner_name, global_crier,
-                    global_trade_enabled, shared_listings, level, male, created_at, fee_percent)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    global_trade_enabled, shared_listings, level, male, created_at, fee_percent, faction_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(npc_id) DO UPDATE SET endpoint_id=excluded.endpoint_id, name=excluded.name,
                     owner_db_id=excluded.owner_db_id, owner_name=excluded.owner_name,
                     global_crier=excluded.global_crier, global_trade_enabled=excluded.global_trade_enabled,
                     shared_listings=excluded.shared_listings, level=excluded.level, male=excluded.male,
-                    fee_percent=excluded.fee_percent;
+                    fee_percent=excluded.fee_percent, faction_id=excluded.faction_id;
                 """)) {
             writeCrier(statement, crier);
             statement.executeUpdate();
@@ -656,6 +657,15 @@ public class MarketplaceDatabase {
         }
     }
 
+    public int factionCrierCount(int factionId) throws SQLException {
+        if (factionId <= 0) return 0;
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT COUNT(*) FROM marketplace_criers WHERE faction_id = ?")) {
+            statement.setInt(1, factionId);
+            try (ResultSet result = statement.executeQuery()) { return result.next() ? result.getInt(1) : 0; }
+        }
+    }
+
     /** Keeps a missing NPC's endpoint while it still owns active listings. */
     public CrierDeleteResult deleteCrierIfEmpty(long npcId) throws SQLException {
         Optional<MarketCrier> crier = findCrier(npcId);
@@ -703,7 +713,7 @@ public class MarketplaceDatabase {
                     // refund is a separate settlement workflow, so retain custody here.
                     : listing.wanted() || listing.sellerDbId() == crier.ownerDbId()
                         || !("ACTIVE".equals(listing.status()) || "PENDING_CRIER_RETURN".equals(listing.status())));
-            if (blocked || (crier.personal() && !listings.isEmpty() && !mailAvailable)) {
+            if (blocked || ((crier.personal() || crier.factionId() > 0) && !listings.isEmpty() && !mailAvailable)) {
                 connection.rollback();
                 return new CrierDeleteResult(false, listings.size());
             }
@@ -902,6 +912,7 @@ public class MarketplaceDatabase {
         statement.setInt(10, crier.male() ? 1 : 0);
         statement.setLong(11, crier.createdAt());
         statement.setInt(12, crier.feePercent());
+        statement.setInt(13, crier.factionId());
     }
 
     private MarketCrier readCrier(ResultSet result) throws SQLException {
@@ -909,7 +920,7 @@ public class MarketplaceDatabase {
                 result.getInt("owner_db_id"), result.getString("owner_name"), result.getInt("global_crier") != 0,
                 result.getInt("global_trade_enabled") != 0, result.getInt("shared_listings") != 0,
                 result.getInt("level"), result.getInt("male") != 0, result.getLong("created_at"),
-                result.getInt("fee_percent"));
+                result.getInt("fee_percent"), result.getInt("faction_id"));
     }
 
     private MarketZone readZone(ResultSet result) throws SQLException {

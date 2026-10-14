@@ -13,6 +13,7 @@ import net.risingworld.api.events.player.ui.PlayerUITextFieldChangeEvent;
 
 /** Rising World entry point; marketplace behavior lives in {@link MarketplaceRuntime}. */
 public final class Marketplace extends MarketplaceRuntime implements Listener, FileChangeListener {
+    @Override public int getFactionMarketCrierCount(int factionId) { return super.getFactionMarketCrierCount(factionId); }
     public static OZLogger logger() {
         return MarketplaceRuntime.logger();
     }

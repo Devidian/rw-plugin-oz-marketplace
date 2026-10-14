@@ -63,7 +63,7 @@
         <dependency>
             <groupId>com.github.devidian</groupId>
             <artifactId>rw-plugin-oz-tools</artifactId>
-            <version>0.26.0</version>
+            <version>0.28.0</version>
         </dependency>
 
         <!-- Rising World PluginAPI -->

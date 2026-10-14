@@ -39,6 +39,7 @@ import de.omegazirkel.risingworld.tools.ui.PluginInfoStatusProviders;
 import de.omegazirkel.risingworld.tools.ui.PluginShortcutVisibility;
 import de.omegazirkel.risingworld.tools.ui.SharedIndicators;
 import de.omegazirkel.risingworld.tools.bridge.MailBridge;
+import de.omegazirkel.risingworld.tools.bridge.FactionBridge;
 import net.risingworld.api.Plugin;
 import net.risingworld.api.Timer;
 import net.risingworld.api.events.player.PlayerCommandEvent;
@@ -103,7 +104,8 @@ class MarketplaceRuntime extends Plugin {
             sqliteCon = SQLiteConnectionFactory.open(this);
             database = new MarketplaceDatabase(sqliteCon);
             playerSettings = new PlayerSettings(sqliteCon);
-            service = new MarketplaceService(database, new WalletBridge(this), new MailBridge(this), s);
+            service = new MarketplaceService(database, new WalletBridge(this), new MailBridge(this), s,
+                    new FactionBridge(this));
             crierService = new MarketCrierService(database, s);
             registerWebserverExportRoutes();
             int repairedMarkets = service.repairLostPlayerMarkets();
@@ -175,7 +177,7 @@ class MarketplaceRuntime extends Plugin {
             scheduleCrierInitialization(crier, npc);
             MarketCrier replacement = new MarketCrier(npc.getGlobalID(), crier.endpointId(), crier.name(), crier.ownerDbId(),
                     crier.ownerName(), crier.global(), crier.globalTradeEnabled(), crier.sharedListings(), crier.level(),
-                    crier.male(), crier.createdAt(), crier.feePercent());
+                    crier.male(), crier.createdAt(), crier.feePercent(), crier.factionId());
             database.replaceCrierNpcId(crier.npcId(), replacement);
             return true;
         } catch (SQLException ex) { logger().error("Failed to rehydrate market crier: " + ex.getMessage()); return false; }
@@ -323,7 +325,49 @@ class MarketplaceRuntime extends Plugin {
             player.sendTextMessage(c.error + tr(player, "tc.market.crier.create.denied"));
             return;
         }
-        createMarketCrierInternal(player, global, !global, male);
+        createMarketCrierInternal(player, global, !global, male, 0);
+    }
+
+    public void createFactionMarketCrier(Player player, boolean male) {
+        if (player == null || database == null) return;
+        FactionBridge factions = new FactionBridge(this);
+        Integer factionId = factions.factionIdForPlayer(player.getDbID());
+        try {
+            if (!canCreateFactionMarketCrier(player)) {
+                player.sendTextMessage(c.error + tr(player, "tc.market.crier.create.faction.denied"));
+                return;
+            }
+            createMarketCrierInternal(player, false, false, male, factionId);
+        } catch (SQLException ex) {
+            logger().error("Failed to check faction market crier capacity: " + ex.getMessage());
+            player.sendTextMessage(c.error + "Faction market crier capacity is unavailable.");
+        }
+    }
+
+    public boolean canCreateFactionMarketCrier(Player player) throws SQLException {
+        if (player == null || database == null) return false;
+        FactionBridge factions = new FactionBridge(this);
+        Integer factionId = factions.factionIdForPlayer(player.getDbID());
+        if (factionId == null || factionId <= 0 || !factions.canManageCrier(player.getDbID())) return false;
+        Integer capacity = factions.crierLicenses(factionId);
+        String accountId = factions.factionAccountId(factionId);
+        return capacity != null && capacity > database.factionCrierCount(factionId)
+                && accountId != null && !accountId.isBlank() && factionName(factionId) != null;
+    }
+
+    private String factionName(int factionId) {
+        Plugin plugin = getPluginByName("OZ - Factions");
+        if (plugin == null) return null;
+        try {
+            Object value = plugin.getClass().getMethod("getFactionName", int.class).invoke(plugin, factionId);
+            return value instanceof String name && !name.isBlank() ? name : null;
+        } catch (ReflectiveOperationException ex) { return null; }
+    }
+
+    public int getFactionMarketCrierCount(int factionId) {
+        if (database == null) return -1;
+        try { return database.factionCrierCount(factionId); }
+        catch (SQLException ex) { logger().error("Failed to count faction market criers: " + ex.getMessage()); return -1; }
     }
 
     /** UI entry point; the same server-side conversion checks as the command apply. */
@@ -365,13 +409,15 @@ class MarketplaceRuntime extends Plugin {
         }
         boolean global = parts[3].equalsIgnoreCase("global");
         boolean personal = parts[3].equalsIgnoreCase("personal");
+        boolean faction = parts[3].equalsIgnoreCase("faction");
         boolean male = parts[4].equalsIgnoreCase("male");
         boolean female = parts[4].equalsIgnoreCase("female");
-        if ((!global && !personal) || (!male && !female)) {
+        if ((!global && !personal && !faction) || (!male && !female)) {
             player.sendTextMessage(c.error + tr(player, "tc.market.crier.create.denied"));
             return;
         }
-        createMarketCrier(player, global, male);
+        if (faction) createFactionMarketCrier(player, male);
+        else createMarketCrier(player, global, male);
     }
 
     public MarketplaceResult transferCurrentMarketCrierAccount(Player player, String direction, long amount,
@@ -438,7 +484,7 @@ class MarketplaceRuntime extends Plugin {
         }
         MarketCrier upgraded = new MarketCrier(current.npcId(), current.endpointId(), current.name(),
                 current.ownerDbId(), current.ownerName(), false, false, current.sharedListings(), current.level() + 1,
-                current.male(), current.createdAt(), current.feePercent());
+                current.male(), current.createdAt(), current.feePercent(), current.factionId());
         try {
             database.upsertCrier(upgraded);
             player.setAttribute("oz.marketplace.crier.endpoint", upgraded);
@@ -471,11 +517,11 @@ class MarketplaceRuntime extends Plugin {
             if (setting.equalsIgnoreCase("share") && current.ownedBy(player.getDbID())) {
                 updated = new MarketCrier(current.npcId(), current.endpointId(), current.name(), current.ownerDbId(),
                         current.ownerName(), false, false, enabled, current.level(), current.male(), current.createdAt(),
-                        current.feePercent());
+                        current.feePercent(), current.factionId());
             } else if (setting.equalsIgnoreCase("global") && current.global() && player.isAdmin()) {
                 updated = new MarketCrier(current.npcId(), current.endpointId(), current.name(), current.ownerDbId(),
                         current.ownerName(), true, enabled, current.sharedListings(), current.level(), current.male(),
-                        current.createdAt(), current.feePercent());
+                        current.createdAt(), current.feePercent(), current.factionId());
             } else {
                 player.sendTextMessage(c.error + tr(player, "tc.market.crier.configure.denied"));
                 return;
@@ -496,7 +542,7 @@ class MarketplaceRuntime extends Plugin {
                 "You may not edit this market crier.");
         MarketCrier updated = new MarketCrier(current.npcId(), current.endpointId(), current.name(), current.ownerDbId(),
                 current.ownerName(), current.global(), current.globalTradeEnabled(), current.sharedListings(), current.level(),
-                current.male(), current.createdAt(), feePercent);
+                current.male(), current.createdAt(), feePercent, current.factionId());
         try {
             database.upsertCrier(updated);
             player.setAttribute("oz.marketplace.crier.endpoint", updated);
@@ -517,7 +563,7 @@ class MarketplaceRuntime extends Plugin {
                 "tc.market.crier.edit.name.invalid", "Enter a market crier name between 1 and 64 characters.");
         MarketCrier updated = new MarketCrier(current.npcId(), current.endpointId(), normalized, current.ownerDbId(),
                 current.ownerName(), current.global(), current.globalTradeEnabled(), current.sharedListings(), current.level(),
-                current.male(), current.createdAt(), current.feePercent());
+                current.male(), current.createdAt(), current.feePercent(), current.factionId());
         try {
             database.upsertCrier(updated);
             Npc npc = World.getNpc(updated.npcId());
@@ -537,7 +583,7 @@ class MarketplaceRuntime extends Plugin {
                 "tc.market.crier.edit.denied", "You may not edit this market crier.");
         MarketCrier updated = new MarketCrier(current.npcId(), current.endpointId(), current.name(), current.ownerDbId(),
                 current.ownerName(), false, false, shared, current.level(), current.male(), current.createdAt(),
-                current.feePercent());
+                current.feePercent(), current.factionId());
         try {
             database.upsertCrier(updated);
             player.setAttribute("oz.marketplace.crier.endpoint", updated);
@@ -652,8 +698,16 @@ class MarketplaceRuntime extends Plugin {
     private MarketCrier currentEditableCrier(Player player) {
         Object endpoint = player.getAttribute("oz.marketplace.crier.endpoint");
         if (!(endpoint instanceof MarketCrier current)) return null;
+        if (current.factionId() > 0) {
+            FactionBridge factions = new FactionBridge(this);
+            Integer actorFaction = factions.factionIdForPlayer(player.getDbID());
+            return actorFaction != null && actorFaction == current.factionId()
+                    && factions.canManageCrier(player.getDbID()) ? current : null;
+        }
         return current.ownedBy(player.getDbID()) || (current.global() && player.isAdmin()) ? current : null;
     }
+
+    public boolean canEditCurrentMarketCrier(Player player) { return player != null && currentEditableCrier(player) != null; }
 
     private void saveCrierLocation(MarketCrier crier, Npc npc) throws SQLException {
         Vector3f position = npc.getPosition(); Quaternion rotation = npc.getRotation();
@@ -723,7 +777,7 @@ class MarketplaceRuntime extends Plugin {
         return tr(player, male ? "tc.market.crier.name.male" : "tc.market.crier.name.female") + " " + givenName;
     }
 
-    private void createMarketCrierInternal(Player player, boolean global, boolean personal, boolean male) {
+    private void createMarketCrierInternal(Player player, boolean global, boolean personal, boolean male, int factionId) {
         Npc npc = null;
         MarketCrier crier = null;
         boolean accountCreated = false;
@@ -736,15 +790,27 @@ class MarketplaceRuntime extends Plugin {
                 player.sendTextMessage(c.error + tr(player, "tc.market.crier.create.limit"));
                 return;
             }
+            if (factionId > 0) {
+                FactionBridge factions = new FactionBridge(this);
+                Integer currentFaction = factions.factionIdForPlayer(player.getDbID());
+                Integer capacity = factions.crierLicenses(factionId);
+                if (currentFaction == null || currentFaction != factionId || !factions.canManageCrier(player.getDbID())
+                        || capacity == null || database.factionCrierCount(factionId) >= capacity
+                        || factions.factionAccountId(factionId) == null || factionName(factionId) == null) {
+                    player.sendTextMessage(c.error + tr(player, "tc.market.crier.create.faction.denied"));
+                    return;
+                }
+            }
             var dummy = Definitions.getNpcDefinition("dummy");
             if (dummy == null) throw new SQLException("NPC definition dummy is unavailable");
             npc = World.spawnNpc(dummy.id, male ? 0 : 1, player.getPosition(), player.getRotation());
             if (npc == null) throw new SQLException("Could not spawn market crier NPC");
             String name = crierName(player, male);
             crier = new MarketCrier(npc.getGlobalID(), "crier-" + npc.getGlobalID(), name,
-                    personal ? player.getDbID() : 0, personal ? player.getName() : "", global,
+                    personal ? player.getDbID() : 0, factionId > 0 ? factionName(factionId)
+                            : personal ? player.getName() : "", global,
                     global && s.globalMarketplaceEnabled, false,
-                    1, male, System.currentTimeMillis(), s.defaultLocalFeePercent);
+                    1, male, System.currentTimeMillis(), s.defaultLocalFeePercent, factionId);
             if (personal && !new WalletBridge(this).createSystemAccount(crier.accountId(), "MARKET_CRIER", name,
                     "OZ - Marketplace").success()) {
                 npc.delete();
@@ -1287,7 +1353,7 @@ class MarketplaceRuntime extends Plugin {
         }
         MarketCrier updated = new MarketCrier(current.npcId(), current.endpointId(), current.name(), current.ownerDbId(),
                 current.ownerName(), true, enabled, current.sharedListings(), current.level(), current.male(),
-                current.createdAt(), current.feePercent());
+                current.createdAt(), current.feePercent(), current.factionId());
         try {
             database.upsertCrier(updated);
             player.setAttribute("oz.marketplace.crier.endpoint", updated);

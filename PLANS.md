@@ -2,6 +2,8 @@
 
 Planning is stored in repository-local docs.
 
+- Active faction criers: [docs/active/faction-criers.md](docs/active/faction-criers.md)
+
 - Completed phase summaries: [docs/phase-archive.md](docs/phase-archive.md)
 - Planning and documentation standards: [docs/policies/repository-policy.md](docs/policies/repository-policy.md)
 

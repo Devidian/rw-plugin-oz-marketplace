@@ -45,6 +45,7 @@ public final class MarketCrierService {
     }
 
     public boolean mayCreateListings(MarketCrier crier, int playerDbId) {
-        return crier != null && (crier.global() || crier.ownerDbId() == playerDbId || crier.sharedListings());
+        return crier != null && (crier.global() || crier.factionId() > 0
+                || crier.ownerDbId() == playerDbId || crier.sharedListings());
     }
 }

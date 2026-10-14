@@ -12,6 +12,7 @@ import java.util.UUID;
 import de.omegazirkel.risingworld.Marketplace;
 import de.omegazirkel.risingworld.tools.I18n;
 import de.omegazirkel.risingworld.tools.bridge.MailBridge;
+import de.omegazirkel.risingworld.tools.bridge.FactionBridge;
 import net.risingworld.api.Server;
 import net.risingworld.api.objects.Area;
 import net.risingworld.api.objects.Player;
@@ -28,14 +29,21 @@ public class MarketplaceService {
     private final MarketplaceDatabase database;
     private final WalletBridge wallet;
     private final MailBridge mail;
+    private final FactionBridge factions;
     private PluginSettings settings;
 
     public MarketplaceService(MarketplaceDatabase database, WalletBridge wallet, MailBridge mail,
             PluginSettings settings) {
+        this(database, wallet, mail, settings, null);
+    }
+
+    public MarketplaceService(MarketplaceDatabase database, WalletBridge wallet, MailBridge mail,
+            PluginSettings settings, FactionBridge factions) {
         this.database = database;
         this.wallet = wallet;
         this.mail = mail;
         this.settings = settings;
+        this.factions = factions;
     }
 
     public void updateSettings(PluginSettings settings) {
@@ -522,6 +530,7 @@ public class MarketplaceService {
                 return MarketplaceResult.failKey("tc.market.result.global.not.allowed",
                         "This market zone does not allow global trade.");
             }
+            String feeRecipientAccountId = crierFeeAccount(zone);
             if (!database.transitionListingStatus(listing.id(), STATUS_ACTIVE, STATUS_PENDING_PURCHASE)) {
                 return MarketplaceResult.failKey("tc.market.result.listing.unavailable",
                         "Listing is no longer available.");
@@ -542,7 +551,6 @@ public class MarketplaceService {
             long fee = fee(listing, zone.orElse(null), purchasePrice);
             long sellerPayout = purchasePrice;
             int feeRecipientDbId = zone.filter(MarketZone::playerOwned).map(MarketZone::ownerDbId).orElse(0);
-            String feeRecipientAccountId = crierFeeAccount(zone);
             FeePayment feePayment = chargeFee(buyer.getDbID(), fee, systemAuditText("tc.wallet.market.fee", listing.id()),
                     paymentCurrency, feeRecipientDbId, feeRecipientAccountId,
                     "sale:" + listing.id());
@@ -841,7 +849,11 @@ public class MarketplaceService {
         if (zone.isEmpty()) return MarketplaceResult.okKey("tc.market.result.currency.accepted", "Currency accepted.");
         MarketCrier crier = database.findCrierByEndpoint(zone.get().id()).orElse(null);
         if (crier == null || crier.global()) return MarketplaceResult.okKey("tc.market.result.currency.accepted", "Currency accepted.");
-        if (!crier.sharedListings() && !crier.ownedBy(player.getDbID())) {
+        if (crier.factionId() > 0 && (factions == null || factions.factionAccountId(crier.factionId()) == null
+                || !wallet.hasSystemAccountApi()))
+            return MarketplaceResult.failKey("tc.market.result.wallet.required",
+                    "Faction account and Wallet are required at this market crier.");
+        if (crier.factionId() == 0 && !crier.sharedListings() && !crier.ownedBy(player.getDbID())) {
             return MarketplaceResult.failKey("tc.market.result.crier.owner.only",
                     "Only the owner may create listings at this market crier.");
         }
@@ -988,6 +1000,7 @@ public class MarketplaceService {
         Optional<MarketZone> zone = currentZone(seller);
         MarketplaceResult access = validateTradeLocation(listing, zone);
         if (!access.success()) return access;
+        String feeRecipientAccountId = crierFeeAccount(zone);
         if (mail == null || !mail.canReceiveMail(listing.sellerDbId())) {
             return MarketplaceResult.failKey("tc.market.result.mailbox.full",
                     "The requester's OZ Mail mailbox has no free space.");
@@ -1043,7 +1056,6 @@ public class MarketplaceService {
             WalletBridge.WalletCallResult feeWithdraw = fee > 0
                     ? null : new WalletBridge.WalletCallResult(true, "No fee.");
             int feeRecipientDbId = zone.filter(MarketZone::playerOwned).map(MarketZone::ownerDbId).orElse(0);
-            String feeRecipientAccountId = crierFeeAccount(zone);
             FeePayment feePayment = fee > 0
                 ? chargeFee(listing.sellerDbId(), fee, systemAuditText("tc.wallet.market.wanted.fee", listing.id()),
                             paymentCurrency, feeRecipientDbId, feeRecipientAccountId, "wanted:" + listing.id())
@@ -1160,6 +1172,9 @@ public class MarketplaceService {
     private FeePayment chargeFee(int payerDbId, long fee, String reason, String currencyIdentifier,
             int playerFeeRecipientDbId, String systemFeeRecipientAccountId, String operationId) {
         if (fee <= 0) return FeePayment.none();
+        if (!systemFeeRecipientAccountId.isBlank() && !wallet.hasSystemAccountApi())
+            return new FeePayment(new WalletBridge.WalletCallResult(false, "Wallet system accounts are unavailable."),
+                    "", false);
         if (!systemFeeRecipientAccountId.isBlank() && wallet.hasSystemAccountApi()) {
             String correlation = "marketplace:fee:" + operationId + ":" + UUID.randomUUID();
             WalletBridge.WalletTransferCallResult transfer = wallet.transferPlayerToSystemIdempotent(payerDbId,
@@ -1195,7 +1210,13 @@ public class MarketplaceService {
     private String crierFeeAccount(Optional<MarketZone> zone) throws SQLException {
         if (zone.isEmpty()) return "";
         MarketCrier crier = database.findCrierByEndpoint(zone.get().id()).orElse(null);
-        return crier != null && crier.personal() ? crier.accountId() : "";
+        if (crier == null) return "";
+        if (crier.factionId() > 0) {
+            String account = factions == null ? null : factions.factionAccountId(crier.factionId());
+            if (account == null || account.isBlank()) throw new SQLException("Faction account unavailable for crier " + crier.npcId());
+            return account;
+        }
+        return crier.personal() ? crier.accountId() : "";
     }
 
     private String crierAccountForEndpoint(String endpointId) throws SQLException {

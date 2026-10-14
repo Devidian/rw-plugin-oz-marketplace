@@ -109,6 +109,7 @@
           }
         },
         "create": {
+          "faction": { "denied": "Deine Fraktion kann keinen weiteren Marktschreier erstellen." },
           "confirm": {
             "text": "Diesen Marktschreier hier erstellen? Die aktuelle Position wird sein Marktplatz-Endpunkt.\n\nPH_KIND",
             "title": "Marktschreier erstellen"
@@ -146,6 +147,10 @@
           }
         },
         "menu": {
+          "faction": {
+            "female": "Fraktions-Marktschreierin erstellen",
+            "male": "Fraktions-Marktschreier erstellen"
+          },
           "global": {
             "female": "Globale Marktschreierin erstellen",
             "male": "Globalen Marktschreier erstellen"
@@ -538,6 +543,7 @@
         "crier": {
           "title": "Marktschreier: PH_NAME",
           "identity": {
+            "faction": "Dies ist ein Marktschreier von PH_OWNER.",
             "global": "Dies ist ein Globaler Marktschreier.",
             "personal": "Dies ist ein persönlicher Marktschreier von PH_OWNER."
           }
@@ -569,7 +575,7 @@
             "delete": {
               "$value": "Marktschreier auflösen",
               "confirm": {
-                "text": "Die Marktverknüpfung wird erst entfernt, wenn alle Angebote abgeschlossen oder zurückgezogen wurden. Soll der NPC bestehen bleiben oder ebenfalls gelöscht werden?",
+                "text": "Die Marktverknüpfung wird nur entfernt, wenn offene Angebote abgeschlossen oder sicher zurückgegeben werden können. Ja = Verknüpfung und NPC löschen; Nein = nur Verknüpfung lösen; Abbrechen = nichts ändern.",
                 "title": "Marktschreier auflösen?"
               },
               "npc": "NPC ebenfalls löschen",
