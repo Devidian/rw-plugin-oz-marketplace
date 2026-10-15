@@ -1355,6 +1355,9 @@ public class MarketplaceOverlay extends BasePluginOverlayWithTabs {
             addManagementButton(panel, t().get("tc.market.ui.management.crier.appearance", uiPlayer), 188, marketY, editable,
                     () -> runManagementAction(plugin.copyCurrentMarketCrierAppearance(uiPlayer)));
             marketY += 40;
+            addManagementButton(panel, t().get("tc.market.ui.management.crier.random_outfit", uiPlayer), 0, marketY, editable,
+                    () -> runManagementAction(plugin.randomCurrentMarketCrierClothing(uiPlayer)));
+            marketY += 40;
             UILabel transform = label(t().get("tc.market.ui.management.crier.transform", uiPlayer), 13, Font.DefaultBold);
             transform.setPivot(Pivot.UpperLeft);
             transform.setPosition(0, 0, false);

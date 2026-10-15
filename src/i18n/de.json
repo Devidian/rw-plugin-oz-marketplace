@@ -571,7 +571,8 @@
               },
               "withdraw": "Auszahlen"
             },
-            "appearance": "Aussehen übernehmen",
+            "appearance": "Meine Kleidung kopieren",
+            "random_outfit": "Zufällig einkleiden",
             "delete": {
               "$value": "Marktschreier auflösen",
               "confirm": {

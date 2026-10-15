@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## [0.8.0] - 2026-10-15 | Market crier clothing controls
+
+- Market crier management now offers random clothing from the world-local crier-outfits catalog and a copy of the player's worn clothing. Existing appearance persistence restores both.
+
 ## [0.7.0] - 2026-10-14 | Faction market criers
 
 - feat: add public faction market criers with persisted faction ownership, role and license checks, and fees to faction accounts.

@@ -96,3 +96,8 @@ Planning is stored in repository-local docs.
 - [x] Complete development-server player-flow acceptance
 - [x] Add a player overview for active offers and wanted listings with endpoint-aware withdrawal
 - [x] Show the active-listing count and personal limit in the Marketplace footer
+
+## Backlog validation (2026-10-15)
+
+- [x] Implement: Market crier management now offers random clothing from the world-local crier-outfits catalog and a copy of the player's worn clothing. Existing appearance persistence restores both.
+- [ ] Verify behavior on Development after upload, including persistence and permissions where relevant.

@@ -1,0 +1,1 @@
+- Authorized managers can select random or copied crier clothing.

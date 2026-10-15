@@ -183,3 +183,7 @@ already present on the server. Use `mvn clean package` for a fresh local
 package; ZIP assembly also excludes stale legacy settings and translations.
 
 Object-kit inventory selections use the localized object name. Inventory candidates and published listings use the same object-definition naming.
+
+## Backlog update (2026-10-15)
+
+Market crier management now offers random clothing from the world-local crier-outfits catalog and a copy of the player's worn clothing. Existing appearance persistence restores both.

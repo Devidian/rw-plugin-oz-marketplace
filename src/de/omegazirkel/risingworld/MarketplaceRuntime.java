@@ -695,6 +695,45 @@ class MarketplaceRuntime extends Plugin {
         }
     }
 
+    public MarketplaceResult randomCurrentMarketCrierClothing(Player player) {
+        MarketCrier current = currentEditableCrier(player);
+        if (current == null) return MarketplaceResult.failKey("tc.market.crier.edit.denied", "You may not edit this market crier.");
+        Npc npc = World.getNpc(current.npcId());
+        if (npc == null || npc.isDead()) return MarketplaceResult.failKey("tc.market.crier.edit.missing", "This market crier is no longer available.");
+        try {
+            List<List<String>> outfits = crierOutfits();
+            if (outfits.isEmpty()) throw new IllegalStateException("empty crier outfit catalog");
+            npc.getClothes().removeAll();
+            for (String garment : outfits.get(new java.util.Random().nextInt(outfits.size()))) {
+                ClothingDefinition definition = Definitions.getClothingDefinition(garment);
+                if (definition != null) npc.getClothes().add((short) definition.id);
+            }
+            saveCrierAppearance(current, npc);
+            return MarketplaceResult.okKey("tc.market.crier.edit.appearance.success", "Market crier clothing updated.");
+        } catch (Exception ex) {
+            logger().error("Failed to dress market crier: " + ex.getMessage());
+            return MarketplaceResult.failKey("tc.market.crier.edit.appearance.failed", "Market crier clothing could not be updated.");
+        }
+    }
+
+    private List<List<String>> crierOutfits() throws java.io.IOException {
+        java.nio.file.Path base = java.nio.file.Path.of(getPath());
+        String worldName = World.getName();
+        String world = (worldName == null || worldName.isBlank() ? "default" : worldName)
+                .replaceAll("[^A-Za-z0-9._-]", "_");
+        java.nio.file.Path file = base.resolve("crier-outfits." + world + ".json");
+        if (java.nio.file.Files.notExists(file)) java.nio.file.Files.copy(base.resolve("crier-outfits.default.json"), file);
+        com.google.gson.JsonArray entries = com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(file)).getAsJsonObject().getAsJsonArray("outfits");
+        List<List<String>> outfits = new java.util.ArrayList<>();
+        for (com.google.gson.JsonElement entry : entries) {
+            List<String> outfit = new java.util.ArrayList<>();
+            for (com.google.gson.JsonElement garment : entry.getAsJsonArray())
+                if (Definitions.getClothingDefinition(garment.getAsString()) != null) outfit.add(garment.getAsString());
+            if (!outfit.isEmpty()) outfits.add(List.copyOf(outfit));
+        }
+        return outfits;
+    }
+
     private MarketCrier currentEditableCrier(Player player) {
         Object endpoint = player.getAttribute("oz.marketplace.crier.endpoint");
         if (!(endpoint instanceof MarketCrier current)) return null;

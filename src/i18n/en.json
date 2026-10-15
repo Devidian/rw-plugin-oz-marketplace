@@ -571,7 +571,8 @@
               },
               "withdraw": "Withdraw"
             },
-            "appearance": "Copy clothing",
+            "appearance": "Copy my clothing",
+            "random_outfit": "Random outfit",
             "delete": {
               "$value": "Dissolve market crier",
               "confirm": {
