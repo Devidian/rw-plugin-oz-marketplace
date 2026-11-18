@@ -58,6 +58,7 @@ import net.risingworld.api.utils.Quaternion;
 import net.risingworld.api.utils.Vector3f;
 
 class MarketplaceRuntime extends Plugin {
+    private de.omegazirkel.risingworld.tools.privacy.PlayerErasureService.Registration erasureRegistration;
     private static final List<String> DEFAULT_CRIER_OUTFIT = List.of("medievalshirt", "medievalpants", "medievalshoes");
     private static final List<String> MALE_CRIER_NAMES = List.of(
             "Adrian", "Albrecht", "Benedikt", "Bruno", "Caspar", "Christian", "Daniel", "Elias", "Emil", "Fabian",
@@ -114,6 +115,12 @@ class MarketplaceRuntime extends Plugin {
             logger().info("Marketplace startup crier cleanup completed; removed records: " + cleanedCriers + ".");
             service.expireDueListings();
             startExpiryTimer();
+            erasureRegistration = de.omegazirkel.risingworld.tools.privacy.PlayerErasureService.register(
+                    "marketplace", database::playerErasureReady, request -> {
+                        if (!database.erasePlayerData(request.playerDbId())) return false;
+                        playerSettings.erasePlayer(request.playerDbId());
+                        return true;
+                    });
         } catch (SQLException ex) {
             logger().error("Failed to initialize marketplace database: " + ex.getMessage());
             ex.printStackTrace();
@@ -185,6 +192,7 @@ class MarketplaceRuntime extends Plugin {
 
     @Override
     public void onDisable() {
+        if (erasureRegistration != null) erasureRegistration.close();
         stopExpiryTimer();
         unregisterWebserverExportRoutes();
         if (name != null) {

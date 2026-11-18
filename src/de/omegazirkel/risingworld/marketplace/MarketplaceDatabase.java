@@ -153,6 +153,47 @@ public class MarketplaceDatabase {
         statement.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
     }
 
+    public synchronized boolean playerErasureReady(int playerDbId) {
+        try (var statement = connection.prepareStatement("""
+                SELECT 1 FROM marketplace_listings WHERE seller_db_id = ?
+                AND (status = 'ACTIVE' OR status LIKE 'PENDING%') LIMIT 1
+                """)) {
+            statement.setInt(1, playerDbId);
+            try (var rows = statement.executeQuery()) { return !rows.next(); }
+        } catch (SQLException ex) {
+            return false;
+        }
+    }
+
+    public synchronized boolean erasePlayerData(int playerDbId) throws SQLException {
+        boolean autoCommit = connection.getAutoCommit();
+        connection.setAutoCommit(false);
+        try {
+            if (!playerErasureReady(playerDbId)) {
+                connection.rollback();
+                return false;
+            }
+            for (String sql : List.of(
+                    "UPDATE marketplace_listings SET seller_db_id = 0, seller_name = '' WHERE seller_db_id = ?",
+                    "UPDATE marketplace_sales SET seller_db_id = 0 WHERE seller_db_id = ?",
+                    "UPDATE marketplace_sales SET buyer_db_id = 0 WHERE buyer_db_id = ?",
+                    "UPDATE marketplace_zones SET owner_db_id = 0, owner_name = '' WHERE owner_db_id = ?",
+                    "UPDATE marketplace_criers SET owner_db_id = 0, owner_name = '' WHERE owner_db_id = ?")) {
+                try (var statement = connection.prepareStatement(sql)) {
+                    statement.setInt(1, playerDbId);
+                    statement.executeUpdate();
+                }
+            }
+            connection.commit();
+            return true;
+        } catch (SQLException | RuntimeException ex) {
+            connection.rollback();
+            throw ex;
+        } finally {
+            connection.setAutoCommit(autoCommit);
+        }
+    }
+
     private void migrate(Statement statement) throws SQLException {
         ensureColumn(statement, "marketplace_sales", "item_durability", "INTEGER NOT NULL DEFAULT 0");
         ensureColumn(statement, "marketplace_sales", "item_status", "INTEGER NOT NULL DEFAULT 0");
