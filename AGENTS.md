@@ -34,7 +34,7 @@ If Wallet is missing, the plugin may load but trading must stay disabled and adm
 - Keep listing expiration out of scope for v1 unless explicitly requested.
 - Local listings are limited to their market zone.
 - Global listings are only usable in zones that allow global trade.
-- Follow `.codex/agents.toml` and `docs/policies/repository-policy.md`.
+- Follow `.codex/agents/*.toml` and `docs/policies/repository-policy.md`.
 - Keep `README.md`, `HISTORY.md`, and `PLANS.md` aligned with behavior changes.
 - Keep the `plugin.yml` entry class as the sole Rising World `Listener` and sole
   `registerEventListener(...)` target. It may only wire lifecycle, delegate
