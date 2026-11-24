@@ -45,3 +45,7 @@ If Wallet is missing, the plugin may load but trading must stay disabled and adm
 - Run `scripts/verify-plugin-api.sh --summary` for API-impacting work.
 - Run `mvn -B -DskipTests package` for build-impacting changes.
 - Run `mvn -B test` when tests exist.
+
+## CodeMap
+
+For unfamiliar modules and cross-repository impact, start at [the local CodeMap](.codemap/README.md) and use the [CodeMap skill](.agents/skills/codemap/SKILL.md). Verify relevant source and update and validate affected entries when indexed information changes.
