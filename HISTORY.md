@@ -2,11 +2,11 @@
 
 ## Unreleased
 
-- Batch active listings for the Manager crier export while preserving the export schema and order.
+## [0.8.2] - 2026-11-27 | OZ Marketplace settlement recovery
 
-- Localize Marketplace payment errors for insufficient Wallet funds.
-
-- Wanted fulfillment reserves the listing and journals the settlement in one SQLite transaction before taking stock or charging. Uncertain outcomes keep their listing pending for review.
+- Wanted fulfillment reserves the listing and records settlement before moving stock or money. Uncertain orders stay pending for review. Insufficient-funds messages are available in German and English.
+- Crier exports use fewer reads while preserving the Manager data format and listing order.
+- Retain unresolved listings, custody journals and correlated Wallet and Mail records when reviewing rollback.
 
 ## [0.8.0] - 2026-10-15 | Market crier clothing controls
 
