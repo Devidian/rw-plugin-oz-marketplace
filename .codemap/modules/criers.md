@@ -9,7 +9,7 @@ Manage market zones and criers, player UI and export endpoints.
 
 - [`MarketCrierService`](../../src/de/omegazirkel/risingworld/marketplace/MarketCrierService.java) — crier management.
 - [`MarketplaceOverlay`](../../src/de/omegazirkel/risingworld/marketplace/ui/MarketplaceOverlay.java) — player UI.
-- [`MarketplaceExportService`](../../src/de/omegazirkel/risingworld/marketplace/exports/MarketplaceExportService.java) — market exports.
+- [`MarketplaceExportService`](../../src/de/omegazirkel/risingworld/marketplace/exports/MarketplaceExportService.java) — market exports and one batched active-listing query for crier destinations.
 - [`MarketplaceExportRoute`](../../src/de/omegazirkel/risingworld/marketplace/web/MarketplaceExportRoute.java) — export route.
-- [Tests](../../src-test/de/omegazirkel/risingworld/marketplace/) cover repository behavior. Verify relevant scenarios before implementing changes.
+- [Export tests](../../src-test/de/omegazirkel/risingworld/marketplace/exports/MarketplaceExportServiceTest.java) cover ordering, empty criers, response JSON and bounded SQL reads.
 - [Repository index](../README.md) and [settings defaults](../../src/settings.default.json).

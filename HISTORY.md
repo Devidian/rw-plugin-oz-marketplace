@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Batch active listings for the Manager crier export while preserving the export schema and order.
 
 - Localize Marketplace payment errors for insufficient Wallet funds.
 

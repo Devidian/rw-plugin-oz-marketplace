@@ -2,6 +2,7 @@
 
 - [x] Route known insufficient-funds Wallet results through Marketplace translations.
 - [x] Verify the German insufficient-funds message on Development.
+- [x] Batch crier offer export and validate its JSON against the Manager cache.
 
 Planning is stored in repository-local docs.
 

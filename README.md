@@ -166,6 +166,10 @@ bridge contract.
 the routes are exposed at `/plugins/oz---marketplace/zones` and
 `/plugins/oz---marketplace/offers?areaId=<id>` respectively.
 
+The authenticated `/plugins/oz---marketplace/criers` route uses
+`exposeMarketplaceCriers` and returns located criers, their Wallet balances,
+and their active offers. It reads offers once for the exported endpoints.
+
 ## Validation
 
 - `scripts/verify-plugin-api.sh --summary`

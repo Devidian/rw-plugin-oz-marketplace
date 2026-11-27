@@ -5,7 +5,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import de.omegazirkel.risingworld.marketplace.WalletBridge;
@@ -110,35 +112,42 @@ public final class MarketplaceExportService {
                 FROM marketplace_criers c JOIN marketplace_crier_locations l ON l.endpoint_id = c.endpoint_id
                 ORDER BY c.name COLLATE NOCASE, c.npc_id
                 """); ResultSet result = statement.executeQuery()) {
-            while (result.next()) {
+            if (!result.next()) return new MarketplaceCriersExportResponse(SCHEMA_VERSION, criers);
+            Map<String, List<MarketplaceOfferExport>> offersByEndpoint = exportCrierOffers();
+            do {
                 long npcId = result.getLong("npc_id");
                 String endpointId = result.getString("endpoint_id");
                 List<MarketplaceBalanceExport> accountBalances = balances.apply("market-crier::" + npcId).stream()
                         .map(balance -> new MarketplaceBalanceExport(balance.currencyIdentifier(), balance.balance())).toList();
                 criers.add(new MarketplaceCrierExport(npcId, endpointId, result.getString("name"),
                         result.getFloat("x"), result.getFloat("y"), result.getFloat("z"),
-                        accountBalances, exportOffersForEndpoint(endpointId)));
-            }
+                        accountBalances, new ArrayList<>(offersByEndpoint.getOrDefault(endpointId, List.of()))));
+            } while (result.next());
         }
         return new MarketplaceCriersExportResponse(SCHEMA_VERSION, criers);
     }
 
-    private List<MarketplaceOfferExport> exportOffersForEndpoint(String endpointId) throws SQLException {
-        List<MarketplaceOfferExport> offers = new ArrayList<>();
+    private Map<String, List<MarketplaceOfferExport>> exportCrierOffers() throws SQLException {
+        Map<String, List<MarketplaceOfferExport>> offersByEndpoint = new HashMap<>();
         try (PreparedStatement statement = connection.prepareStatement("""
-                SELECT id, seller_name, item_name, item_variant, amount, price, currency_identifier, created_at
-                FROM marketplace_listings WHERE status = 'ACTIVE' AND market_zone_id = ?
-                ORDER BY created_at DESC, id DESC
-                """)) {
-            statement.setString(1, endpointId);
-            try (ResultSet result = statement.executeQuery()) {
-                while (result.next()) offers.add(new MarketplaceOfferExport(result.getLong("id"),
-                        result.getString("item_name"), result.getInt("item_variant"), result.getInt("amount"),
-                        result.getLong("price"), result.getString("currency_identifier"), result.getString("seller_name"),
-                        result.getLong("created_at")));
+                SELECT market_zone_id, id, seller_name, item_name, item_variant, amount, price,
+                       currency_identifier, created_at
+                FROM marketplace_listings
+                WHERE status = 'ACTIVE' AND market_zone_id IN (
+                    SELECT c.endpoint_id
+                    FROM marketplace_criers c JOIN marketplace_crier_locations l ON l.endpoint_id = c.endpoint_id
+                )
+                ORDER BY market_zone_id, created_at DESC, id DESC
+                """); ResultSet result = statement.executeQuery()) {
+            while (result.next()) {
+                offersByEndpoint.computeIfAbsent(result.getString("market_zone_id"), ignored -> new ArrayList<>())
+                        .add(new MarketplaceOfferExport(result.getLong("id"),
+                                result.getString("item_name"), result.getInt("item_variant"), result.getInt("amount"),
+                                result.getLong("price"), result.getString("currency_identifier"),
+                                result.getString("seller_name"), result.getLong("created_at")));
             }
         }
-        return offers;
+        return offersByEndpoint;
     }
 
     private Optional<String> zoneIdForArea(long areaId) throws SQLException {
