@@ -111,6 +111,29 @@ public final class InventoryTransfer {
                 "You do not have enough matching items in one item state.");
     }
 
+    static MarketplaceResult removeWantedFromSeller(Player seller, String itemName, int itemVariant, int amount,
+            MarketplaceItemState state) {
+        Inventory inventory = seller.getInventory();
+        for (SlotType type : SlotType.values()) {
+            for (int slot = 0; slot < inventory.getSlotCount(type); slot++) {
+                Item item = inventory.getItem(slot, type);
+                if (item == null || !item.isValid() || item.getStack() < amount
+                        || !MarketplaceItemNames.matches(item, itemName, itemVariant) || !matchesState(item, state)) {
+                    continue;
+                }
+                if (!inventory.removeItem(slot, type, amount)) {
+                    return MarketplaceResult.failKey("tc.market.result.inventory.remove.failed",
+                            "Could not remove the listed item from inventory.");
+                }
+                inventory.syncWithClient();
+                return MarketplaceResult.okKey("tc.market.result.inventory.removed",
+                        "Item removed from inventory.");
+            }
+        }
+        return MarketplaceResult.failKey("tc.market.result.items.not.matching",
+                "You do not have enough matching items in one item state.");
+    }
+
     public static MarketplaceResult addToBuyer(Player buyer, String itemName, int itemVariant, int amount) {
         return addToBuyer(buyer, itemName, itemVariant, amount, MarketplaceItemState.NEUTRAL);
     }

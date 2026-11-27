@@ -88,7 +88,7 @@ pays the proportional offer amount per fulfillment and the complete tax only
 when the final unit is delivered. Delivered items are placed in the requester's
 OZ Mail mailbox. Marketplace checks mailbox capacity before removing seller
 inventory. After the first fulfilled unit, the requester can no longer withdraw
-the wanted listing.
+the wanted listing. If Wallet rejects a payment for insufficient funds, Marketplace displays the message in the player’s language.
 
 Existing listings that already persisted only `constructionitem` or
 `clothingitem` cannot be migrated automatically because the concrete definition
@@ -187,3 +187,7 @@ Object-kit inventory selections use the localized object name. Inventory candida
 ## Backlog update (2026-10-15)
 
 Market crier management now offers random clothing from the world-local crier-outfits catalog and a copy of the player's worn clothing. Existing appearance persistence restores both.
+
+## Maintenance
+
+Wanted fulfillment reserves the listing and saves its settlement record in one SQLite transaction before taking stock or charging. Uncertain outcomes keep their listing pending for review.

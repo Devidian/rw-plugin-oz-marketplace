@@ -347,6 +347,9 @@
           }
         },
         "wallet": {
+          "balance": {
+            "insufficient": "Das verfügbare Guthaben reicht für diese Marketplace-Zahlung nicht aus."
+          },
           "currencies": {
             "failed": "Die Wallet-Währungen konnten nicht geladen werden."
           },

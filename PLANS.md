@@ -1,5 +1,8 @@
 # PLANS.md
 
+- [x] Route known insufficient-funds Wallet results through Marketplace translations.
+- [x] Verify the German insufficient-funds message on Development.
+
 Planning is stored in repository-local docs.
 
 - Active faction criers: [docs/active/faction-criers.md](docs/active/faction-criers.md)
@@ -101,3 +104,7 @@ Planning is stored in repository-local docs.
 
 - [x] Implement: Market crier management now offers random clothing from the world-local crier-outfits catalog and a copy of the player's worn clothing. Existing appearance persistence restores both.
 - [ ] Verify behavior on Development after upload, including persistence and permissions where relevant.
+
+## Maintenance
+
+Wanted fulfillment reserves the listing and saves its settlement record in one SQLite transaction before taking stock or charging. Native interruption during actual player inventory removal remains an acceptance case.

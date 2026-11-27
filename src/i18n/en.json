@@ -347,6 +347,9 @@
           }
         },
         "wallet": {
+          "balance": {
+            "insufficient": "The available balance is too low for this Marketplace payment."
+          },
           "currencies": {
             "failed": "Could not load Wallet currencies."
           },

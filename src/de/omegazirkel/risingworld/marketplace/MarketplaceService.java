@@ -959,6 +959,11 @@ public class MarketplaceService {
 
     private MarketplaceResult walletFailure(String detail) {
         Marketplace.logger().warn("Marketplace Wallet operation failed: " + safe(detail));
+        if ("Wallet balance is too low for this withdrawal.".equals(detail)
+                || "Wallet balance is too low for this transfer.".equals(detail)) {
+            return MarketplaceResult.failKey("tc.market.result.wallet.balance.insufficient",
+                    "The available balance is too low for this Marketplace payment.");
+        }
         return MarketplaceResult.failKey("tc.market.result.wallet.failed.detail",
                 "The Wallet transaction failed: PH_REASON", "PH_REASON", safe(detail));
     }
@@ -1017,78 +1022,130 @@ public class MarketplaceService {
         long fee = finalFulfillment ? fee(listing, zone.orElse(null), listing.originalPrice()) : 0L;
         String crierPayoutAccountId = crierAccountForEndpoint(listing.marketZoneId());
         boolean crierPayout = !crierPayoutAccountId.isBlank();
-        String payoutCorrelation = "";
-        if (crierPayout) {
-            if (!wallet.hasSystemAccountApi()) return crierFundsInsufficient();
-            payoutCorrelation = "marketplace:wanted:payout:" + listing.id() + ':' + UUID.randomUUID();
-            WalletBridge.WalletTransferCallResult transfer = wallet.transferSystemToPlayerIdempotent(
-                    crierPayoutAccountId, seller.getDbID(), payout, "Marketplace wanted #" + listing.id(),
-                    paymentCurrency, "OZ - Marketplace", payoutCorrelation);
-            if (!transfer.success()) return crierFundsInsufficient();
-        }
-        if (!database.transitionListingStatus(listing.id(), STATUS_ACTIVE, STATUS_PENDING_PURCHASE)) {
-            rollbackWantedPayout(listing, seller, payout, crierPayout, payoutCorrelation);
-            return MarketplaceResult.failKey("tc.market.result.listing.unavailable",
-                    "Listing is no longer available.");
-        }
-        boolean inventoryRemoved = false;
+        if (crierPayout && !wallet.hasSystemAccountApi()) return crierFundsInsufficient();
+        int sellerDbId = seller.getDbID();
+        String payoutCorrelation = crierPayout ? "marketplace:wanted:payout:" + listing.id() + ':' + UUID.randomUUID() : "";
+        String mailCorrelation = "wanted-" + listing.id() + '-' + (listing.fulfilledAmount() + amount);
+        String stage = "RESERVED";
         try {
-            MarketplaceResult removal = InventoryTransfer.removeFromSeller(seller, listing.itemName(),
+            if (!database.reserveWantedSettlement(listing.id(), sellerDbId, amount, itemState, payout, fee,
+                    paymentCurrency, mailCorrelation, payoutCorrelation)) {
+                return MarketplaceResult.failKey("tc.market.result.listing.unavailable",
+                        "Listing is no longer available.");
+            }
+            stage = "INVENTORY_ATTEMPTED";
+            database.recordWantedSettlement(listing.id(), stage);
+            MarketplaceResult removal = InventoryTransfer.removeWantedFromSeller(seller, listing.itemName(),
                     listing.itemVariant(), amount, itemState);
             if (!removal.success()) {
-                rollbackWantedPayout(listing, seller, payout, crierPayout, payoutCorrelation);
+                database.recordWantedSettlement(listing.id(), "INVENTORY_REJECTED");
                 releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
                 return removal;
             }
-            inventoryRemoved = true;
-            WalletBridge.WalletCallResult priceWithdraw;
-            if (crierPayout || payout <= 0) {
-                priceWithdraw = new WalletBridge.WalletCallResult(true, "No payout.");
-            } else {
-                priceWithdraw = wallet.withdraw(listing.sellerDbId(), payout, "Marketplace wanted #" + listing.id(),
-                        paymentCurrency, "OZ - Marketplace");
+            stage = "ITEMS_REMOVED";
+            database.recordWantedSettlement(listing.id(), stage);
+            boolean requesterDebited = false;
+            boolean sellerCredited = false;
+            if (crierPayout) {
+                stage = "CRIER_PAYOUT_ATTEMPTED";
+                database.recordWantedSettlement(listing.id(), stage);
+                WalletBridge.WalletTransferCallResult transfer = wallet.transferSystemToPlayerIdempotent(
+                        crierPayoutAccountId, sellerDbId, payout, "Marketplace wanted #" + listing.id(),
+                        paymentCurrency, "OZ - Marketplace", payoutCorrelation);
+                if (!transfer.success()) {
+                    if (uncertainWantedPayment(transfer.message())
+                            || !restoreWantedSeller(seller, listing, amount, itemState)) {
+                        return wantedNeedsReview(listing.id(), sellerDbId, amount, mailCorrelation, payoutCorrelation, stage);
+                    }
+                    releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
+                    return crierFundsInsufficient();
+                }
+            } else if (payout > 0) {
+                stage = "REQUESTER_DEBIT_ATTEMPTED";
+                database.recordWantedSettlement(listing.id(), stage);
+                WalletBridge.WalletCallResult debit = wallet.withdraw(listing.sellerDbId(), payout,
+                        "Marketplace wanted #" + listing.id(), paymentCurrency, "OZ - Marketplace");
+                if (!debit.success()) {
+                    if (uncertainWantedPayment(debit.message()) || !restoreWantedSeller(seller, listing, amount, itemState)) {
+                        return wantedNeedsReview(listing.id(), sellerDbId, amount, mailCorrelation, payoutCorrelation, stage);
+                    }
+                    releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
+                    return walletFailure(debit.message());
+                }
+                requesterDebited = true;
             }
-            if (!priceWithdraw.success()) {
-                restoreWantedSeller(seller, listing, amount, itemState);
-                releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
-                return walletFailure(priceWithdraw.message());
-            }
-            WalletBridge.WalletCallResult feeWithdraw = fee > 0
-                    ? null : new WalletBridge.WalletCallResult(true, "No fee.");
+
             int feeRecipientDbId = zone.filter(MarketZone::playerOwned).map(MarketZone::ownerDbId).orElse(0);
+            stage = "REQUESTER_FEE_ATTEMPTED";
+            database.recordWantedSettlement(listing.id(), stage);
             FeePayment feePayment = fee > 0
-                ? chargeFee(listing.sellerDbId(), fee, systemAuditText("tc.wallet.market.wanted.fee", listing.id()),
+                    ? chargeFee(listing.sellerDbId(), fee, systemAuditText("tc.wallet.market.wanted.fee", listing.id()),
                             paymentCurrency, feeRecipientDbId, feeRecipientAccountId, "wanted:" + listing.id())
                     : FeePayment.none();
-            feeWithdraw = feePayment.result();
-            if (!feeWithdraw.success()) {
-                rollbackWantedPayout(listing, seller, payout, crierPayout, payoutCorrelation);
-                restoreWantedSeller(seller, listing, amount, itemState);
+            stage = "REQUESTER_FEE_RESULT " + feePayment.correlationId();
+            database.recordWantedSettlement(listing.id(), stage);
+            if (!feePayment.result().success()) {
+                if (uncertainWantedPayment(feePayment.result().message())) {
+                    return wantedNeedsReview(listing.id(), sellerDbId, amount, mailCorrelation, payoutCorrelation, stage);
+                }
+                stage = "FEE_ROLLBACK " + feePayment.correlationId();
+                database.recordWantedSettlement(listing.id(), stage);
+                if (!rollbackWantedPayout(listing, sellerDbId, payout, paymentCurrency, payoutCorrelation,
+                                requesterDebited, false)
+                        || !restoreWantedSeller(seller, listing, amount, itemState)) {
+                    return wantedNeedsReview(listing.id(), sellerDbId, amount, mailCorrelation, payoutCorrelation, stage);
+                }
                 releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
-                return walletFailure(feeWithdraw.message());
+                return walletFailure(feePayment.result().message());
             }
-            WalletBridge.WalletCallResult sellerDeposit = crierPayout || payout <= 0
-                    ? new WalletBridge.WalletCallResult(true, "Payout already transferred.")
-                    : wallet.deposit(seller.getDbID(), payout, "Marketplace wanted fulfillment #" + listing.id(),
-                            paymentCurrency, "OZ - Marketplace");
-            if (!sellerDeposit.success()) {
-                refundRoutedFee(feePayment, systemAuditText("tc.wallet.market.wanted.fee.refund", listing.id()));
-                rollbackWantedPayout(listing, seller, payout, crierPayout, payoutCorrelation);
-                restoreWantedSeller(seller, listing, amount, itemState);
-                releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
-                return walletFailure(sellerDeposit.message());
+
+            if (requesterDebited) {
+                stage = "SELLER_CREDIT_ATTEMPTED " + feePayment.correlationId();
+                database.recordWantedSettlement(listing.id(), stage);
+                WalletBridge.WalletCallResult credit = wallet.deposit(sellerDbId, payout,
+                        "Marketplace wanted fulfillment #" + listing.id(), paymentCurrency, "OZ - Marketplace");
+                if (!credit.success()) {
+                    if (uncertainWantedPayment(credit.message())) {
+                        return wantedNeedsReview(listing.id(), sellerDbId, amount, mailCorrelation, payoutCorrelation, stage);
+                    }
+                    stage = "CREDIT_ROLLBACK " + feePayment.correlationId();
+                    database.recordWantedSettlement(listing.id(), stage);
+                    if (!rollbackWantedFee(listing, fee, paymentCurrency, feePayment, 0)
+                            || !rollbackWantedPayout(listing, sellerDbId, payout, paymentCurrency, "", true, false)
+                            || !restoreWantedSeller(seller, listing, amount, itemState)) {
+                        return wantedNeedsReview(listing.id(), sellerDbId, amount, mailCorrelation, payoutCorrelation, stage);
+                    }
+                    releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
+                    return walletFailure(credit.message());
+                }
+                sellerCredited = true;
             }
-            if (fee > 0 && feeRecipientDbId > 0) {
+
+            int creditedTaxRecipient = 0;
+            if (fee > 0 && feeRecipientDbId > 0 && !feePayment.routedToWorld()) {
+                stage = "MARKET_TAX_ATTEMPTED " + feePayment.correlationId();
+                database.recordWantedSettlement(listing.id(), stage);
                 WalletBridge.WalletCallResult taxDeposit = wallet.deposit(feeRecipientDbId, fee,
-                        "Marketplace wanted market tax #" + listing.id(), paymentCurrency,
-                        "OZ - Marketplace");
+                        "Marketplace wanted market tax #" + listing.id(), paymentCurrency, "OZ - Marketplace");
                 if (!taxDeposit.success()) {
-                    rollbackWantedPayout(listing, seller, payout, crierPayout, payoutCorrelation);
-                    restoreWantedSeller(seller, listing, amount, itemState);
+                    if (uncertainWantedPayment(taxDeposit.message())) {
+                        return wantedNeedsReview(listing.id(), sellerDbId, amount, mailCorrelation, payoutCorrelation, stage);
+                    }
+                    stage = "TAX_ROLLBACK " + feePayment.correlationId();
+                    database.recordWantedSettlement(listing.id(), stage);
+                    if (!rollbackWantedFee(listing, fee, paymentCurrency, feePayment, 0)
+                            || !rollbackWantedPayout(listing, sellerDbId, payout, paymentCurrency, payoutCorrelation,
+                                    requesterDebited, sellerCredited)
+                            || !restoreWantedSeller(seller, listing, amount, itemState)) {
+                        return wantedNeedsReview(listing.id(), sellerDbId, amount, mailCorrelation, payoutCorrelation, stage);
+                    }
                     releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
                     return walletFailure(taxDeposit.message());
                 }
+                creditedTaxRecipient = feeRecipientDbId;
             }
+            stage = "MAIL_ATTEMPTED " + feePayment.correlationId();
+            database.recordWantedSettlement(listing.id(), stage);
             MailBridge.PluginAttachment attachment = new MailBridge.PluginAttachment(listing.itemName(),
                     listing.itemVariant(), amount, itemState.durability(), itemState.status(), itemState.modifier(),
                     itemState.color());
@@ -1105,21 +1162,27 @@ public class MarketplaceService {
                     .replace("PH_SELLER", seller.getName());
             MailBridge.BridgeResult mailResult = mail.sendAttachmentMail(new MailBridge.PluginAttachmentMailRequest(
                     Marketplace.name, listing.sellerDbId(), listing.sellerName(), subject, body,
-                    "wanted-" + listing.id() + '-' + (listing.fulfilledAmount() + amount), List.of(attachment)));
+                    mailCorrelation, List.of(attachment)));
             if (!mailResult.success()) {
-                refundRoutedFee(feePayment, systemAuditText("tc.wallet.market.wanted.fee.refund", listing.id()));
-                if (fee > 0 && feeRecipientDbId > 0) {
-                    logWalletRollbackFailure("wanted tax rollback", listing.id(), wallet.withdraw(feeRecipientDbId, fee,
-                            "Marketplace wanted tax rollback #" + listing.id(), paymentCurrency,
-                            "OZ - Marketplace"));
+                if (mailResult.reconciliationRequired() || "MAIL_UNAVAILABLE".equals(mailResult.code())
+                        || mailResult.code().isBlank()) {
+                    return wantedNeedsReview(listing.id(), sellerDbId, amount, mailCorrelation, payoutCorrelation, stage);
                 }
-                rollbackWantedPayout(listing, seller, payout, crierPayout, payoutCorrelation);
-                restoreWantedSeller(seller, listing, amount, itemState);
+                stage = "MAIL_REJECTED_ROLLBACK " + feePayment.correlationId();
+                database.recordWantedSettlement(listing.id(), stage);
+                if (!rollbackWantedFee(listing, fee, paymentCurrency, feePayment, creditedTaxRecipient)
+                        || !rollbackWantedPayout(listing, sellerDbId, payout, paymentCurrency, payoutCorrelation,
+                                requesterDebited, sellerCredited)
+                        || !restoreWantedSeller(seller, listing, amount, itemState)) {
+                    return wantedNeedsReview(listing.id(), sellerDbId, amount, mailCorrelation, payoutCorrelation, stage);
+                }
                 releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
                 return MarketplaceResult.failKey("tc.market.result.mail.delivery.failed",
                         "OZ Mail could not deliver the wanted items (PH_CODE).",
                         "PH_CODE", mailResult.code());
             }
+            stage = "MAIL_DELIVERED";
+            database.recordWantedSettlement(listing.id(), stage);
             int remainingAmount = listing.amount() - amount;
             long remainingPrice = Math.max(0L, listing.price() - payout);
             boolean completed = database.completePartialSale(new MarketplaceSale(0L, listing.id(), seller.getDbID(),
@@ -1127,45 +1190,58 @@ public class MarketplaceService {
                     listing.currencyIdentifier(), fee, payout, zone.map(MarketZone::id).orElse("global"), now()),
                     amount, remainingAmount, remainingPrice, STATUS_PENDING_PURCHASE, STATUS_SOLD);
             if (!completed) {
-                Marketplace.logger().error("Wanted fulfillment completed externally but database finalization failed: "
-                        + listing.id() + ".");
-                return MarketplaceResult.failKey("tc.market.result.admin.review",
-                        "The transaction needs administrator review.");
+                return wantedNeedsReview(listing.id(), sellerDbId, amount, mailCorrelation, payoutCorrelation, stage);
             }
             return MarketplaceResult.okKey("tc.market.result.wanted.sold",
                     "Sold PH_AMOUNT item(s) to wanted listing #PH_LISTING.",
                     "PH_AMOUNT", String.valueOf(amount),
                     "PH_LISTING", String.valueOf(listing.id()));
-        } catch (RuntimeException ex) {
-            if (inventoryRemoved) restoreWantedSeller(seller, listing, amount, itemState);
-            releaseListing(listing.id(), STATUS_PENDING_PURCHASE);
-            throw ex;
+        } catch (SQLException | RuntimeException ex) {
+            Marketplace.logger().error("Wanted settlement failed for listing " + listing.id() + ": " + ex.getMessage());
+            return wantedNeedsReview(listing.id(), sellerDbId, amount, mailCorrelation, payoutCorrelation, stage);
         }
     }
 
-    private void rollbackWantedMoney(MarketplaceListing listing, Player seller, long payout, long refundableFee) {
-        String paymentCurrency = paymentCurrencyIdentifier(listing.currencyIdentifier());
-        if (payout > 0) {
-            logWalletRollbackFailure("wanted seller payout rollback", listing.id(), wallet.withdraw(seller.getDbID(),
-                    payout, "Marketplace wanted payout rollback #" + listing.id(), paymentCurrency,
-                    "OZ - Marketplace"));
-        }
-        logWalletRollbackFailure("wanted requester refund", listing.id(), wallet.deposit(listing.sellerDbId(),
-                payout + refundableFee, "Marketplace wanted refund #" + listing.id(), paymentCurrency,
-                "OZ - Marketplace"));
+    private static boolean uncertainWantedPayment(String message) {
+        return message == null || message.isBlank() || "Wallet transaction failed.".equals(message)
+                || "Wallet transfer failed.".equals(message) || "Wallet database is not available.".equals(message);
     }
 
-    private void rollbackWantedPayout(MarketplaceListing listing, Player seller, long payout, boolean crierPayout,
-            String payoutCorrelation) {
-        if (crierPayout && !payoutCorrelation.isBlank()) {
-            WalletBridge.WalletTransferCallResult reversal = wallet.reverseAccountTransferIdempotent(payoutCorrelation,
-                    payoutCorrelation + ":refund", "Marketplace wanted payout refund #" + listing.id(),
-                    "OZ - Marketplace");
-            if (!reversal.success()) Marketplace.logger().error("Marketplace wanted payout refund failed: "
-                    + reversal.message());
-            return;
+    private MarketplaceResult wantedNeedsReview(long listingId, int sellerDbId, int amount, String mailCorrelation,
+            String payoutCorrelation, String stage) {
+        Marketplace.logger().error("Wanted fulfillment pending review for listing " + listingId
+                + ", seller DB ID " + sellerDbId + ", amount " + amount + ", Mail correlation " + mailCorrelation
+                + ", Wallet correlation " + payoutCorrelation + ", stage " + stage + ".");
+        return MarketplaceResult.failKey("tc.market.result.admin.review", "The transaction needs administrator review.");
+    }
+
+    boolean rollbackWantedPayout(MarketplaceListing listing, int sellerDbId, long payout, String currency,
+            String payoutCorrelation, boolean requesterDebited, boolean sellerCredited) {
+        if (!payoutCorrelation.isBlank()) {
+            return wallet.reverseAccountTransferIdempotent(payoutCorrelation, payoutCorrelation + ":refund",
+                    "Marketplace wanted payout refund #" + listing.id(), "OZ - Marketplace").success();
         }
-        rollbackWantedMoney(listing, seller, payout, 0L);
+        if (sellerCredited && !wallet.withdraw(sellerDbId, payout, "Marketplace wanted payout rollback #" + listing.id(),
+                currency, "OZ - Marketplace").success()) {
+            return false;
+        }
+        return !requesterDebited || wallet.deposit(listing.sellerDbId(), payout,
+                "Marketplace wanted refund #" + listing.id(), currency, "OZ - Marketplace").success();
+    }
+
+    private boolean rollbackWantedFee(MarketplaceListing listing, long fee, String currency, FeePayment payment,
+            int creditedTaxRecipient) {
+        if (fee <= 0) return true;
+        if (payment.routedToWorld()) {
+            return wallet.reverseAccountTransferIdempotent(payment.correlationId(), payment.correlationId() + ":refund",
+                    systemAuditText("tc.wallet.market.wanted.fee.refund", listing.id()), "OZ - Marketplace").success();
+        }
+        if (creditedTaxRecipient > 0 && !wallet.withdraw(creditedTaxRecipient, fee,
+                "Marketplace wanted tax rollback #" + listing.id(), currency, "OZ - Marketplace").success()) {
+            return false;
+        }
+        return wallet.deposit(listing.sellerDbId(), fee, "Marketplace wanted fee refund #" + listing.id(),
+                currency, "OZ - Marketplace").success();
     }
 
     /** Routes personal market-crier fees directly into its Wallet system account. */
@@ -1230,13 +1306,14 @@ public class MarketplaceService {
         }
     }
 
-    private void restoreWantedSeller(Player seller, MarketplaceListing listing, int amount,
+    private boolean restoreWantedSeller(Player seller, MarketplaceListing listing, int amount,
             MarketplaceItemState itemState) {
         MarketplaceResult restore = InventoryTransfer.addToBuyer(seller, listing.itemName(), listing.itemVariant(),
                 amount, itemState);
         if (!restore.success()) {
             Marketplace.logger().error("Failed to restore wanted-listing inventory for " + listing.id() + ".");
         }
+        return restore.success();
     }
 
     private MarketplaceResult validateListingLocation(boolean globalListing, Optional<MarketZone> zone) throws SQLException {

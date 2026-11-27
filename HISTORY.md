@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+
+- Localize Marketplace payment errors for insufficient Wallet funds.
+
+- Wanted fulfillment reserves the listing and journals the settlement in one SQLite transaction before taking stock or charging. Uncertain outcomes keep their listing pending for review.
+
 ## [0.8.0] - 2026-10-15 | Market crier clothing controls
 
 - Market crier management now offers random clothing from the world-local crier-outfits catalog and a copy of the player's worn clothing. Existing appearance persistence restores both.

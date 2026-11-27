@@ -105,6 +105,25 @@ public class MarketplaceDatabase {
                         expires_at BIGINT NOT NULL DEFAULT 0
                     );
                     """);
+            statement.execute("""
+                    CREATE TABLE IF NOT EXISTS marketplace_wanted_settlement (
+                        listing_id INTEGER PRIMARY KEY REFERENCES marketplace_listings(id) ON DELETE CASCADE,
+                        seller_db_id INTEGER NOT NULL, item_amount INTEGER NOT NULL,
+                        item_durability INTEGER NOT NULL, item_status INTEGER NOT NULL,
+                        item_modifier TEXT NOT NULL, item_color INTEGER NOT NULL,
+                        payout BIGINT NOT NULL, fee BIGINT NOT NULL, currency TEXT NOT NULL,
+                        mail_correlation TEXT NOT NULL, wallet_correlation TEXT NOT NULL,
+                        stage TEXT NOT NULL, updated_at BIGINT NOT NULL
+                    );
+                    """);
+            statement.execute("""
+                    CREATE TRIGGER IF NOT EXISTS market_clear_settled_wanted
+                    AFTER UPDATE OF status ON marketplace_listings
+                    WHEN OLD.status = 'PENDING_PURCHASE' AND NEW.status <> OLD.status
+                    BEGIN
+                        DELETE FROM marketplace_wanted_settlement WHERE listing_id = OLD.id;
+                    END;
+                    """);
             ensureColumn(statement, "marketplace_listings", "item_durability", "INTEGER NOT NULL DEFAULT 0");
             ensureColumn(statement, "marketplace_listings", "item_status", "INTEGER NOT NULL DEFAULT 0");
             ensureColumn(statement, "marketplace_listings", "item_modifier", "TEXT NOT NULL DEFAULT ''");
@@ -490,6 +509,73 @@ public class MarketplaceDatabase {
             }
         }
         return listings;
+    }
+
+    boolean reserveWantedSettlement(long listingId, int sellerDbId, int amount, MarketplaceItemState itemState,
+            long payout, long fee, String currency, String mailCorrelation, String walletCorrelation)
+            throws SQLException {
+        if (!connection.getAutoCommit()) throw new SQLException("Cannot reserve a wanted listing inside another transaction");
+        connection.setAutoCommit(false);
+        try {
+            if (!transitionListingStatus(listingId, "ACTIVE", "PENDING_PURCHASE")) {
+                connection.rollback();
+                return false;
+            }
+            beginWantedSettlement(listingId, sellerDbId, amount, itemState, payout, fee, currency,
+                    mailCorrelation, walletCorrelation);
+            connection.commit();
+            return true;
+        } catch (SQLException | RuntimeException ex) {
+            connection.rollback();
+            throw ex;
+        } finally {
+            connection.setAutoCommit(true);
+        }
+    }
+
+    void beginWantedSettlement(long listingId, int sellerDbId, int amount, MarketplaceItemState itemState,
+            long payout, long fee,
+            String currency, String mailCorrelation, String walletCorrelation) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO marketplace_wanted_settlement(
+                    listing_id, seller_db_id, item_amount, item_durability, item_status, item_modifier, item_color,
+                    payout, fee, currency, mail_correlation, wallet_correlation, stage, updated_at)
+                SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'RESERVED', ?
+                WHERE EXISTS (SELECT 1 FROM marketplace_listings WHERE id=? AND status='PENDING_PURCHASE')
+                ON CONFLICT(listing_id) DO UPDATE SET
+                    seller_db_id=excluded.seller_db_id, item_amount=excluded.item_amount, payout=excluded.payout,
+                    item_durability=excluded.item_durability, item_status=excluded.item_status,
+                    item_modifier=excluded.item_modifier, item_color=excluded.item_color,
+                    fee=excluded.fee, currency=excluded.currency, mail_correlation=excluded.mail_correlation,
+                    wallet_correlation=excluded.wallet_correlation, stage=excluded.stage, updated_at=excluded.updated_at
+                """)) {
+            statement.setLong(1, listingId);
+            statement.setInt(2, sellerDbId);
+            statement.setInt(3, amount);
+            statement.setInt(4, itemState.durability());
+            statement.setShort(5, itemState.status());
+            statement.setString(6, itemState.modifier());
+            statement.setInt(7, itemState.color());
+            statement.setLong(8, payout);
+            statement.setLong(9, fee);
+            statement.setString(10, currency);
+            statement.setString(11, mailCorrelation);
+            statement.setString(12, walletCorrelation);
+            statement.setLong(13, System.currentTimeMillis());
+            statement.setLong(14, listingId);
+            if (statement.executeUpdate() != 1) throw new SQLException("Cannot record an unreserved listing " + listingId);
+        }
+    }
+
+    void recordWantedSettlement(long listingId, String stage) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                UPDATE marketplace_wanted_settlement SET stage=?, updated_at=? WHERE listing_id=?
+                """)) {
+            statement.setString(1, stage);
+            statement.setLong(2, System.currentTimeMillis());
+            statement.setLong(3, listingId);
+            if (statement.executeUpdate() != 1) throw new SQLException("Missing wanted settlement " + listingId);
+        }
     }
 
     public boolean transitionListingStatus(long listingId, String expectedStatus, String newStatus) throws SQLException {
